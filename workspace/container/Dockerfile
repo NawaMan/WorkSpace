@@ -33,14 +33,7 @@ RUN set -euo pipefail \
       zip \
       zsh \
  && sed -i "/${LOCALE}/s/^# //g" /etc/locale.gen \
- && locale-gen "${LOCALE}" \
- # ensure any system setuptools/pip are removed so scanners don't see them
- && apt-get purge -y python3-setuptools python3-pip || true \
- && rm -rf \
-      /usr/lib/python*/dist-packages/setuptools* \
-      /usr/lib/python*/dist-packages/pkg_resources* \
-      /usr/lib/python*/dist-packages/_distutils_hack* \
- && rm -rf /var/lib/apt/lists/*
+ && locale-gen "${LOCALE}"
 
 # Fixed values (name & paths). UID/GID come from HOST_UID/HOST_GID at runtime.
 ENV USER_NAME=coder  \
@@ -49,20 +42,9 @@ ENV USER_NAME=coder  \
     LC_ALL=${LOCALE} \
     WORKSPACE=/home/coder/workspace
 
-# Create a Python venv and upgrade pip/setuptools/wheel (addresses setuptools CVEs)
-# Pin exact versions for reproducibility and avoid caching.
-RUN set -euo pipefail                                               \
- && python3 -m venv /opt/venv                                       \
- && /opt/venv/bin/python -m ensurepip --upgrade                     \
- && /opt/venv/bin/python -m pip install --no-cache-dir --no-compile \
-      pip==25.2 setuptools==80.9.0 wheel==0.44.0                    \
- && rm -rf /root/.cache/pip
-
 # Make the venv default and set pip knobs AFTER the upgrade above
 ENV PATH=/opt/venv/bin:/home/coder/.local/bin:$PATH \
-    EDITOR=nano                                     \
-    PIP_DISABLE_PIP_VERSION_CHECK=1                 \
-    PIP_NO_CACHE_DIR=1
+    EDITOR=nano
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
 COPY --chmod=0755 entry-script /usr/local/bin/entry-script
@@ -81,7 +63,6 @@ alias grep='grep --color=auto'
 alias tree='tree -C'
 # Environment
 export EDITOR=${EDITOR:-nano}
-export PIP_DISABLE_PIP_VERSION_CHECK=1
 # ---- end defaults ----
 EOF
 
