@@ -1,0 +1,28 @@
+# .github/workflows/build-on-push.yml
+name: Build on Push
+
+on:
+  push:
+    branches:
+      - "**"   # run on any branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      DOCKER_BUILDKIT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Docker
+        run: |
+          docker --version
+          docker info
+      - name: Build
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          ./build.sh   \
+          && ./test.sh
