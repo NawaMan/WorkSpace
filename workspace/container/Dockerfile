@@ -55,7 +55,7 @@ RUN set -euo pipefail                                               \
  && python3 -m venv /opt/venv                                       \
  && /opt/venv/bin/python -m ensurepip --upgrade                     \
  && /opt/venv/bin/python -m pip install --no-cache-dir --no-compile \
-      pip==24.2 setuptools==75.1.0 wheel==0.44.0                    \
+      pip==25.2 setuptools==80.9.0 wheel==0.44.0                    \
  && rm -rf /root/.cache/pip
 
 # Make the venv default and set pip knobs AFTER the upgrade above
