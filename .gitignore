@@ -1,0 +1,66 @@
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+
+# --- Git / tooling ---
+.git/
+.gitignore
+*.log
+
+# --- Env & secrets ---
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# --- Editors & IDEs ---
+.vscode/*
+!.vscode/extensions.json        # keep extension recommendations
+!.vscode/settings.json          # (optional) keep shared settings
+.idea/
+*.swp
+
+# --- Docker ---
+docker-compose.override.yml
+**/.dockerignore
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+.venv/
+venv/
+
+# --- Java ---
+target/
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+.build/
+
+# --- C/C++ ---
+*.o
+*.obj
+*.exe
+*.out
+*.dll
+*.so
+*.dylib
+build/
+cmake-build-*/
+
+# --- Node (if you add web bits later) ---
+node_modules/
+dist/
+build/
+
+# --- Misc caches ---
+coverage/
+.nyc_output/

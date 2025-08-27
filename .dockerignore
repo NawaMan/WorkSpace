@@ -1,0 +1,17 @@
+# Ignore Git
+.git
+
+# Ignore local config
+.vscode
+*.env
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore build artifacts
+__pycache__/
+*.pyc
+node_modules/
+dist/
+build/
