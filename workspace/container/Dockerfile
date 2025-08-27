@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
 # Dockerfile for workspace container (the base)
-
 ARG UBUNTU_VERSION=24.04
 FROM ubuntu:${UBUNTU_VERSION}
 
@@ -12,7 +11,7 @@ ARG LOCALE=en_US.UTF-8
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 
 # Update base OS, install packages, generate locale
-# Update base OS, install packages, generate locale
+# NOTE: we intentionally DO NOT install python3-pip (it can pull in an old setuptools)
 RUN set -euo pipefail \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -25,7 +24,6 @@ RUN set -euo pipefail \
       locales \
       nano \
       python3 \
-      python3-pip \
       python3-venv \
       sudo \
       tini \
@@ -36,6 +34,12 @@ RUN set -euo pipefail \
       zsh \
  && sed -i "/${LOCALE}/s/^# //g" /etc/locale.gen \
  && locale-gen "${LOCALE}" \
+ # ensure any system setuptools/pip are removed so scanners don't see them
+ && apt-get purge -y python3-setuptools python3-pip || true \
+ && rm -rf \
+      /usr/lib/python*/dist-packages/setuptools* \
+      /usr/lib/python*/dist-packages/pkg_resources* \
+      /usr/lib/python*/dist-packages/_distutils_hack* \
  && rm -rf /var/lib/apt/lists/*
 
 # Fixed values (name & paths). UID/GID come from HOST_UID/HOST_GID at runtime.
@@ -49,6 +53,7 @@ ENV USER_NAME=coder  \
 # Pin exact versions for reproducibility and avoid caching.
 RUN set -euo pipefail                                               \
  && python3 -m venv /opt/venv                                       \
+ && /opt/venv/bin/python -m ensurepip --upgrade                     \
  && /opt/venv/bin/python -m pip install --no-cache-dir --no-compile \
       pip==24.2 setuptools==75.1.0 wheel==0.44.0                    \
  && rm -rf /root/.cache/pip
