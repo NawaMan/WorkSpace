@@ -21,7 +21,7 @@ RUN_ARGS=()
 CMD=()
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IMAGE_NAME="nawaman/workspace:container-local"
+IMAGE_NAME="nawaman/workspace:notebook-local"
 
 show_help() {
   cat <<'EOF'
@@ -66,6 +66,7 @@ COMMON_ARGS=(
   -e HOST_GID="$HOST_GID"
   -v "$PWD":"$WORKSPACE"     # same bind as docker-compose
   -w "$WORKSPACE"            # same working_dir as docker-compose
+  -p 8888:8888
 )
 
 # --------- Run container ---------
@@ -73,8 +74,7 @@ if [[ ${#CMD[@]} -eq 0 ]]; then
   exec docker run --rm $TTY_ARGS \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
-    "$IMAGE_NAME" \
-    "$SHELL_NAME"
+    "$IMAGE_NAME"
 else
   USER_CMD="${CMD[*]}"
   exec docker run --rm $TTY_ARGS \

@@ -214,13 +214,23 @@ $COMMON_ARGS = @(
   '-w', $WORKSPACE
 )
 
+if ($VARIANT -eq "notebook") {
+    $COMMON_ARGS += @('-p', '8888:8888')
+}
+
 # ---------- Run modes ----------
 if ($DAEMON) {
-  $argv = @('run','-d') + $COMMON_ARGS + $RUN_ARGS + @($IMAGE_NAME, $SHELL_NAME, '-lc', 'while true; do sleep 3600; done')
+  $SHELL_CMD = if ($VARIANT -eq "container") { 
+      @($SHELL_NAME, '-lc', 'while true; do sleep 3600; done') 
+  } else { 
+      @() 
+  }
+
+  $argv = @('run', '-d') + $COMMON_ARGS + $RUN_ARGS + @($IMAGE_NAME) + $SHELL_CMD
   Invoke-Docker $argv
 }
 elseif ($CMDS.Count -eq 0) {
-  $argv = @('run','--rm') + $TTY_ARGS + $COMMON_ARGS + $RUN_ARGS + @($IMAGE_NAME, $SHELL_NAME)
+  $argv = @('run','--rm') + $TTY_ARGS + $COMMON_ARGS + $RUN_ARGS + @($IMAGE_NAME)
   Invoke-Docker $argv
 }
 else {
