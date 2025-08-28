@@ -1,0 +1,9 @@
+services:
+  workspace:
+    image: nawaman/workspace:notebook-latest
+    environment:
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+    volumes:
+      - .:/home/coder/workspace
+    working_dir: /home/coder/workspace
