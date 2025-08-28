@@ -102,6 +102,10 @@ COMMON_ARGS=(
   -w "$WORKSPACE"
 )
 
+if [[ "$VARIANT" == "notebook" ]]; then
+    COMMON_ARGS+=(-p 8888:8888)
+fi
+
 # # Display parsed results (for demonstration)
 # echo "=== Parsed Arguments ==="
 # echo "DAEMON:         $DAEMON"
@@ -113,18 +117,22 @@ COMMON_ARGS=(
 # echo "CMDS:           ${CMDS[*]}"
 
 if $DAEMON; then
+  SHELL_CMD=()
+  if [[ "$VARIANT" == "container" ]]; then
+      SHELL_CMD=("$SHELL_NAME" -lc "while true; do sleep 3600; done")
+  fi
+
   exec docker run -d \
-    "${COMMON_ARGS[@]}" \
-    "${RUN_ARGS[@]}" \
-    "$IMAGE_NAME" \
-    "$SHELL_NAME" -lc "while true; do sleep 3600; done"
+      "${COMMON_ARGS[@]}" \
+      "${RUN_ARGS[@]}" \
+      "$IMAGE_NAME" \
+      "${SHELL_CMD[@]}"
   
 elif [[ ${#CMDS[@]} -eq 0 ]]; then
   exec docker run --rm $TTY_ARGS \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
-    "$IMAGE_NAME" \
-    "$SHELL_NAME"
+    "$IMAGE_NAME"
 
 else
   USER_CMD="${CMDS[*]}"

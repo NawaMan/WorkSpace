@@ -119,3 +119,4 @@ fi
 
 
 build-variant container
+build-variant notebook
