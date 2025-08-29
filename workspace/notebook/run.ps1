@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 ###########################################################
 
 # ---------- Constants ----------
-$IMAGE_NAME = if ($env:IMAGE_NAME) { $env:IMAGE_NAME } else { "nawaman/workspace:container-local" }
+$IMAGE_NAME = if ($env:IMAGE_NAME) { $env:IMAGE_NAME } else { "nawaman/workspace:notebook-local" }
 $CONTAINER_NAME = if ($env:CONTAINER_NAME) { $env:CONTAINER_NAME } else { "workspace-run" }
 $WORKSPACE = "/home/coder/workspace"
 

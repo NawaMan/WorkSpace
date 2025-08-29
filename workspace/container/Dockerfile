@@ -58,10 +58,11 @@ RUN set -eux; \
   fi; \
   if ! id -u coder >/dev/null 2>&1; then \
     uid="$(free_uid)"; \
-    useradd -m -u "$uid" -g coder -s /bin/bash coder; \
+    # Do NOT create the home at build time: avoids skel dotfiles with old GID
+    useradd -M -u "$uid" -g coder -s /bin/bash coder; \
   fi; \
-  mkdir -p /home/coder/workspace; \
-  chown -R coder:coder /home/coder
+  # Create the workspace path (home may not exist yet; parent will be created as root)
+  mkdir -p /home/coder/workspace
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
 COPY --chmod=0755 entry-script /usr/local/bin/entry-script

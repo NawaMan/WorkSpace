@@ -64,6 +64,7 @@ COMMON_ARGS=(
   --name "$CONTAINER_NAME"
   -e HOST_UID="$HOST_UID"
   -e HOST_GID="$HOST_GID"
+  -e CHOWN_RECURSIVE=1
   -v "$PWD":"$WORKSPACE"     # same bind as docker-compose
   -w "$WORKSPACE"            # same working_dir as docker-compose
   -p 8888:8888
