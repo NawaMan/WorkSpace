@@ -98,12 +98,17 @@ COMMON_ARGS=(
   --name "$CONTAINER_NAME"
   -e HOST_UID="$HOST_UID"
   -e HOST_GID="$HOST_GID"
+  -e CHOWN_RECURSIVE=1
   -v "$PWD":"$WORKSPACE"
   -w "$WORKSPACE"
 )
 
 if [[ "$VARIANT" == "notebook" ]]; then
     COMMON_ARGS+=(-p 8888:8888)
+fi
+if [[ "$VARIANT" == "codeserver" ]]; then
+    COMMON_ARGS+=(-p 8888:8888)
+    COMMON_ARGS+=(-p 8080:8080)
 fi
 
 # # Display parsed results (for demonstration)

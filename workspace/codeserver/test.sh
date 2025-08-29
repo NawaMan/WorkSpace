@@ -1,20 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
-VARIANT=${1:-container}
-
 # Define cleanup
 cleanup() {
-  rm -f in-workspace.txt in-host.txt
+  rm -f in-container.txt in-host.txt
 }
 trap cleanup EXIT  # run cleanup on script exit (success or error)
 
 cleanup
 DATE=$(date)
 echo $DATE > in-host.txt
-./run-workspace.sh --variant "$VARIANT" -- echo $DATE '>' in-workspace.txt
+./run.sh -- echo $DATE '>' in-container.txt
 
-if diff -u in-workspace.txt in-host.txt; then
+if diff -u in-container.txt in-host.txt; then
   echo "✅ Files match"
 else
   echo "❌ Files differ"
