@@ -120,3 +120,4 @@ fi
 
 build-variant container
 build-variant notebook
+build-variant codeserver
