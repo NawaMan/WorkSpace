@@ -210,12 +210,17 @@ $COMMON_ARGS = @(
   '--name', $CONTAINER_NAME
   '-e', "HOST_UID=$HOST_UID"
   '-e', "HOST_GID=$HOST_GID"
+  "-e", "CHOWN_RECURSIVE=1"
   '-v', "${PWD_PATH}:$WORKSPACE"
   '-w', $WORKSPACE
 )
 
 if ($VARIANT -eq "notebook") {
     $COMMON_ARGS += @('-p', '8888:8888')
+}
+if ($VARIANT -eq "codeserver") {
+    $COMMON_ARGS += @('-p', '8888:8888')
+    $COMMON_ARGS += @('-p', '8080:8080')
 }
 
 # ---------- Run modes ----------
