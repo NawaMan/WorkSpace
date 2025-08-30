@@ -154,6 +154,12 @@ for ($i = 0; $i -lt $left.Count; $i++) {
   }
 }
 
+# ---------- Variant validation (ported from Bash) ----------
+if (@('container','notebook','codeserver') -notcontains $VARIANT) {
+  Write-Error "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"
+  exit 1
+}
+
 # Recompute derived values after option parsing (mirrors Bash)
 $IMAGE_TAG  = "$VARIANT-$VERSION_TAG"
 $IMAGE_NAME = "${IMAGE_REPO}:$IMAGE_TAG"
