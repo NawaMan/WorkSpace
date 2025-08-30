@@ -29,7 +29,7 @@ try {
   $DATE | Out-File -FilePath $HostFile -Encoding UTF8
 
   # write inside container (forward Variant same as sh)
-  ./run-workspace.ps1 --variant $Variant -- echo $DATE '>' in-workspace.txt
+  ./workspace.ps1 --variant $Variant -- echo $DATE '>' in-workspace.txt
 
   # diff logic unchanged …
   $diffCmd = Get-Command diff -ErrorAction SilentlyContinue
