@@ -86,17 +86,17 @@ while [[ $# -gt 0 ]]; do
     CMDS+=("$1"); shift
   else
     case $1 in
-      -d|--daemon)          DAEMON=true  ; shift ;;
-      --pull)               DO_PULL=true ; shift ;;
-      --dryrun)             DRYRUN=true  ; shift ;;
-      --variant)            [[ -n "${2:-}" ]] && { CLI_VARIANT="$2"            ; shift 2; } || { echo "Error: --variant requires a value"; exit 1; } ;;
-      --version)            [[ -n "${2:-}" ]] && { CLI_VERSION="$2"            ; shift 2; } || { echo "Error: --version requires a value"; exit 1; } ;;
-      --name)               [[ -n "${2:-}" ]] && { CLI_CONTAINER="$2"          ; shift 2; } || { echo "Error: --name requires a value";    exit 1; } ;;
-      --config)             [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path"; exit 1; } ;;
-      --env-file)           [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path"; exit 1; } ;;
-      -h|--help)            show_help ; exit 0 ;;
-      --)                   parsing_cmds=true ; shift ;;
-      *)                    RUN_ARGS+=("$1") ; shift ;;
+      -d|--daemon)  DAEMON=true  ; shift ;;
+      --pull)       DO_PULL=true ; shift ;;
+      --dryrun)     DRYRUN=true  ; shift ;;
+      --variant)    [[ -n "${2:-}" ]] && { CLI_VARIANT="$2"            ; shift 2; } || { echo "Error: --variant requires a value"; exit 1; } ;;
+      --version)    [[ -n "${2:-}" ]] && { CLI_VERSION="$2"            ; shift 2; } || { echo "Error: --version requires a value"; exit 1; } ;;
+      --name)       [[ -n "${2:-}" ]] && { CLI_CONTAINER="$2"          ; shift 2; } || { echo "Error: --name requires a value";    exit 1; } ;;
+      --config)     [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path"; exit 1; } ;;
+      --env-file)   [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path"; exit 1; } ;;
+      -h|--help)    show_help ; exit 0 ;;
+      --)           parsing_cmds=true ; shift ;;
+      *)            RUN_ARGS+=("$1") ; shift ;;
     esac
   fi
 done
