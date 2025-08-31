@@ -31,6 +31,10 @@ $IMAGE_TAG      = if ($env:IMAGE_TAG)      { $env:IMAGE_TAG }      else { "$VARI
 $IMAGE_NAME     = "${IMAGE_REPO}:$IMAGE_TAG"
 $CONTAINER_NAME = if ($env:CONTAINER_NAME) { $env:CONTAINER_NAME } else { '' }
 
+# NEW: container env-file (default .env or env var)
+$CONTAINER_ENV_FILE = if ($env:CONTAINER_ENV_FILE) { $env:CONTAINER_ENV_FILE } else { '.env' }
+$EXPLICIT_ENV_FILE  = $false   # set to $true when provided via CLI
+
 # Respect HOST_UID/HOST_GID overrides else detect (Linux)
 function Get-IdOrDefault([string]$switch, [string]$fallback) {
   try {
@@ -65,6 +69,7 @@ Options:
       --variant <name>    Variant prefix        (default: $VARIANT_DEFAULT)
       --version <tag>     Version suffix        (default: $VERSION_DEFAULT)
       --name    <name>    Container name        (default: <project-folder>)
+      --env-file <path>   Pass file to 'docker run --env-file' (default: ./.env or \$CONTAINER_ENV_FILE)
       --dryrun            Print the docker run command and exit (no side effects)
   -h, --help              Show this help message
 
@@ -111,10 +116,12 @@ for ($i = 0; $i -lt $left.Count; $i++) {
   $kv = Split-KeyEqualsValue $tok
   if ($kv) {
     switch ($kv.Key) {
-      '--variant' { $VARIANT = $kv.Value; continue }
-      '--version' { $VERSION_TAG = $kv.Value; continue }
-      '--name'    { $CONTAINER_NAME = $kv.Value; continue }
-      default     { $RUN_ARGS += $tok; continue }
+      '--variant'   { $VARIANT = $kv.Value; continue }
+      '--version'   { $VERSION_TAG = $kv.Value; continue }
+      '--name'      { $CONTAINER_NAME = $kv.Value; continue }
+      # NEW: support --env-file=path
+      '--env-file'  { $CONTAINER_ENV_FILE = $kv.Value; $EXPLICIT_ENV_FILE = $true; continue }
+      default       { $RUN_ARGS += $tok; continue }
     }
   }
 
@@ -135,6 +142,11 @@ for ($i = 0; $i -lt $left.Count; $i++) {
     '--name' {
       if ($i + 1 -ge $left.Count) { throw "--name requires a value" }
       $i++; $CONTAINER_NAME = [string]$left[$i]; continue
+    }
+    # NEW: support --env-file path
+    '--env-file' {
+      if ($i + 1 -ge $left.Count) { throw "--env-file requires a path" }
+      $i++; $CONTAINER_ENV_FILE = [string]$left[$i]; $EXPLICIT_ENV_FILE = $true; continue
     }
 
     '-h'     { Show-Help; exit 0 }
@@ -197,6 +209,17 @@ if ($VARIANT -eq "notebook") {
 if ($VARIANT -eq "codeserver") {
     $COMMON_ARGS += @('-p', "$NOTEBOOK_PORT:8888")
     $COMMON_ARGS += @('-p', "$CODESERVER_PORT:8080")
+}
+
+# NEW: Add --env-file per Bash behavior
+if ($CONTAINER_ENV_FILE -and $CONTAINER_ENV_FILE -ne '') {
+  if (Test-Path -LiteralPath $CONTAINER_ENV_FILE) {
+    $COMMON_ARGS += @('--env-file', $CONTAINER_ENV_FILE)
+  }
+  elseif ($EXPLICIT_ENV_FILE) {
+    # User explicitly asked; pass it through even if missing (docker will error if invalid)
+    $COMMON_ARGS += @('--env-file', $CONTAINER_ENV_FILE)
+  }
 }
 
 # ---------- Helper for dryrun ----------
