@@ -17,9 +17,12 @@ DO_PULL=false
 DRYRUN=false
 
 # Separate config files
-# Launcher config (sourced): default ./workspace.cfg (override with --config or $WORKSPACE_CONFIG_FILE)
-WORKSPACE_CONFIG_FILE="${WORKSPACE_CONFIG_FILE:-./workspace.cfg}"   # launcher config (sourced)
-CONTAINER_ENV_FILE="${CONTAINER_ENV_FILE:-.env}"                   # passed to docker --env-file (NOT sourced)
+# Launcher config (sourced): default ./workspace.env (override with --config or $WORKSPACE_CONFIG_FILE)
+WORKSPACE_CONFIG_FILE="${WORKSPACE_CONFIG_FILE:-./workspace.env}"   # launcher config (sourced)
+CONTAINER_ENV_FILE="${CONTAINER_ENV_FILE:-.env}"                    # passed to docker --env-file (NOT sourced)
+
+# NEW: Docker run-args file (NOT sourced); lines are parsed into RUN_ARGS
+DOCKER_ARGS_FILE="${DOCKER_ARGS_FILE:-./workspace-docker.args}"
 
 WORKSPACE="/home/coder/workspace"
 RUN_ARGS=()
@@ -31,6 +34,11 @@ CLI_VERSION=""
 CLI_CONTAINER=""
 CLI_CONFIG_FILE=""
 CLI_CONTAINER_ENV_FILE=""
+# NEW: CLI override for docker args file
+CLI_DOCKER_ARGS_FILE=""
+
+# NEW: holder for args loaded from docker args file
+RUN_ARGS_FROM_FILE=()
 
 show_help() {
   cat <<EOF
@@ -48,8 +56,9 @@ Options:
       --variant <name>      Variant prefix        (default: container)
       --version <tag>       Version suffix        (default: latest)
       --name <name>         Container name        (default: <project-folder>)
-      --config F            Launcher config file to source (default: ./workspace.cfg or \$WORKSPACE_CONFIG_FILE)
+      --config F            Launcher config file to source (default: ./workspace.env or \$WORKSPACE_CONFIG_FILE)
       --env-file F          Container env file passed to 'docker run --env-file' (default: ./.env or \$CONTAINER_ENV_FILE)
+      --docker-args F       File of extra 'docker run' args (default: ./workspace-docker.args or \$DOCKER_ARGS_FILE)
       --dryrun              Print the docker run command and exit (no side effects)
   -h, --help                Show this help message
 
@@ -57,11 +66,17 @@ Notes:
   • Bind: . -> /home/coder/workspace; Working dir: /home/coder/workspace
 
 Configuration:
-  • Launcher config (sourced): workspace.cfg (override with --config or \$WORKSPACE_CONFIG_FILE)
+  • Launcher config (sourced): workspace.env (override with --config or \$WORKSPACE_CONFIG_FILE)
       Keys: IMGNAME, IMGREPO, IMG_TAG, VARIANT, VERSION, CONTAINER,
             HOST_UID, HOST_GID, NOTEBOOK_PORT, CODESERVER_PORT
   • Container env (NOT sourced): .env (or --env-file)
       Typical keys: PASSWORD, JUPYTER_TOKEN, TZ, PROXY, AWS_*, GH_TOKEN, etc.
+  • Docker run-args file (NOT sourced): workspace-docker.args (or --docker-args)
+      One directive per line (supports quotes); examples:
+        -p 127.0.0.1:9000:9000
+        -v "\$HOME/.cache/pip:/home/coder/.cache/pip"
+        --shm-size 2g
+        --add-host "minio.local:127.0.0.1"
 
   • Image selection:
       - Set IMGNAME to full image (e.g., nawaman/workspace:container-latest), or
@@ -79,6 +94,21 @@ if [[ -n "$WORKSPACE_CONFIG_FILE" && -f "$WORKSPACE_CONFIG_FILE" ]]; then
   source <(sed $'s/\r$//' "$WORKSPACE_CONFIG_FILE")
 fi
 
+# --------- Helper: load docker args file into array (supports quotes, ignores comments) ---------
+load_docker_args_file() {
+  local f="$1"
+  [[ -z "$f" || ! -f "$f" ]] && return 0
+  # Read CRLF-tolerant, skip blanks and comments; each non-empty line is evaluated as words
+  # shellcheck disable=SC2016
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    # Use eval to expand a single line into array items (respects quotes)
+    # shellcheck disable=SC2086
+    eval 'RUN_ARGS_FROM_FILE+=('"$line"')'
+  done < <(sed $'s/\r$//' "$f")
+}
+
 # --------- Parse arguments ---------
 parsing_cmds=false
 while [[ $# -gt 0 ]]; do
@@ -94,6 +124,8 @@ while [[ $# -gt 0 ]]; do
       --name)       [[ -n "${2:-}" ]] && { CLI_CONTAINER="$2"          ; shift 2; } || { echo "Error: --name requires a value";    exit 1; } ;;
       --config)     [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path";   exit 1; } ;;
       --env-file)   [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path"; exit 1; } ;;
+      # NEW: docker args file
+      --docker-args) [[ -n "${2:-}" ]] && { CLI_DOCKER_ARGS_FILE="$2"  ; shift 2; } || { echo "Error: --docker-args requires a path"; exit 1; } ;;
       -h|--help)    show_help ; exit 0 ;;
       --)           parsing_cmds=true ; shift ;;
       *)            RUN_ARGS+=("$1") ; shift ;;
@@ -117,6 +149,8 @@ fi
 [[ -n "$CLI_VERSION"   ]] && VERSION="$CLI_VERSION"
 [[ -n "$CLI_CONTAINER" ]] && CONTAINER="$CLI_CONTAINER"
 [[ -n "$CLI_CONTAINER_ENV_FILE" ]] && CONTAINER_ENV_FILE="$CLI_CONTAINER_ENV_FILE"
+# NEW: apply CLI override for docker args file
+[[ -n "$CLI_DOCKER_ARGS_FILE" ]] && DOCKER_ARGS_FILE="$CLI_DOCKER_ARGS_FILE"
 
 # --------- Validate & derive ---------
 case "$VARIANT" in
@@ -165,6 +199,12 @@ if [[ -n "$CONTAINER_ENV_FILE" ]]; then
   else
     $EXPLICIT_ENV_FILE && COMMON_ARGS+=(--env-file "$CONTAINER_ENV_FILE")
   fi
+fi
+
+# NEW: Load docker args from file and prepend (so CLI RUN_ARGS win on conflicts)
+load_docker_args_file "$DOCKER_ARGS_FILE"
+if [[ ${#RUN_ARGS_FROM_FILE[@]} -gt 0 ]]; then
+  RUN_ARGS=( "${RUN_ARGS_FROM_FILE[@]}" "${RUN_ARGS[@]}" )
 fi
 
 # Helper: print a docker command nicely quoted
