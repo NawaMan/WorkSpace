@@ -31,14 +31,21 @@ $IMAGE_TAG      = if ($env:IMAGE_TAG)      { $env:IMAGE_TAG }      else { "$VARI
 $IMAGE_NAME     = "${IMAGE_REPO}:$IMAGE_TAG"
 $CONTAINER_NAME = if ($env:CONTAINER_NAME) { $env:CONTAINER_NAME } else { '' }
 
-# NEW: IMG* envs (align with Bash semantics)
+# IMG* envs (align with Bash semantics)
 $IMGREPO = if ($env:IMGREPO) { $env:IMGREPO } else { $IMAGE_REPO }
 $IMG_TAG = if ($env:IMG_TAG) { $env:IMG_TAG } else { "$VARIANT-$VERSION_TAG" }
 $IMGNAME = if ($env:IMGNAME) { $env:IMGNAME } else { '' }
 
-# NEW (FIX): container env-file support (initialize vars)
+# Container env-file support
 $CONTAINER_ENV_FILE = if ($env:CONTAINER_ENV_FILE) { $env:CONTAINER_ENV_FILE } else { '.env' }
 $EXPLICIT_ENV_FILE  = $false   # set to $true when provided via CLI
+
+# NEW: initialize ports to avoid strict-mode errors; config/CLI may set these later
+$NOTEBOOK_PORT  = $null
+$CODESERVER_PORT = $null
+
+# NEW: workspace config file (launcher config) — default ./workspace.cfg or env
+$WORKSPACE_CONFIG_FILE = if ($env:WORKSPACE_CONFIG_FILE) { $env:WORKSPACE_CONFIG_FILE } else { './workspace.cfg' }
 
 # Respect HOST_UID/HOST_GID overrides else detect (Linux)
 function Get-IdOrDefault([string]$switch, [string]$fallback) {
@@ -58,6 +65,51 @@ $DRYRUN   = $false
 $RUN_ARGS = @()
 $CMDS     = @()
 
+# Track CLI overrides so we can reapply after sourcing a file (preserve precedence)
+$CLI_VARIANT = ''
+$CLI_VERSION = ''
+$CLI_CONTAINER = ''
+$CLI_CONFIG_FILE = ''
+$CLI_ENV_FILE = ''
+$CLI_ENV_FILE_EXPLICIT = $false
+
+# ---------- Config loader (CRLF tolerant; # comments; KEY=VALUE) ----------
+function Import-WorkspaceConfig([string]$path) {
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  # Read file as raw string, strip CR, split into lines
+  $lines = (Get-Content -LiteralPath $path -Raw) -replace "`r", '' -split "`n"
+  foreach ($line in $lines) {
+    $trim = $line.Trim()
+    if ($trim -eq '' -or $trim.StartsWith('#')) { continue }
+    if ($trim -notmatch '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$') { continue }
+    $key = $matches[1]
+    $val = $matches[2].Trim()
+    # strip surrounding single/double quotes if present
+    if (($val.StartsWith('"') -and $val.EndsWith('"')) -or ($val.StartsWith("'") -and $val.EndsWith("'"))) {
+      $val = $val.Substring(1, $val.Length - 2)
+    }
+    switch ($key) {
+      'IMGNAME'              { $script:IMGNAME = $val; continue }
+      'IMGREPO'              { $script:IMGREPO = $val; continue }
+      'IMG_TAG'              { $script:IMG_TAG = $val; continue }
+      'VARIANT'              { $script:VARIANT = $val; continue }
+      'VERSION'              { $script:VERSION_TAG = $val; continue }
+      'CONTAINER'            { $script:CONTAINER_NAME = $val; continue }
+      'HOST_UID'             { $script:HOST_UID = $val; continue }
+      'HOST_GID'             { $script:HOST_GID = $val; continue }
+      'NOTEBOOK_PORT'        { $script:NOTEBOOK_PORT = $val; continue }
+      'CODESERVER_PORT'      { $script:CODESERVER_PORT = $val; continue }
+      'CONTAINER_ENV_FILE'   { $script:CONTAINER_ENV_FILE = $val; continue }
+      default { } # ignore unknown keys
+    }
+  }
+}
+
+# --------- Load default workspace config BEFORE parsing so CLI can override later ---------
+if ($WORKSPACE_CONFIG_FILE -and (Test-Path -LiteralPath $WORKSPACE_CONFIG_FILE)) {
+  Import-WorkspaceConfig -path $WORKSPACE_CONFIG_FILE
+}
+
 # ---------- Help ----------
 function Show-Help {
 @"
@@ -74,12 +126,20 @@ Options:
       --variant <name>    Variant prefix        (default: $VARIANT_DEFAULT)
       --version <tag>     Version suffix        (default: $VERSION_DEFAULT)
       --name    <name>    Container name        (default: <project-folder>)
+      --config <path>     Launcher config to source (default: ./workspace.cfg or \$WORKSPACE_CONFIG_FILE)
       --env-file <path>   Pass file to 'docker run --env-file' (default: ./.env or \$CONTAINER_ENV_FILE)
       --dryrun            Print the docker run command and exit (no side effects)
   -h, --help              Show this help message
 
 Notes:
   • Bind: . -> $WORKSPACE; Working dir: $WORKSPACE
+
+Configuration keys (workspace.cfg):
+  IMGNAME, IMGREPO, IMG_TAG, VARIANT, VERSION, CONTAINER,
+  HOST_UID, HOST_GID, NOTEBOOK_PORT, CODESERVER_PORT, CONTAINER_ENV_FILE
+
+Precedence (most → least):
+  CLI > workspace.cfg > environment > built-in defaults
 "@ | Write-Host
 }
 
@@ -109,6 +169,7 @@ if ($sepIndex -ge 0) {
 }
 $foundCmdsStart = ($sepIndex -ge 0)
 
+# Track CLI overrides for precedence
 for ($i = 0; $i -lt $left.Count; $i++) {
   $tok = [string]$left[$i]
   if ([string]::IsNullOrWhiteSpace($tok)) { continue }
@@ -121,11 +182,12 @@ for ($i = 0; $i -lt $left.Count; $i++) {
   $kv = Split-KeyEqualsValue $tok
   if ($kv) {
     switch ($kv.Key) {
-      '--variant'   { $VARIANT = $kv.Value; continue }
-      '--version'   { $VERSION_TAG = $kv.Value; continue }
-      '--name'      { $CONTAINER_NAME = $kv.Value; continue }
-      '--env-file'  { $CONTAINER_ENV_FILE = $kv.Value; $EXPLICIT_ENV_FILE = $true; continue }
-      default       { $RUN_ARGS += $tok; continue }
+      '--variant'      { $VARIANT = $kv.Value; $CLI_VARIANT = $kv.Value; continue }
+      '--version'      { $VERSION_TAG = $kv.Value; $CLI_VERSION = $kv.Value; continue }
+      '--name'         { $CONTAINER_NAME = $kv.Value; $CLI_CONTAINER = $kv.Value; continue }
+      '--config'       { $WORKSPACE_CONFIG_FILE = $kv.Value; $CLI_CONFIG_FILE = $kv.Value; continue }
+      '--env-file'     { $CONTAINER_ENV_FILE = $kv.Value; $CLI_ENV_FILE = $kv.Value; $CLI_ENV_FILE_EXPLICIT = $true; $EXPLICIT_ENV_FILE = $true; continue }
+      default          { $RUN_ARGS += $tok; continue }
     }
   }
 
@@ -137,19 +199,23 @@ for ($i = 0; $i -lt $left.Count; $i++) {
 
     '--variant' {
       if ($i + 1 -ge $left.Count) { throw "--variant requires a value" }
-      $i++; $VARIANT = [string]$left[$i]; continue
+      $i++; $VARIANT = [string]$left[$i]; $CLI_VARIANT = $VARIANT; continue
     }
     '--version' {
       if ($i + 1 -ge $left.Count) { throw "--version requires a value" }
-      $i++; $VERSION_TAG = [string]$left[$i]; continue
+      $i++; $VERSION_TAG = [string]$left[$i]; $CLI_VERSION = $VERSION_TAG; continue
     }
     '--name' {
       if ($i + 1 -ge $left.Count) { throw "--name requires a value" }
-      $i++; $CONTAINER_NAME = [string]$left[$i]; continue
+      $i++; $CONTAINER_NAME = [string]$left[$i]; $CLI_CONTAINER = $CONTAINER_NAME; continue
+    }
+    '--config' {
+      if ($i + 1 -ge $left.Count) { throw "--config requires a path" }
+      $i++; $WORKSPACE_CONFIG_FILE = [string]$left[$i]; $CLI_CONFIG_FILE = $WORKSPACE_CONFIG_FILE; continue
     }
     '--env-file' {
       if ($i + 1 -ge $left.Count) { throw "--env-file requires a path" }
-      $i++; $CONTAINER_ENV_FILE = [string]$left[$i]; $EXPLICIT_ENV_FILE = $true; continue
+      $i++; $CONTAINER_ENV_FILE = [string]$left[$i]; $CLI_ENV_FILE = $CONTAINER_ENV_FILE; $CLI_ENV_FILE_EXPLICIT = $true; $EXPLICIT_ENV_FILE = $true; continue
     }
 
     '-h'     { Show-Help; exit 0 }
@@ -165,6 +231,19 @@ for ($i = 0; $i -lt $left.Count; $i++) {
       }
     }
   }
+}
+
+# ---------- If --config specified, source that file and then reapply CLI overrides ----------
+if ($CLI_CONFIG_FILE -and (Test-Path -LiteralPath $CLI_CONFIG_FILE)) {
+  Import-WorkspaceConfig -path $CLI_CONFIG_FILE
+  # Re-apply CLI overrides to preserve precedence
+  if ($CLI_VARIANT)   { $VARIANT = $CLI_VARIANT }
+  if ($CLI_VERSION)   { $VERSION_TAG = $CLI_VERSION }
+  if ($CLI_CONTAINER) { $CONTAINER_NAME = $CLI_CONTAINER }
+  if ($CLI_ENV_FILE_EXPLICIT) { $CONTAINER_ENV_FILE = $CLI_ENV_FILE; $EXPLICIT_ENV_FILE = $true }
+}
+elseif ($CLI_CONFIG_FILE -and -not (Test-Path -LiteralPath $CLI_CONFIG_FILE)) {
+  Write-Warning "Warning: --config '$CLI_CONFIG_FILE' not found; continuing without it."
 }
 
 # ---------- Variant validation ----------
@@ -205,9 +284,11 @@ if (-not $CONTAINER_NAME -or $CONTAINER_NAME -eq '') {
   $CONTAINER_NAME = Get-DefaultContainerName
 }
 
-$NOTEBOOK_PORT   = if ($env:NOTEBOOK_PORT)   { $env:NOTEBOOK_PORT }   else { '8888' }
-$CODESERVER_PORT = if ($env:CODESERVER_PORT) { $env:CODESERVER_PORT } else { '8080' }
+# ---------- Ports (config > env > default) ----------
+if (-not $NOTEBOOK_PORT)   { $NOTEBOOK_PORT   = if ($env:NOTEBOOK_PORT)   { $env:NOTEBOOK_PORT }   else { '8888' } }
+if (-not $CODESERVER_PORT) { $CODESERVER_PORT = if ($env:CODESERVER_PORT) { $env:CODESERVER_PORT } else { '8080' } }
 
+# ---------- TTY & common docker args ----------
 $TTY_ARGS = @('-i')
 if (-not [Console]::IsOutputRedirected) { $TTY_ARGS = @('-it') }
 
