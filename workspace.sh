@@ -92,7 +92,7 @@ while [[ $# -gt 0 ]]; do
       --variant)    [[ -n "${2:-}" ]] && { CLI_VARIANT="$2"            ; shift 2; } || { echo "Error: --variant requires a value"; exit 1; } ;;
       --version)    [[ -n "${2:-}" ]] && { CLI_VERSION="$2"            ; shift 2; } || { echo "Error: --version requires a value"; exit 1; } ;;
       --name)       [[ -n "${2:-}" ]] && { CLI_CONTAINER="$2"          ; shift 2; } || { echo "Error: --name requires a value";    exit 1; } ;;
-      --config)     [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path"; exit 1; } ;;
+      --config)     [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path";   exit 1; } ;;
       --env-file)   [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path"; exit 1; } ;;
       -h|--help)    show_help ; exit 0 ;;
       --)           parsing_cmds=true ; shift ;;
@@ -146,12 +146,16 @@ COMMON_ARGS=(
   -v "$PWD":"$WORKSPACE"
   -w "$WORKSPACE"
 )
+
 # Optional host port overrides to avoid collisions across projects
-if [[ "$VARIANT" == "notebook"   ]]; then COMMON_ARGS+=(-p "${NOTEBOOK_PORT:-8888}:8888"); fi
+if [[ "$VARIANT" == "notebook"   ]]; then 
+  COMMON_ARGS+=(-p "${NOTEBOOK_PORT:-8888}:8888");
+fi
 if [[ "$VARIANT" == "codeserver" ]]; then
   COMMON_ARGS+=(-p "${NOTEBOOK_PORT:-8888}:8888")
   COMMON_ARGS+=(-p "${CODESERVER_PORT:-8080}:8080")
 fi
+
 # Container env file: pass if explicitly set OR default exists
 EXPLICIT_ENV_FILE=false
 [[ -n "$CLI_CONTAINER_ENV_FILE" ]] && EXPLICIT_ENV_FILE=true
