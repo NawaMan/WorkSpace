@@ -26,12 +26,17 @@ $IMAGE_REPO   = if ($env:IMAGE_REPO)   { $env:IMAGE_REPO }   else { $IMAGE_REPO_
 $VARIANT      = if ($env:VARIANT)      { $env:VARIANT }      else { $VARIANT_DEFAULT }
 $VERSION_TAG  = if ($env:VERSION_TAG)  { $env:VERSION_TAG }  else { $VERSION_DEFAULT }
 
-# Derived (will recompute after parsing too)
+# Derived (initial; will recompute after parsing too)
 $IMAGE_TAG      = if ($env:IMAGE_TAG)      { $env:IMAGE_TAG }      else { "$VARIANT-$VERSION_TAG" }
 $IMAGE_NAME     = "${IMAGE_REPO}:$IMAGE_TAG"
 $CONTAINER_NAME = if ($env:CONTAINER_NAME) { $env:CONTAINER_NAME } else { '' }
 
-# NEW: container env-file (default .env or env var)
+# NEW: IMG* envs (align with Bash semantics)
+$IMGREPO = if ($env:IMGREPO) { $env:IMGREPO } else { $IMAGE_REPO }
+$IMG_TAG = if ($env:IMG_TAG) { $env:IMG_TAG } else { "$VARIANT-$VERSION_TAG" }
+$IMGNAME = if ($env:IMGNAME) { $env:IMGNAME } else { '' }
+
+# NEW (FIX): container env-file support (initialize vars)
 $CONTAINER_ENV_FILE = if ($env:CONTAINER_ENV_FILE) { $env:CONTAINER_ENV_FILE } else { '.env' }
 $EXPLICIT_ENV_FILE  = $false   # set to $true when provided via CLI
 
@@ -119,7 +124,6 @@ for ($i = 0; $i -lt $left.Count; $i++) {
       '--variant'   { $VARIANT = $kv.Value; continue }
       '--version'   { $VERSION_TAG = $kv.Value; continue }
       '--name'      { $CONTAINER_NAME = $kv.Value; continue }
-      # NEW: support --env-file=path
       '--env-file'  { $CONTAINER_ENV_FILE = $kv.Value; $EXPLICIT_ENV_FILE = $true; continue }
       default       { $RUN_ARGS += $tok; continue }
     }
@@ -143,7 +147,6 @@ for ($i = 0; $i -lt $left.Count; $i++) {
       if ($i + 1 -ge $left.Count) { throw "--name requires a value" }
       $i++; $CONTAINER_NAME = [string]$left[$i]; continue
     }
-    # NEW: support --env-file path
     '--env-file' {
       if ($i + 1 -ge $left.Count) { throw "--env-file requires a path" }
       $i++; $CONTAINER_ENV_FILE = [string]$left[$i]; $EXPLICIT_ENV_FILE = $true; continue
@@ -182,8 +185,22 @@ function Get-DefaultContainerName {
   return $s
 }
 
-$IMAGE_TAG  = "$VARIANT-$VERSION_TAG"
-$IMAGE_NAME = "${IMAGE_REPO}:$IMAGE_TAG"
+# ---------- Recompute derived values after parsing (align with Bash IMG* precedence) ----------
+$IMG_TAG = if ($env:IMG_TAG) { $env:IMG_TAG } else { "$VARIANT-$VERSION_TAG" }
+$IMGREPO = if ($env:IMGREPO) { $env:IMGREPO } else { $IMAGE_REPO }
+if ($env:IMGNAME) { $IMGNAME = $env:IMGNAME } elseif (-not $IMGNAME) { $IMGNAME = '' }
+
+if ($IMGNAME -and $IMGNAME.Trim().Length -gt 0) {
+  if ($IMGNAME -match '\s') {
+    Write-Error "Error: invalid image reference IMGNAME='$IMGNAME' (contains whitespace)."
+    exit 1
+  }
+  $IMAGE_NAME = $IMGNAME
+} else {
+  $IMAGE_TAG  = $IMG_TAG
+  $IMAGE_NAME = "${IMGREPO}:$IMG_TAG"
+}
+
 if (-not $CONTAINER_NAME -or $CONTAINER_NAME -eq '') {
   $CONTAINER_NAME = Get-DefaultContainerName
 }
@@ -211,13 +228,12 @@ if ($VARIANT -eq "codeserver") {
     $COMMON_ARGS += @('-p', "$CODESERVER_PORT:8080")
 }
 
-# NEW: Add --env-file per Bash behavior
+# Honor --env-file (exists or explicitly provided)
 if ($CONTAINER_ENV_FILE -and $CONTAINER_ENV_FILE -ne '') {
   if (Test-Path -LiteralPath $CONTAINER_ENV_FILE) {
     $COMMON_ARGS += @('--env-file', $CONTAINER_ENV_FILE)
   }
   elseif ($EXPLICIT_ENV_FILE) {
-    # User explicitly asked; pass it through even if missing (docker will error if invalid)
     $COMMON_ARGS += @('--env-file', $CONTAINER_ENV_FILE)
   }
 }
