@@ -160,11 +160,26 @@ if (@('container','notebook','codeserver') -notcontains $VARIANT) {
   exit 1
 }
 
+# ---------- Default container name = sanitized project folder (match Bash) ----------
+function Get-DefaultContainerName {
+  $proj = Split-Path -Leaf (Get-Location).Path
+  if ([string]::IsNullOrWhiteSpace($proj)) { $proj = 'workspace' }
+  $s = $proj.ToLowerInvariant()
+  $s = ($s -replace '\s+', '-')           # spaces -> -
+  $s = ($s -replace '[^a-z0-9_.-]+', '-') # non-allowed -> -
+  $s = $s.Trim('-')                        # trim leading/trailing -
+  if ([string]::IsNullOrWhiteSpace($s)) { $s = 'workspace' }
+  return $s
+}
+
 # Recompute derived values after option parsing (mirrors Bash)
 $IMAGE_TAG  = "$VARIANT-$VERSION_TAG"
 $IMAGE_NAME = "${IMAGE_REPO}:$IMAGE_TAG"
-if (-not $CONTAINER_NAME -or $CONTAINER_NAME -eq '') { $CONTAINER_NAME = "$VARIANT-run" }
 
+# If user didn't set a name via env/CLI, use project folder
+if (-not $CONTAINER_NAME -or $CONTAINER_NAME -eq '') {
+  $CONTAINER_NAME = Get-DefaultContainerName
+}
 
 # # --- Optional: debug prints (uncomment to verify) ---
 # Write-Host "DAEMON         = $DAEMON"
@@ -175,7 +190,6 @@ if (-not $CONTAINER_NAME -or $CONTAINER_NAME -eq '') { $CONTAINER_NAME = "$VARIA
 # Write-Host "RUN_ARGS       = $($RUN_ARGS -join ' | ')"
 # Write-Host "CMDS           = $($CMDS -join ' | ')"
 # Write-Host "IMAGE_NAME     = $IMAGE_NAME"
-
 
 # ---------- Docker helpers ----------
 function Test-DockerImageExists([string]$name) {
