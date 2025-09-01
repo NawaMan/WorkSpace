@@ -57,7 +57,6 @@ Windows (PowerShell):
 ## Guarantees & limits
   - ✅ Files in your project folder are always owned by your host user.
   - ✅ Idempotent user/group setup in the container (`workspace-user-setup`).
-  - ⚠️ `CHOWN_RECURSIVE=1` may be needed once if existing files are owned by other UIDs.
   - ⚠️ Does not abstract away all OS differences (line endings, symlinks, file attrs).
 
 ## How it works

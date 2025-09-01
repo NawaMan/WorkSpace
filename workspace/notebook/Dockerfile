@@ -55,6 +55,9 @@ alias jnb='jupyter notebook'
 # ---- end Jupyter shortcuts ----
 EOF
 
+# This is needed as it is created by the root and it is done AFTER workspace-user-setup change the permission.
+RUN rm -rf /home/coder/.ipython || true
+
 EXPOSE 8888
 WORKDIR /home/coder/workspace
 

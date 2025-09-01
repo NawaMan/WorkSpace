@@ -276,7 +276,6 @@ $COMMON_ARGS = @(
   '--name', $CONTAINER
   '-e', "HOST_UID=$HOST_UID"
   '-e', "HOST_GID=$HOST_GID"
-  '-e', "CHOWN_RECURSIVE=1"
   '-v', "${PWD_PATH}:$WORKSPACE"
   '-w', $WORKSPACE
 )

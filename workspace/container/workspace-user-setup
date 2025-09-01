@@ -25,8 +25,6 @@ set -euo pipefail
 #   HOST_UID           Host user id (default: 1000)
 #   HOST_GID           Host group id (default: 1000)
 #   USER_SHELL         Shell for "coder" (default: /bin/bash)
-#   CHOWN_RECURSIVE    If "1", chowns $HOME and $WORKSPACE recursively; otherwise
-#                      only the top directories are chowned (default: 0).
 #
 #   USER_NAME          Target username inside container (default: coder)  [const below]
 #   HOME_DIR           Home dir for USER_NAME (default: /home/coder)      [const below]
@@ -41,7 +39,6 @@ set -euo pipefail
 #   With docker run (example):
 #     docker run --rm -it \
 #       -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
-#       -e CHOWN_RECURSIVE=1 \
 #       -v "$PWD":/home/coder/workspace \
 #       your-image
 #
@@ -121,12 +118,7 @@ chmod 0440 /etc/sudoers.d/${USER_NAME}
 
 # Ensure home & workspace exist; chown as requested
 mkdir -p "$HOME_DIR" "$WORKSPACE"
-# Avoid recursive chown on bind mounts by default; flip CHOWN_RECURSIVE=1 to enable
-if [ "${CHOWN_RECURSIVE:-0}" = "1" ]; then
-  chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE" || true
-else
-  chown "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE" || true
-fi
+chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE" || true
 
 # Set up environment for coder and switch to workspace
 export HOME="$HOME_DIR"
