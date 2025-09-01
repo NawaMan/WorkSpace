@@ -69,17 +69,28 @@ Windows (PowerShell):
 
 ```mermaid
 flowchart TD
-    A[Host Machine] -->|Launches| B[workspace.sh / workspace.ps1]
-    B -->|Passes HOST_UID, HOST_GID| C[Docker run]
-    C --> D[Container Entry: workspace-user-setup]
-    D -->|Ensure group 'coder' has HOST_GID| E[Group Alignment]
-    D -->|Ensure user 'coder' has HOST_UID| F[User Alignment]
-    E --> G["Mapped User → coder (HOST_UID/HOST_GID)"]
-    F --> G
-    G --> H[/home/coder/workspace]
-    H -->|Files created inside| I[Project Folder on Host]
-    I -->|Owned by same UID/GID| A
+    A[Host machine]
+    B[Launcher workspace.sh or workspace.ps1]
+    C[Docker run passes HOST_UID and HOST_GID]
+    D[Container entry workspace-user-setup]
+    E[Group alignment ensure coder has HOST_GID]
+    F[User alignment ensure coder has HOST_UID]
+    G["Mapped user coder with HOST_UID and HOST_GID"]
+    H[/home/coder/workspace bind mounted/]
+    I[Files created in container appear in project folder on host]
+    J[Owned by same UID and GID]
 
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    D --> F
+    E --> G
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> A
 ```
 
 Result: seamless dev environment, no permission headaches.
