@@ -10,7 +10,7 @@ $HostFile       = Join-Path $ScriptDir 'in-host.txt'
 $WorkspaceFile  = Join-Path $ScriptDir 'in-workspace.txt'
 
 function Cleanup {
-  foreach ($f in @($HostFile, $WorkspaceFile, $StderrFile)) {
+  foreach ($f in @($HostFile, $WorkspaceFile)) {
     Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
   }
 }
