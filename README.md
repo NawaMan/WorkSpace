@@ -71,13 +71,16 @@ Windows (PowerShell):
 flowchart TD
     A[Host Machine] -->|Launches| B[workspace.sh / workspace.ps1]
     B -->|Passes HOST_UID, HOST_GID| C[Docker run]
-    C --> D[Container Entry: workspace-user-setup]
-    D -->|Ensure group 'coder' has HOST_GID| E[Group Alignment]
-    D -->|Ensure user 'coder' has HOST_UID| F[User Alignment]
-    E --> G[Mapped User: coder(HOST_UID:HOST_GID)]
+    C --> D[Container entry: workspace-user-setup]
+
+    D --> E[Group alignment – ensure 'coder' has HOST_GID]
+    D --> F[User alignment – ensure 'coder' has HOST_UID]
+
+    E --> G[Mapped user – coder (HOST_UID/HOST_GID)]
     F --> G
+
     G --> H[/home/coder/workspace]
-    H -->|Files created inside| I[Project Folder on Host]
+    H -->|Files created inside container| I[Project folder on host]
     I -->|Owned by same UID/GID| A
 ```
 
