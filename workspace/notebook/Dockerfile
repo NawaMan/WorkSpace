@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM nawaman/workspace:container-latest
 
-# Stay as root so the base ENTRYPOINT (entry-script) can align uid/gid, then drop to 'coder'
+# Stay as root so the base ENTRYPOINT (workspace-user-setup) can align uid/gid, then drop to 'coder'
 USER root
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 
@@ -58,7 +58,7 @@ EOF
 EXPOSE 8888
 WORKDIR /home/coder/workspace
 
-# Inherit the base ENTRYPOINT (tini + /usr/local/bin/entry-script).
-# Only set CMD; entry-script will realign ids and exec this as 'coder'.
+# Inherit the base ENTRYPOINT (tini + /usr/local/bin/workspace-user-setup).
+# Only set CMD; workspace-user-setup will realign ids and exec this as 'coder'.
 # Empty token == no auth (dev only). Provide one via -e JUPYTER_TOKEN=... if needed.
 CMD ["bash","-lc","jupyter lab --no-browser --ip=0.0.0.0 --IdentityProvider.token=''"]

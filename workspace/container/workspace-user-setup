@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# workspace-entry
+#
+# Purpose:
+#   Container entry script that aligns the in-container "coder" user/group with
+#   the host's UID/GID, ensures passwordless sudo, prepares $HOME and workspace,
+#   and finally execs the given command as "coder".
+#
+#   This allows files created in the container to be owned by the host user
+#   when a bind mount is used (e.g., -v $PWD:/home/coder/workspace).
+#
+# How it works (idempotent):
+#   1) Ensure group "coder" exists and has GID=HOST_GID (moving any group that
+#      already holds HOST_GID out of the way, preserving names).
+#   2) Ensure user "coder" exists and has UID=HOST_UID, primary group "coder",
+#      and login shell USER_SHELL (moving any user that already holds HOST_UID).
+#   3) Add passwordless sudo for "coder".
+#   4) Create $HOME and $WORKSPACE; chown them (optionally recursive).
+#   5) cd into $WORKSPACE and exec the given command as "coder".
+#
+# Environment variables:
+#   HOST_UID           Host user id (default: 1000)
+#   HOST_GID           Host group id (default: 1000)
+#   USER_SHELL         Shell for "coder" (default: /bin/bash)
+#   CHOWN_RECURSIVE    If "1", chowns $HOME and $WORKSPACE recursively; otherwise
+#                      only the top directories are chowned (default: 0).
+#
+#   USER_NAME          Target username inside container (default: coder)  [const below]
+#   HOME_DIR           Home dir for USER_NAME (default: /home/coder)      [const below]
+#   WORKSPACE          Workspace dir (default: /home/coder/workspace)     [const below]
+#
+# Usage:
+#   As container entrypoint (Dockerfile):
+#     COPY workspace-entry /usr/local/bin/
+#     ENTRYPOINT ["/usr/local/bin/workspace-entry"]
+#     CMD ["bash"]   # or your default command
+#
+#   With docker run (example):
+#     docker run --rm -it \
+#       -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) \
+#       -e CHOWN_RECURSIVE=1 \
+#       -v "$PWD":/home/coder/workspace \
+#       your-image
+#
+# Notes:
+#   • This script prefers to minimally mutate the system: it only moves aside
+#     conflicting UID/GID holders when necessary.
+#   • Designed to be re-run safely (idempotent).
+#   • No-op if host UID/GID matches current "coder" UID/GID and ownership is OK.
+# -----------------------------------------------------------------------------
+
+#== Constants ==
+USER_NAME="coder"
+HOME_DIR="/home/${USER_NAME}"
+WORKSPACE="/home/${USER_NAME}/workspace"
+
+# Allow environment to override config
+USER_SHELL="${USER_SHELL:-/bin/bash}"
+HOST_UID="${HOST_UID:-1000}"
+HOST_GID="${HOST_GID:-1000}"
+
+# Find a free numeric uid/gid starting from 2000 to relocate conflicts safely
+find_free_uid() { local uid=2000; while getent passwd "$uid" >/dev/null 2>&1; do uid=$((uid+1)); done; echo "$uid"; }
+find_free_gid() { local gid=2000; while getent group  "$gid" >/dev/null 2>&1; do gid=$((gid+1)); done; echo "$gid"; }
+
+# --- GROUP: ensure HOST_GID is owned by group 'coder' ---
+# 1) Ensure 'coder' group exists (with any GID for now). Prefer HOST_GID if free.
+if ! getent group "$USER_NAME" >/dev/null 2>&1; then
+  if getent group "$HOST_GID" >/dev/null 2>&1; then
+    groupadd "$USER_NAME"               # temp gid
+  else
+    groupadd -g "$HOST_GID" "$USER_NAME"
+  fi
+fi
+
+# 2) If some other group owns HOST_GID, move it to a free gid (keep its name)
+owner_of_host_gid="$(getent group "$HOST_GID" | cut -d: -f1 || true)"
+if [ -n "$owner_of_host_gid" ] && [ "$owner_of_host_gid" != "$USER_NAME" ]; then
+  tmp_gid="$(find_free_gid)"
+  groupmod -g "$tmp_gid" "$owner_of_host_gid"
+fi
+
+# 3) Set 'coder' group's gid to HOST_GID (if not already)
+current_gid="$(getent group "$USER_NAME" | cut -d: -f3)"
+if [ "$current_gid" != "$HOST_GID" ]; then
+  groupmod -g "$HOST_GID" "$USER_NAME"
+fi
+
+# --- USER: align UID and ensure primary group is 'coder' by name ---
+existing_uid_user="$(getent passwd "$HOST_UID" | cut -d: -f1 || true)"
+if id -u "$USER_NAME" >/dev/null 2>&1; then
+  current_uid="$(id -u "$USER_NAME")"
+  if [ "$current_uid" != "$HOST_UID" ]; then
+    # If another user has HOST_UID, move them out of the way
+    if [ -n "$existing_uid_user" ] && [ "$existing_uid_user" != "$USER_NAME" ]; then
+      temp_uid="$(find_free_uid)"; usermod -u "$temp_uid" "$existing_uid_user"
+    fi
+    usermod -u "$HOST_UID" -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
+  else
+    usermod -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
+  fi
+else
+  # 'coder' doesn't exist yet; if HOST_UID is already taken, move that user aside
+  if [ -n "$existing_uid_user" ] && [ "$existing_uid_user" != "$USER_NAME" ]; then
+    temp_uid="$(find_free_uid)"; usermod -u "$temp_uid" "$existing_uid_user"
+  fi
+  # Create coder. Reuse existing HOME_DIR if present; otherwise create it (-m).
+  if [ -d "$HOME_DIR" ]; then
+    useradd -u "$HOST_UID" -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
+  else
+    useradd -m -u "$HOST_UID" -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
+  fi
+fi
+
+# Allow passwordless sudo for coder (restricted to this file)
+echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/${USER_NAME}
+chmod 0440 /etc/sudoers.d/${USER_NAME}
+
+# Ensure home & workspace exist; chown as requested
+mkdir -p "$HOME_DIR" "$WORKSPACE"
+# Avoid recursive chown on bind mounts by default; flip CHOWN_RECURSIVE=1 to enable
+if [ "${CHOWN_RECURSIVE:-0}" = "1" ]; then
+  chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE" || true
+else
+  chown "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE" || true
+fi
+
+# Set up environment for coder and switch to workspace
+export HOME="$HOME_DIR"
+export PATH="$HOME/.local/bin:$PATH"
+cd "$WORKSPACE" 2>/dev/null || true
+
+# Exec the requested command as coder (default to USER_SHELL if none provided)
+[ "$#" -eq 0 ] && set -- "$USER_SHELL"
+exec runuser -u "$USER_NAME" -- "$@"

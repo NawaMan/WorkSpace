@@ -65,7 +65,7 @@ RUN set -eux; \
   mkdir -p /home/coder/workspace
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
-COPY --chmod=0755 entry-script /usr/local/bin/entry-script
+COPY --chmod=0755 workspace-user-setup /usr/local/bin/workspace-user-setup
 
 # Seed dirs (already created above; harmless if repeated)
 RUN mkdir -p /home/coder/workspace
@@ -94,12 +94,12 @@ RUN set -euo pipefail                                                           
  && grep -Fq '/etc/profile.d/99-custom.sh' /etc/zsh/zshrc                                                     \
       || printf "\n[ -f /etc/profile.d/99-custom.sh ] && . /etc/profile.d/99-custom.sh\n" >> /etc/zsh/zshrc
 
-# Always start as root so entry-script can realign ids (decisive fix)
+# Always start as root so workspace-user-setup can realign ids (decisive fix)
 USER root
 
-# Workdir (created earlier; ownership finalized by entry-script at runtime)
+# Workdir (created earlier; ownership finalized by workspace-user-setup at runtime)
 WORKDIR /home/coder/workspace
 
 # tini as PID 1, then run the aligner which execs as 'coder'
-ENTRYPOINT ["tini","-g","--","/usr/local/bin/entry-script"]
+ENTRYPOINT ["tini","-g","--","/usr/local/bin/workspace-user-setup"]
 CMD ["bash"]
