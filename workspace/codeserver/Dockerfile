@@ -52,7 +52,7 @@ EOF
 
 # -----------------------------------------------------------
 # Launcher:
-# - Keeps base ENTRYPOINT (tini -> entry-script) to align UID/GID
+# - Keeps base ENTRYPOINT (tini -> workspace-user-setup) to align UID/GID
 # - Starts code-server
 # - Optionally starts JupyterLab too when RUN_JUPYTER=1
 # - Auth: default none; set PASSWORD to switch to password auth
@@ -93,7 +93,7 @@ exec code-server \
 EOF
 RUN chmod 0755 /usr/local/bin/start-workbench
 
-# Keep base ENTRYPOINT (tini -> /usr/local/bin/entry-script)
+# Keep base ENTRYPOINT (tini -> /usr/local/bin/workspace-user-setup)
 EXPOSE 8080 8888
 WORKDIR /home/coder/workspace
 CMD ["start-workbench"]

@@ -116,19 +116,18 @@ while [[ $# -gt 0 ]]; do
     CMDS+=("$1"); shift
   else
     case $1 in
-      -d|--daemon)  DAEMON=true  ; shift ;;
-      --pull)       DO_PULL=true ; shift ;;
-      --dryrun)     DRYRUN=true  ; shift ;;
-      --variant)    [[ -n "${2:-}" ]] && { CLI_VARIANT="$2"            ; shift 2; } || { echo "Error: --variant requires a value"; exit 1; } ;;
-      --version)    [[ -n "${2:-}" ]] && { CLI_VERSION="$2"            ; shift 2; } || { echo "Error: --version requires a value"; exit 1; } ;;
-      --name)       [[ -n "${2:-}" ]] && { CLI_CONTAINER="$2"          ; shift 2; } || { echo "Error: --name requires a value";    exit 1; } ;;
-      --config)     [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path";   exit 1; } ;;
-      --env-file)   [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path"; exit 1; } ;;
-      # NEW: docker args file
-      --docker-args) [[ -n "${2:-}" ]] && { CLI_DOCKER_ARGS_FILE="$2"  ; shift 2; } || { echo "Error: --docker-args requires a path"; exit 1; } ;;
-      -h|--help)    show_help ; exit 0 ;;
-      --)           parsing_cmds=true ; shift ;;
-      *)            RUN_ARGS+=("$1") ; shift ;;
+      -d|--daemon)   DAEMON=true  ; shift ;;
+      --pull)        DO_PULL=true ; shift ;;
+      --dryrun)      DRYRUN=true  ; shift ;;
+      --variant)     [[ -n "${2:-}" ]] && { CLI_VARIANT="$2"            ; shift 2; } || { echo "Error: --variant requires a value";    exit 1; } ;;
+      --version)     [[ -n "${2:-}" ]] && { CLI_VERSION="$2"            ; shift 2; } || { echo "Error: --version requires a value";    exit 1; } ;;
+      --name)        [[ -n "${2:-}" ]] && { CLI_CONTAINER="$2"          ; shift 2; } || { echo "Error: --name requires a value";       exit 1; } ;;
+      --config)      [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path";      exit 1; } ;;
+      --env-file)    [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path";    exit 1; } ;;
+      --docker-args) [[ -n "${2:-}" ]] && { CLI_DOCKER_ARGS_FILE="$2"   ; shift 2; } || { echo "Error: --docker-args requires a path"; exit 1; } ;;
+      -h|--help)     show_help ; exit 0 ;;
+      --)            parsing_cmds=true ; shift ;;
+      *)             RUN_ARGS+=("$1") ; shift ;;
     esac
   fi
 done
@@ -210,7 +209,16 @@ fi
 # Helper: print a docker command nicely quoted
 print_cmd() {
   printf 'docker run'
-  for a in "$@"; do printf ' %q' "$a"; done
+  for a in "$@"; do
+    # safe token? print as-is
+    if [[ "$a" =~ ^[A-Za-z0-9_./:-]+$ ]]; then
+      printf ' %s' "$a"
+    else
+      # single-quote and escape internal single quotes: ' -> '\'' 
+      q=${a//\'/\'\\\'\'}
+      printf " '%s'" "$q"
+    fi
+  done
   printf '\n'
 }
 

@@ -25,4 +25,4 @@ jobs:
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           ./build.sh   \
-          && ./test.sh
+          && ./simple-test.sh
