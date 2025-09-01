@@ -94,7 +94,7 @@ RUN set -euo pipefail                                                           
  && grep -Fq '/etc/profile.d/99-custom.sh' /etc/zsh/zshrc                                                     \
       || printf "\n[ -f /etc/profile.d/99-custom.sh ] && . /etc/profile.d/99-custom.sh\n" >> /etc/zsh/zshrc
 
-# Always start as root so workspace-user-setup can realign ids (decisive fix)
+# Always start as root so workspace-user-setup can realign ids
 USER root
 
 # Workdir (created earlier; ownership finalized by workspace-user-setup at runtime)
