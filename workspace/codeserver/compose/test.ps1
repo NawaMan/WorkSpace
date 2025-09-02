@@ -5,9 +5,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 # --- paths (resolve alongside this script) ---
-$ScriptDir      = Split-Path -Parent $PSCommandPath
-$HostFile       = Join-Path $ScriptDir 'in-host.txt'
-$WorkspaceFile  = Join-Path $ScriptDir 'in-workspace.txt'
+$ScriptDir     = Split-Path -Parent $PSCommandPath
+$HostFile      = Join-Path $ScriptDir 'in-host.txt'
+$WorkspaceFile = Join-Path $ScriptDir 'in-container.txt'
 
 function Cleanup {
   foreach ($f in @($HostFile, $WorkspaceFile)) {
@@ -17,17 +17,17 @@ function Cleanup {
 
 # Run cleanup on any exit (success or error)
 try {
-  # initial cleanup
+  # initial cleanup (like calling cleanup once at start)
   Cleanup
 
-  # same value used in both places, but shell-safe
-  $DATE = Get-Date -Format "yyyy-MM-ddTHH:mm:ss.fffffffK"
+  # same value used in both places
+  $DATE = (Get-Date).ToString()   # use any format you like; both sides use the same string
 
   # write to file on host
   $DATE | Out-File -FilePath in-host.txt -Encoding UTF8
 
-  # Write to file on workspace
-  ./run.ps1 -- echo $DATE '>' in-workspace.txt
+  # Write to file on container
+  ./run.ps1 -- echo $DATE '>' in-container.txt
 
   # diff (prefer external 'diff -u' when available; otherwise fallback)
   $diffCmd = Get-Command diff -ErrorAction SilentlyContinue

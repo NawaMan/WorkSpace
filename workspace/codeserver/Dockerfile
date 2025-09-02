@@ -93,6 +93,9 @@ exec code-server \
 EOF
 RUN chmod 0755 /usr/local/bin/start-workbench
 
+# This is needed as it is created by the root and it is done AFTER workspace-user-setup change the permission.
+RUN rm -rf /home/coder/.cache /home/coder/.config /home/coder/.local || true
+
 # Keep base ENTRYPOINT (tini -> /usr/local/bin/workspace-user-setup)
 EXPOSE 8080 8888
 WORKDIR /home/coder/workspace
