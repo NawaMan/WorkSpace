@@ -123,7 +123,7 @@ Result: seamless dev environment, no permission headaches.
 3. Config Files`
   - **Launcher config (`workspace.env`)**
     - Sourced before parsing CLI.
-    - Keys: `IMGNAME`, `IMGREPO`, `IMG_TAG`, `VARIANT`, `VERSION`, `CONTAINER`, `HOST_UID`, `HOST_GID`, `NOTEBOOK_PORT`, `CODESERVER_PORT`.
+    - Keys: `IMGNAME`, `IMGREPO`, `IMG_TAG`, `VARIANT`, `VERSION`, `CONTAINER`, `HOST_UID`, `HOST_GID`, `WORKSPACE_PORT`.
   - **Container env-file (`.env`)**
      - Passed with `--env-file`.
      - Typical keys: `PASSWORD`, `JUPYTER_TOKEN`, `TZ`, `AWS_*`, etc.
@@ -148,8 +148,7 @@ Result: seamless dev environment, no permission headaches.
     - For `container` variant, runs an infinite sleep loop.
 
 6. Ports
-  - **Notebook** variant → publishes `${NOTEBOOK_PORT:-8888}:8888`
-  - **CodeServer** variant → publishes `${NOTEBOOK_PORT:-8888}:8888` and `${CODESERVER_PORT:-8080}:8080`
+  - **Notebook** and **CodeServer** will expose `${WORKSPACE_PORT:-10000}:10000`
   - All ports can be overridden in workspace.env.
 
 7. Pulling Images

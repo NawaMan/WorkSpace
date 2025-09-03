@@ -56,13 +56,13 @@ foreach ($arg in $Arguments) {
 # --------- Run container ---------
 if ($CMD.Length -eq 0) {
     # No command -> open a shell
-    $DockerArgs = @("compose", "run", "--rm", "-p", "8888:8888", "-p", "8080:8080") + $RunArgsList + @($SERVICE_NAME)
+    $DockerArgs = @("compose", "run", "--rm", "-p", "10000:10000") + $RunArgsList + @($SERVICE_NAME)
     # Write-Host "DEBUG: Docker command: docker $($DockerArgs -join ' ')" -ForegroundColor Green
     & docker @DockerArgs
 } else {
     # Command provided -> run it inside the shell
     $USER_CMD = $CMD -join " "
-    $DockerArgs = @("compose", "run", "--rm", "-p", "8888:8888", "-p", "8080:8080") + $RunArgsList + @($SERVICE_NAME, $SHELL_NAME, "-lc", $USER_CMD)
+    $DockerArgs = @("compose", "run", "--rm", "-p", "10000:10000") + $RunArgsList + @($SERVICE_NAME, $SHELL_NAME, "-lc", $USER_CMD)
     # Write-Host "DEBUG: Docker command: docker $($DockerArgs -join ' ')" -ForegroundColor Green
     & docker @DockerArgs
 }

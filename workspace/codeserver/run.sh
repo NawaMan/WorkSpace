@@ -66,8 +66,7 @@ COMMON_ARGS=(
   -e HOST_GID="$HOST_GID"
   -v "$PWD":"$WORKSPACE"     # same bind as docker-compose
   -w "$WORKSPACE"            # same working_dir as docker-compose
-  -p 8888:8888
-  -p 8080:8080
+  -p "10000:10000"
 )
 
 # --------- Run container ---------

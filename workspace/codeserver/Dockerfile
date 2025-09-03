@@ -18,12 +18,12 @@ RUN set -euo pipefail \
 # - Ruff + Black for a solid DX without Pylance (not on Open VSX)
 # -----------------------------------------------------------
 ENV CODESERVER_EXT_DIR=/opt/code-server/extensions \
-    CODESERVER_PORT=8080
+    WORKSPACE_PORT=10000
 
 RUN mkdir -p /etc/code-server "$CODESERVER_EXT_DIR" \
  && cat >/etc/code-server/config.yaml <<'EOF'
-bind-addr: 0.0.0.0:8080
-auth: none              # dev default; set PASSWORD at runtime to enable password auth
+bind-addr: 0.0.0.0:10000
+auth: none                # dev default; set PASSWORD at runtime to enable password auth
 cert: false
 extensions-dir: /opt/code-server/extensions
 EOF
@@ -61,7 +61,7 @@ RUN cat >/usr/local/bin/start-workbench <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-PORT="${CODESERVER_PORT:-8080}"
+WORKSPACE_PORT="${WORKSPACE_PORT:-10000}"
 ROOT="${WORKSPACE:-$HOME}"
 AUTH="none"
 if [[ -n "${PASSWORD:-}" ]]; then
@@ -73,7 +73,7 @@ if [[ "${RUN_JUPYTER:-0}" = "1" ]]; then
   jupyter lab \
     --no-browser \
     --ip=0.0.0.0 \
-    --port="${JUPYTER_PORT:-8888}" \
+    --port="${WORKSPACE_PORT:-10000}" \
     --IdentityProvider.token="${JUPYTER_TOKEN:-}" \
     --ServerApp.allow_origin='*' \
     --ServerApp.allow_remote_access=True \
@@ -83,7 +83,7 @@ fi
 
 exec code-server \
   --config /etc/code-server/config.yaml \
-  --bind-addr "0.0.0.0:${PORT}" \
+  --bind-addr "0.0.0.0:${WORKSPACE_PORT}" \
   --user-data-dir "$HOME/.local/share/code-server" \
   --extensions-dir "/opt/code-server/extensions" \
   --disable-update-check \
@@ -97,6 +97,6 @@ RUN chmod 0755 /usr/local/bin/start-workbench
 RUN rm -rf /home/coder/.cache /home/coder/.config /home/coder/.local || true
 
 # Keep base ENTRYPOINT (tini -> /usr/local/bin/workspace-user-setup)
-EXPOSE 8080 8888
+EXPOSE 10000
 WORKDIR /home/coder/workspace
 CMD ["start-workbench"]

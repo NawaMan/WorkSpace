@@ -63,8 +63,7 @@ $CLI_ENV_FILE_EXPLICIT = $false
 $CLI_DOCKER_ARGS_FILE = ''
 
 # Ports (may come from config/env)
-$NOTEBOOK_PORT   = $null
-$CODESERVER_PORT = $null
+$WORKSPACE_PORT = $null
 
 # For docker-args file
 $RUN_ARGS_FROM_FILE = @()
@@ -95,7 +94,7 @@ Options:
 Notes:
   • Bind: . -> $WORKSPACE; Working dir: $WORKSPACE
   • workspace.env keys (launcher config): IMGNAME, IMGREPO, IMG_TAG, VARIANT, VERSION, CONTAINER,
-      HOST_UID, HOST_GID, NOTEBOOK_PORT, CODESERVER_PORT, CONTAINER_ENV_FILE
+      HOST_UID, HOST_GID, WORKSPACE_PORT, CONTAINER_ENV_FILE
   • workspace-docker.args: one directive per line (quotes ok), e.g.:
       -p 127.0.0.1:9000:9000
       -v "/host/path:/container/path"
@@ -128,8 +127,7 @@ function Import-LauncherConfig([string]$path) {
       'CONTAINER'          { $script:CONTAINER = $val; continue }
       'HOST_UID'           { $script:HOST_UID = $val; continue }
       'HOST_GID'           { $script:HOST_GID = $val; continue }
-      'NOTEBOOK_PORT'      { $script:NOTEBOOK_PORT = $val; continue }
-      'CODESERVER_PORT'    { $script:CODESERVER_PORT = $val; continue }
+      'WORKSPACE_PORT'     { $script:WORKSPACE_PORT = $val; continue }
       'CONTAINER_ENV_FILE' { $script:CONTAINER_ENV_FILE = $val; continue }
       default { }
     }
@@ -210,8 +208,7 @@ if (-not $CONTAINER -or $CONTAINER -eq '') {
 }
 
 # Ports: config/env or defaults
-if (-not $NOTEBOOK_PORT)   { $NOTEBOOK_PORT   = if ($env:NOTEBOOK_PORT)   { $env:NOTEBOOK_PORT }   else { '8888' } }
-if (-not $CODESERVER_PORT) { $CODESERVER_PORT = if ($env:CODESERVER_PORT) { $env:CODESERVER_PORT } else { '8080' } }
+if (-not $WORKSPACE_PORT)   { $WORKSPACE_PORT = if ($env:WORKSPACE_PORT) { $env:WORKSPACE_PORT } else { '10000' } }
 
 # ---------- Docker-args file loader (regex tokenizer preserves quoted chunks) ----------
 function Split-ArgsLine([string]$line) {
@@ -278,13 +275,8 @@ $COMMON_ARGS = @(
   '-e', "HOST_GID=$HOST_GID"
   '-v', "${PWD_PATH}:$WORKSPACE"
   '-w', $WORKSPACE
+  '-p', "${WORKSPACE_PORT}:10000"
 )
-if ($VARIANT -eq 'notebook') {
-  $COMMON_ARGS += @('-p', "${NOTEBOOK_PORT}:8888")
-}
-elseif ($VARIANT -eq 'codeserver') {
-  $COMMON_ARGS += @('-p', "${NOTEBOOK_PORT}:8888", '-p', "${CODESERVER_PORT}:8080")
-}
 
 # Container env-file: include if exists OR was explicitly provided
 if ($CONTAINER_ENV_FILE) {
