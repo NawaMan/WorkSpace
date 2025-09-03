@@ -68,7 +68,7 @@ Notes:
 Configuration:
   • Launcher config (sourced): workspace.env (override with --config or \$WORKSPACE_CONFIG_FILE)
       Keys: IMGNAME, IMGREPO, IMG_TAG, VARIANT, VERSION, CONTAINER,
-            HOST_UID, HOST_GID, NOTEBOOK_PORT, CODESERVER_PORT
+            HOST_UID, HOST_GID, WORKSPACE_PORT
   • Container env (NOT sourced): .env (or --env-file)
       Typical keys: PASSWORD, JUPYTER_TOKEN, TZ, PROXY, AWS_*, GH_TOKEN, etc.
   • Docker run-args file (NOT sourced): workspace-docker.args (or --docker-args)
@@ -177,16 +177,8 @@ COMMON_ARGS=(
   -e HOST_GID="$HOST_GID"
   -v "$PWD":"$WORKSPACE"
   -w "$WORKSPACE"
+  -p "${WORKSPACE_PORT:-10000}:10000"
 )
-
-# Optional host port overrides to avoid collisions across projects
-if [[ "$VARIANT" == "notebook"   ]]; then 
-  COMMON_ARGS+=(-p "${NOTEBOOK_PORT:-8888}:8888");
-fi
-if [[ "$VARIANT" == "codeserver" ]]; then
-  COMMON_ARGS+=(-p "${NOTEBOOK_PORT:-8888}:8888")
-  COMMON_ARGS+=(-p "${CODESERVER_PORT:-8080}:8080")
-fi
 
 # Container env file: pass if explicitly set OR default exists
 EXPLICIT_ENV_FILE=false

@@ -35,7 +35,7 @@ RUN set -euo pipefail \
 RUN mkdir -p /etc/jupyter \
  && cat > /etc/jupyter/jupyter_lab_config.py <<'EOF'
 c.ServerApp.ip = '0.0.0.0'
-c.ServerApp.port = 8888
+c.ServerApp.port = 10000
 c.ServerApp.open_browser = False
 c.ServerApp.allow_origin = '*'
 c.ServerApp.allow_remote_access = True
@@ -58,7 +58,7 @@ EOF
 # This is needed as it is created by the root and it is done AFTER workspace-user-setup change the permission.
 RUN rm -rf /home/coder/.ipython || true
 
-EXPOSE 8888
+EXPOSE 10000
 WORKDIR /home/coder/workspace
 
 # Inherit the base ENTRYPOINT (tini + /usr/local/bin/workspace-user-setup).

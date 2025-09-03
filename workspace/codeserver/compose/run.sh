@@ -34,16 +34,14 @@ if [[ ${#CMD[@]} -eq 0 ]]; then
   # No command -> open a shell
   exec docker compose run --rm \
     "${RUN_ARGS[@]}" \
-    -p 8888:8888     \
-    -p 8080:8080     \
+    -p 10000:10000   \
     "$SERVICE_NAME"
 else
   # Command provided -> run it inside the shell
   USER_CMD="${CMD[*]}"
   exec docker compose run --rm \
     "${RUN_ARGS[@]}" \
-    -p 8888:8888     \
-    -p 8080:8080     \
+    -p 10000:10000   \
     "$SERVICE_NAME"  \
     "$SHELL_NAME" -lc "$USER_CMD"
 fi

@@ -13,6 +13,7 @@ EXPECT="docker run --rm -i \
 -e 'HOST_GID=$HOST_GID' \
 -v $PWD:/home/coder/workspace \
 -w /home/coder/workspace \
+-p 10000:10000 \
 nawaman/workspace:container-latest"
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then

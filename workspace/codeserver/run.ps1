@@ -108,8 +108,7 @@ $COMMON_ARGS = @(
     "-e", "HOST_GID=$HOST_GID",
     "-v", "${PWD}:$WORKSPACE",
     "-w", $WORKSPACE,
-    "-p", "8888:8888"
-    "-p", "8080:8080"
+    "-p", "10000:10000"
 )
 
 # --------- Run container ---------
