@@ -10,6 +10,7 @@ $EXPECT = @(
   "-e 'HOST_GID=$HOST_GID'",
   "-v ${PWD_PATH}:/home/coder/workspace",
   "-w /home/coder/workspace",
+  "-p 10000:10000",
   "nawaman/workspace:container-latest"
 ) -join " "
 
