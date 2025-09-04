@@ -94,6 +94,10 @@ RUN set -euo pipefail                                                           
  && grep -Fq '/etc/profile.d/99-custom.sh' /etc/zsh/zshrc                                                     \
       || printf "\n[ -f /etc/profile.d/99-custom.sh ] && . /etc/profile.d/99-custom.sh\n" >> /etc/zsh/zshrc
 
+# --- Install the tidy terminal 
+RUN apt-get update && apt-get install -y ttyd \
+    && rm -rf /var/lib/apt/lists/*
+
 # Always start as root so workspace-user-setup can realign ids
 USER root
 
@@ -102,4 +106,7 @@ WORKDIR /home/coder/workspace
 
 # tini as PID 1, then run the aligner which execs as 'coder'
 ENTRYPOINT ["tini","-g","--","/usr/local/bin/workspace-user-setup"]
-CMD ["bash"]
+
+# CMD ["bash","-lc","exec python3 -m http.server 10000 --bind 0.0.0.0 --directory /home/coder/workspace"]
+CMD ["bash","-lc","exec ttyd -W -i 0.0.0.0 -p 10000 --writable bash -l"]
+

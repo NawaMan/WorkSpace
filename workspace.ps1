@@ -1,17 +1,21 @@
 #!/usr/bin/env pwsh
 #Requires -Version 7.0
 <#
-  PowerShell port of "workspace.sh"
+  PowerShell port of "workspace.sh" (matches --daemon + foreground behavior).
 
-  Features:
-    • Flags: -d/--daemon, --pull, --variant, --version, --name, --config, --env-file, --docker-args, --dryrun, -h/--help
-    • Unknown args before `--` → RUN_ARGS
-    • Everything after `--` (or first bare word if `--` is consumed) → CMDS
-    • Precedence: CLI > workspace.env (config) > env vars > defaults
-    • Files:
-        - workspace.env           (launcher config; key=value)
-        - .env                    (container env; passed as --env-file)
-        - workspace-docker.args   (extra docker run args; one line = tokens, quotes supported)
+  Behavior:
+    • No command → rely on image CMD
+        - Foreground: prints tips, uses --rm; allocates -it only if both stdin & stdout are TTY
+        - Daemon (--daemon / -d): prints tips & container id; uses -d (no TTY)
+    • With command (after --): run that command and exit
+    • --dryrun: print the docker command and exit (no side effects)
+
+  Files:
+    - workspace.env           (launcher config; key=value)
+    - .env                    (container env; passed as --env-file)
+    - workspace-docker.args   (extra docker run args; one line = tokens, quotes supported)
+
+  Precedence: CLI > workspace.env > environment variables > defaults
 #>
 
 # ---------- Strict mode ----------
@@ -33,7 +37,7 @@ $IMG_TAG  = if ($env:IMG_TAG)  { $env:IMG_TAG }  else { "$VARIANT-$VERSION" }
 $IMGNAME  = if ($env:IMGNAME)  { $env:IMGNAME }  else { "${IMGREPO}:${IMG_TAG}" }
 $CONTAINER = if ($env:CONTAINER) { $env:CONTAINER } else { "" }
 
-# Host uid/gid (Linux)
+# Host uid/gid (Linux/WSL)
 function Get-IdOrDefault([string]$switch, [string]$fallback) {
   try { $out = (& id $switch) 2>$null; if ($LASTEXITCODE -eq 0 -and $out) { return $out.Trim() } } catch {}
   return $fallback
@@ -42,9 +46,9 @@ $HOST_UID = if ($env:HOST_UID) { $env:HOST_UID } else { Get-IdOrDefault '-u' '10
 $HOST_GID = if ($env:HOST_GID) { $env:HOST_GID } else { Get-IdOrDefault '-g' '1000' }
 
 # ---------- Flags & collections ----------
-$DAEMON   = $false
-$DO_PULL  = $false
-$DRYRUN   = $false
+$DAEMON  = $false
+$DO_PULL = $false
+$DRYRUN  = $false
 $RUN_ARGS = @()
 $CMDS     = @()
 
@@ -75,9 +79,9 @@ Starting a workspace container.
 More information: https://github.com/NawaMan/WorkSpace
 
 Usage:
-  $(Split-Path -Leaf $PSCommandPath) [OPTIONS] [RUN_ARGS]                 # interactive shell
-  $(Split-Path -Leaf $PSCommandPath) [OPTIONS] [RUN_ARGS] -- <command...> # run command then exit
-  $(Split-Path -Leaf $PSCommandPath) [OPTIONS] [RUN_ARGS] --daemon        # run detached
+  $(Split-Path -Leaf $PSCommandPath) [OPTIONS] [RUN_ARGS]                 # run workspace (foreground)
+  $(Split-Path -Leaf $PSCommandPath) [OPTIONS] [RUN_ARGS] -- <command...> # run a command then exit
+  $(Split-Path -Leaf $PSCommandPath) [OPTIONS] [RUN_ARGS] --daemon        # run container detached
 
 Options:
   -d, --daemon              Run container detached (background)
@@ -85,7 +89,7 @@ Options:
       --variant <name>      Variant prefix        (default: $VARIANT_DEFAULT)
       --version <tag>       Version suffix        (default: $VERSION_DEFAULT)
       --name <name>         Container name        (default: <project-folder>)
-      --config <path>       Launcher config file to read (default: ./workspace.env or `$WORKSPACE_CONFIG_FILE)
+      --config <path>       Launcher config to read (default: ./workspace.env or `$WORKSPACE_CONFIG_FILE)
       --env-file <path>     Container env file passed to 'docker run --env-file' (default: ./.env or `$CONTAINER_ENV_FILE)
       --docker-args <path>  File of extra 'docker run' args (default: ./workspace-docker.args or `$DOCKER_ARGS_FILE)
       --dryrun              Print the docker run command and exit (no side effects)
@@ -93,7 +97,7 @@ Options:
 
 Notes:
   • Bind: . -> $WORKSPACE; Working dir: $WORKSPACE
-  • workspace.env keys (launcher config): IMGNAME, IMGREPO, IMG_TAG, VARIANT, VERSION, CONTAINER,
+  • workspace.env keys: IMGNAME, IMGREPO, IMG_TAG, VARIANT, VERSION, CONTAINER,
       HOST_UID, HOST_GID, WORKSPACE_PORT, CONTAINER_ENV_FILE
   • workspace-docker.args: one directive per line (quotes ok), e.g.:
       -p 127.0.0.1:9000:9000
@@ -195,7 +199,7 @@ if (@('container','notebook','codeserver') -notcontains $VARIANT) {
   Write-Error "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1
 }
 
-# ---------- Recompute image selection (FIX: always recompute after overrides) ----------
+# ---------- Recompute image selection (after overrides) ----------
 $IMG_TAG = if ($env:IMG_TAG) { $env:IMG_TAG } else { "$VARIANT-$VERSION" }
 $IMGNAME = if ($env:IMGNAME) { $env:IMGNAME } else { "${IMGREPO}:${IMG_TAG}" }
 
@@ -208,18 +212,16 @@ if (-not $CONTAINER -or $CONTAINER -eq '') {
 }
 
 # Ports: config/env or defaults
-if (-not $WORKSPACE_PORT)   { $WORKSPACE_PORT = if ($env:WORKSPACE_PORT) { $env:WORKSPACE_PORT } else { '10000' } }
+if (-not $WORKSPACE_PORT) { $WORKSPACE_PORT = if ($env:WORKSPACE_PORT) { $env:WORKSPACE_PORT } else { '10000' } }
 
-# ---------- Docker-args file loader (regex tokenizer preserves quoted chunks) ----------
+# ---------- Docker-args file loader ----------
 function Split-ArgsLine([string]$line) {
   if ([string]::IsNullOrWhiteSpace($line)) { return @() }
   $pattern = '(?<!\S)("([^"]*)"|''([^'']*)''|\S+)'
   $tokens = [System.Text.RegularExpressions.Regex]::Matches($line, $pattern) |
     ForEach-Object {
       $t = $_.Value
-      if (($t.StartsWith('"') -and $t.EndsWith('"')) -or ($t.StartsWith("'") -and $t.EndsWith("'"))) {
-        $t = $t.Substring(1, $t.Length - 2)
-      }
+      if (($t.StartsWith('"') -and $t.EndsWith('"')) -or ($t.StartsWith("'") -and $t.EndsWith("'"))) { $t = $t.Substring(1, $t.Length - 2) }
       $t
     }
   return ,$tokens
@@ -238,10 +240,7 @@ Import-DockerArgs $DOCKER_ARGS_FILE
 if ($RUN_ARGS_FROM_FILE.Count -gt 0) { $RUN_ARGS = @($RUN_ARGS_FROM_FILE + $RUN_ARGS) }
 
 # ---------- Docker helpers ----------
-function Test-DockerImageExists([string]$name) {
-  $null = & docker image inspect $name 2>$null
-  return ($LASTEXITCODE -eq 0)
-}
+function Test-DockerImageExists([string]$name) { $null = & docker image inspect $name 2>$null; return ($LASTEXITCODE -eq 0) }
 function Print-Cmd([string[]]$argv) {
   $quoted = $argv | ForEach-Object { if ($_ -match '^[A-Za-z0-9_./:-]+$') { $_ } else { "'$($_ -replace "'", "''")'" } }
   Write-Output ("docker " + ($quoted -join ' '))
@@ -250,26 +249,27 @@ function Invoke-Docker([string[]]$argv) {
   if ($DRYRUN) { Print-Cmd $argv; exit 0 } else { & docker @argv; exit $LASTEXITCODE }
 }
 
-# ---------- Pull if requested or missing ----------
-if ($DO_PULL -or -not (Test-DockerImageExists $IMGNAME)) {
-  Write-Host "Pulling image: $IMGNAME"
-  & docker pull $IMGNAME
-  if ($LASTEXITCODE -ne 0) { Write-Error "Error: failed to pull '$IMGNAME'."; exit 1 }
-}
-if (-not (Test-DockerImageExists $IMGNAME)) {
-  Write-Error "Error: image '$IMGNAME' not available locally. Try '--pull'."; exit 1
+# ---------- Skip docker checks/cleanup on --dryrun ----------
+if (-not $DRYRUN) {
+  if ($DO_PULL -or -not (Test-DockerImageExists $IMGNAME)) {
+    Write-Host "Pulling image: $IMGNAME"
+    & docker pull $IMGNAME
+    if ($LASTEXITCODE -ne 0) { Write-Error "Error: failed to pull '$IMGNAME'."; exit 1 }
+  }
+  if (-not (Test-DockerImageExists $IMGNAME)) {
+    Write-Error "Error: image '$IMGNAME' not available locally. Try '--pull'."; exit 1
+  }
+  # Clean up previous container
+  $null = (& docker rm -f $CONTAINER) 2>$null
 }
 
-# Clean up previous container
-$null = (& docker rm -f $CONTAINER) 2>$null
+# ---------- Build common pieces ----------
+# TTY: only if both stdin and stdout are TTY
+$TTY_ARGS = @('-i')
+if (-not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) { $TTY_ARGS = @('-it') }
 
-# ---------- Common docker args ----------
-$TTY_ARGS = @('-i'); if (-not [Console]::IsOutputRedirected) { $TTY_ARGS = @('-it') }
 $PWD_PATH = (Get-Location).Path
-
-$COMMON_ARGS = @(
-  'run','--rm'
-) + $TTY_ARGS + @(
+$BASE_ARGS = @(
   '--name', $CONTAINER
   '-e', "HOST_UID=$HOST_UID"
   '-e', "HOST_GID=$HOST_GID"
@@ -281,29 +281,33 @@ $COMMON_ARGS = @(
 # Container env-file: include if exists OR was explicitly provided
 if ($CONTAINER_ENV_FILE) {
   if (Test-Path -LiteralPath $CONTAINER_ENV_FILE) {
-    $COMMON_ARGS += @('--env-file', $CONTAINER_ENV_FILE)
+    $BASE_ARGS += @('--env-file', $CONTAINER_ENV_FILE)
   } elseif ($CLI_ENV_FILE_EXPLICIT) {
-    $COMMON_ARGS += @('--env-file', $CONTAINER_ENV_FILE)
+    $BASE_ARGS += @('--env-file', $CONTAINER_ENV_FILE)
   }
 }
 
 # ---------- Run modes ----------
 if ($DAEMON) {
-  # Replace '--rm' with '-d'
-  $COMMON_ARGS[1] = '-d'
-  $SHELL_CMD = @()
-  if ($VARIANT -eq 'container') {
-    $SHELL_CMD = @($SHELL_NAME,'-lc','while true; do sleep 3600; done')
-  }
-  $argv = $COMMON_ARGS + $RUN_ARGS + @($IMGNAME) + $SHELL_CMD
+  Write-Host "📦 Running workspace in daemon mode."
+  Write-Host "👉 Stop with '$(Split-Path -Leaf $PSCommandPath) -- exit'. The container will be removed when stopped."
+  Write-Host "👉 Visit 'http://localhost:$WORKSPACE_PORT'"
+  Write-Host "👉 To open an interactive shell instead: $(Split-Path -Leaf $PSCommandPath) -- bash"
+  # -d, no TTY
+  $argv = @('run','-d') + $BASE_ARGS + $RUN_ARGS + @($IMGNAME)
   Invoke-Docker $argv
 }
 elseif ($CMDS.Count -eq 0) {
-  $argv = $COMMON_ARGS + $RUN_ARGS + @($IMGNAME)
+  Write-Host "📦 Running workspace in foreground."
+  Write-Host "👉 Stop with Ctrl+C. The container will be removed (--rm) when it stops."
+  Write-Host "👉 To open an interactive shell instead: '$(Split-Path -Leaf $PSCommandPath) -- bash'"
+  # --rm + TTY (when appropriate), rely on image CMD
+  $argv = @('run','--rm') + $TTY_ARGS + $BASE_ARGS + $RUN_ARGS + @($IMGNAME)
   Invoke-Docker $argv
 }
 else {
+  # Foreground with explicit command
   $USER_CMD = ($CMDS -join ' ')
-  $argv = $COMMON_ARGS + $RUN_ARGS + @($IMGNAME, $SHELL_NAME, '-lc', $USER_CMD)
+  $argv = @('run','--rm') + $TTY_ARGS + $BASE_ARGS + $RUN_ARGS + @($IMGNAME, $SHELL_NAME, '-lc', $USER_CMD)
   Invoke-Docker $argv
 }
