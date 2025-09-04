@@ -21,7 +21,7 @@ DRYRUN=false
 WORKSPACE_CONFIG_FILE="${WORKSPACE_CONFIG_FILE:-./workspace.env}"   # launcher config (sourced)
 CONTAINER_ENV_FILE="${CONTAINER_ENV_FILE:-.env}"                    # passed to docker --env-file (NOT sourced)
 
-# NEW: Docker run-args file (NOT sourced); lines are parsed into RUN_ARGS
+# Docker run-args file (NOT sourced); lines are parsed into RUN_ARGS
 DOCKER_ARGS_FILE="${DOCKER_ARGS_FILE:-./workspace-docker.args}"
 
 WORKSPACE="/home/coder/workspace"
@@ -34,10 +34,9 @@ CLI_VERSION=""
 CLI_CONTAINER=""
 CLI_CONFIG_FILE=""
 CLI_CONTAINER_ENV_FILE=""
-# NEW: CLI override for docker args file
 CLI_DOCKER_ARGS_FILE=""
 
-# NEW: holder for args loaded from docker args file
+# holder for args loaded from docker args file
 RUN_ARGS_FROM_FILE=()
 
 show_help() {
@@ -46,7 +45,7 @@ Starting a workspace container.
 More information: https://github.com/NawaMan/WorkSpace
 
 Usage:
-  ${SCRIPT_NAME} [OPTIONS] [RUN_ARGS]                 # interactive shell
+  ${SCRIPT_NAME} [OPTIONS] [RUN_ARGS]                 # run workspace (foreground)
   ${SCRIPT_NAME} [OPTIONS] [RUN_ARGS] -- <command...> # run a command then exit
   ${SCRIPT_NAME} [OPTIONS] [RUN_ARGS] --daemon        # run container detached
 
@@ -148,7 +147,6 @@ fi
 [[ -n "$CLI_VERSION"   ]] && VERSION="$CLI_VERSION"
 [[ -n "$CLI_CONTAINER" ]] && CONTAINER="$CLI_CONTAINER"
 [[ -n "$CLI_CONTAINER_ENV_FILE" ]] && CONTAINER_ENV_FILE="$CLI_CONTAINER_ENV_FILE"
-# NEW: apply CLI override for docker args file
 [[ -n "$CLI_DOCKER_ARGS_FILE" ]] && DOCKER_ARGS_FILE="$CLI_DOCKER_ARGS_FILE"
 
 # --------- Validate & derive ---------
@@ -193,21 +191,19 @@ if [[ -n "$CONTAINER_ENV_FILE" ]]; then
   fi
 fi
 
-# NEW: Load docker args from file and prepend (so CLI RUN_ARGS win on conflicts)
+# Load docker args from file and prepend (so CLI RUN_ARGS win on conflicts)
 load_docker_args_file "$DOCKER_ARGS_FILE"
 if [[ ${#RUN_ARGS_FROM_FILE[@]} -gt 0 ]]; then
   RUN_ARGS=( "${RUN_ARGS_FROM_FILE[@]}" "${RUN_ARGS[@]}" )
 fi
 
-# Helper: print a docker command nicely quoted
+# Helper: print the docker run command nicely quoted
 print_cmd() {
   printf 'docker run'
   for a in "$@"; do
-    # safe token? print as-is
     if [[ "$a" =~ ^[A-Za-z0-9_./:-]+$ ]]; then
       printf ' %s' "$a"
     else
-      # single-quote and escape internal single quotes: ' -> '\''
       q=${a//\'/\'\\\'\'}
       printf " '%s'" "$q"
     fi
@@ -216,22 +212,18 @@ print_cmd() {
 }
 
 if ! $DRYRUN; then
-  # --------- Docker preflight (after parsing so --dryrun can skip) ---------
+  # Docker preflight (after parsing so --dryrun can skip)
   command -v docker >/dev/null 2>&1 || { echo "Error: docker not found in PATH. Please install Docker." >&2; exit 1; }
 
-  # --------- Pull if requested or missing ---------
-  # Fail early on obviously bad refs (empty or whitespace)
+  # Pull if requested or missing
   if [[ -z "$IMGNAME" || "$IMGNAME" =~ [[:space:]] ]]; then
     echo "Error: invalid image reference IMGNAME='$IMGNAME' (empty or contains whitespace)." >&2
     exit 1
   fi
-  # Silence inspect's stderr cleanly; pull if missing or --pull requested
   if $DO_PULL || ! { docker image inspect "$IMGNAME" >/dev/null 2>&1; }; then
     echo "Pulling image: $IMGNAME"
     docker pull "$IMGNAME" || { echo "Error: failed to pull '$IMGNAME'." >&2; exit 1; }
   fi
-
-  # Final check
   if ! docker image inspect "$IMGNAME" >/dev/null 2>&1; then
     echo "Error: image '$IMGNAME' not available locally. Try '--pull'." >&2
     exit 1
@@ -253,24 +245,28 @@ run() {
 }
 
 if $DAEMON; then
-  SHELL_CMD=()
-  if [[ "$VARIANT" == "container" ]]; then
-    SHELL_CMD=("bash" -lc "while true; do sleep 3600; done")
-  fi
-
+  # Detached: no TTY args
+  echo "📦 Running workspace in daemon mode."
+  echo "👉 Stop with '${0} -- exit'. The container will be removed (--rm) when stop."
+  echo "👉 Visit 'http://localhost:${WORKSPACE_PORT:-10000}'"
+  echo "👉 To open an interactive shell instead: ${0} -- bash"
+  echo -n "👉 Container ID: "
   run -d \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
-    "$IMGNAME" \
-    "${SHELL_CMD[@]}"
+    "$IMGNAME"
 
 elif [[ ${#CMDS[@]} -eq 0 ]]; then
+  echo "📦 Running workspace in foreground."
+  echo "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
+  echo "👉 To open an interactive shell instead: '${0} -- bash'"
   run --rm "$TTY_ARGS" \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
     "$IMGNAME"
 
 else
+  # Foreground with explicit command
   USER_CMD="${CMDS[*]}"
   run --rm "$TTY_ARGS" \
     "${COMMON_ARGS[@]}" \
