@@ -169,7 +169,9 @@ if [[ -z "${CONTAINER:-}" ]]; then
 fi
 
 # Build docker args common to all modes
-TTY_ARGS="-i"; if [ -t 1 ]; then TTY_ARGS="-it"; fi
+# Choose -it only if both stdin and stdout are TTYs
+TTY_ARGS="-i"
+if [ -t 0 ] && [ -t 1 ]; then TTY_ARGS="-it"; fi
 
 COMMON_ARGS=(
   --name "$CONTAINER"
@@ -205,7 +207,7 @@ print_cmd() {
     if [[ "$a" =~ ^[A-Za-z0-9_./:-]+$ ]]; then
       printf ' %s' "$a"
     else
-      # single-quote and escape internal single quotes: ' -> '\'' 
+      # single-quote and escape internal single quotes: ' -> '\''
       q=${a//\'/\'\\\'\'}
       printf " '%s'" "$q"
     fi
@@ -213,74 +215,64 @@ print_cmd() {
   printf '\n'
 }
 
-# --------- If --dryrun, print and exit (no side effects) ---------
-if $DAEMON; then
-  SHELL_CMD=()
-  if [[ "$VARIANT" == "container" ]]; then
-    SHELL_CMD=("bash" -lc "while true; do sleep 3600; done")
+if ! $DRYRUN; then
+  # --------- Docker preflight (after parsing so --dryrun can skip) ---------
+  command -v docker >/dev/null 2>&1 || { echo "Error: docker not found in PATH. Please install Docker." >&2; exit 1; }
+
+  # --------- Pull if requested or missing ---------
+  # Fail early on obviously bad refs (empty or whitespace)
+  if [[ -z "$IMGNAME" || "$IMGNAME" =~ [[:space:]] ]]; then
+    echo "Error: invalid image reference IMGNAME='$IMGNAME' (empty or contains whitespace)." >&2
+    exit 1
   fi
-  if $DRYRUN; then
-    print_cmd -d "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMGNAME" "${SHELL_CMD[@]}"
-    exit 0
+  # Silence inspect's stderr cleanly; pull if missing or --pull requested
+  if $DO_PULL || ! { docker image inspect "$IMGNAME" >/dev/null 2>&1; }; then
+    echo "Pulling image: $IMGNAME"
+    docker pull "$IMGNAME" || { echo "Error: failed to pull '$IMGNAME'." >&2; exit 1; }
   fi
-else
-  if $DRYRUN; then
-    if [[ ${#CMDS[@]} -eq 0 ]]; then
-      print_cmd --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMGNAME"
-    else
-      USER_CMD="${CMDS[*]}"
-      print_cmd --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMGNAME" "bash" -lc "$USER_CMD"
-    fi
-    exit 0
+
+  # Final check
+  if ! docker image inspect "$IMGNAME" >/dev/null 2>&1; then
+    echo "Error: image '$IMGNAME' not available locally. Try '--pull'." >&2
+    exit 1
   fi
-fi
 
-# --------- Docker preflight (after parsing so --dryrun can skip) ---------
-command -v docker >/dev/null 2>&1 || { echo "Error: docker not found in PATH. Please install Docker." >&2; exit 1; }
-
-# --------- Pull if requested or missing ---------
-# Fail early on obviously bad refs (empty or whitespace)
-if [[ -z "$IMGNAME" || "$IMGNAME" =~ [[:space:]] ]]; then
-  echo "Error: invalid image reference IMGNAME='$IMGNAME' (empty or contains whitespace)." >&2
-  exit 1
+  # Clean up any previous container with the same name
+  docker rm -f "$CONTAINER" &>/dev/null || true
 fi
-# Silence inspect's stderr cleanly; pull if missing or --pull requested
-if $DO_PULL || ! { docker image inspect "$IMGNAME" >/dev/null 2>&1; }; then
-  echo "Pulling image: $IMGNAME"
-  docker pull "$IMGNAME" || { echo "Error: failed to pull '$IMGNAME'." >&2; exit 1; }
-fi
-
-# Final check
-if ! docker image inspect "$IMGNAME" >/dev/null 2>&1; then
-  echo "Error: image '$IMGNAME' not available locally. Try '--pull'." >&2
-  exit 1
-fi
-
-# Clean up any previous container with the same name
-docker rm -f "$CONTAINER" &>/dev/null || true
 
 # --------- Execute ---------
+
+# Unified runner: print when --dryrun, otherwise exec the real docker run
+run() {
+  if $DRYRUN; then
+    print_cmd "$@"
+  else
+    exec docker run "$@"
+  fi
+}
+
 if $DAEMON; then
   SHELL_CMD=()
   if [[ "$VARIANT" == "container" ]]; then
     SHELL_CMD=("bash" -lc "while true; do sleep 3600; done")
   fi
 
-  exec docker run -d \
+  run -d \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
     "$IMGNAME" \
     "${SHELL_CMD[@]}"
 
 elif [[ ${#CMDS[@]} -eq 0 ]]; then
-  exec docker run --rm "$TTY_ARGS" \
+  run --rm "$TTY_ARGS" \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
     "$IMGNAME"
 
 else
   USER_CMD="${CMDS[*]}"
-  exec docker run --rm "$TTY_ARGS" \
+  run --rm "$TTY_ARGS" \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
     "$IMGNAME" \
