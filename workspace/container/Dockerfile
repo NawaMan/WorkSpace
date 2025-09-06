@@ -20,9 +20,7 @@ RUN set -euo pipefail         \
       bash                    \
       ca-certificates         \
       curl                    \
-      gh                      \
       git                     \
-      httpie                  \
       jq                      \
       less                    \
       locales                 \
@@ -36,7 +34,6 @@ RUN set -euo pipefail         \
       unzip                   \
       wget                    \
       xz-utils                \
-      yq                      \
       zip                     \
       zsh                     \
  && sed -i "/${LOCALE}/s/^# //g" /etc/locale.gen \
@@ -51,7 +48,7 @@ ENV USER_NAME=coder  \
 
 # Make the venv default and set pip knobs AFTER the upgrade above
 ENV PATH=/opt/venv/bin:/home/coder/.local/bin:$PATH \
-    EDITOR=nano
+    EDITOR=tilde
 
 # ---- Belt & suspenders: seed a 'coder' user/group even if 1000 is taken ----
 # We pick the first free UID/GID >= 1000 so name lookups always work.
@@ -83,9 +80,10 @@ alias cp='cp -p'
 alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 alias tree='tree -C'
+
 # Environment
-export EDITOR=${EDITOR:-nano}
-export EDITOR=${EDITOR:-nano}
+export EDITOR=${EDITOR:-tilde}
+
 # Permissions: default to 0664 files / 0775 dirs
 umask 0002
 # ---- end defaults ----
@@ -103,6 +101,11 @@ RUN set -euo pipefail                                                           
 # --- Install the tidy terminal 
 RUN apt-get update && apt-get install -y ttyd \
     && rm -rf /var/lib/apt/lists/*
+
+
+# Entry that aligns coder’s uid/gid to host, then drops privileges
+COPY --chmod=0755 features/ /opt/workspace/features/
+
 
 # Always start as root so workspace-user-setup can realign ids
 USER root
