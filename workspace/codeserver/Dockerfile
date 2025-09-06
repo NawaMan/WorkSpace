@@ -7,9 +7,10 @@ SHELL ["/bin/bash","-o","pipefail","-lc"]
 # -----------------------------------------------------------
 # Install code-server (uses Open VSX for extensions)
 # -----------------------------------------------------------
+# Install code-server with verification
 RUN set -euo pipefail \
- && curl -fsSL https://code-server.dev/install.sh | bash \
- && code-server --version
+&& curl -fsSL https://code-server.dev/install.sh | bash \
+&& code-server --version
 
 # -----------------------------------------------------------
 # Global config + preinstalled extensions (Open VSX)
@@ -22,8 +23,9 @@ ENV CODESERVER_EXT_DIR=/opt/code-server/extensions \
 
 RUN mkdir -p /etc/code-server "$CODESERVER_EXT_DIR" \
  && cat >/etc/code-server/config.yaml <<'EOF'
+# dev default; set PASSWORD at runtime to enable password auth
 bind-addr: 0.0.0.0:10000
-auth: none                # dev default; set PASSWORD at runtime to enable password auth
+auth: none                
 cert: false
 extensions-dir: /opt/code-server/extensions
 EOF
@@ -57,7 +59,7 @@ EOF
 # - Optionally starts JupyterLab too when RUN_JUPYTER=1
 # - Auth: default none; set PASSWORD to switch to password auth
 # -----------------------------------------------------------
-RUN cat >/usr/local/bin/start-workbench <<'EOF'
+RUN cat >/usr/local/bin/codeserver <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -65,21 +67,11 @@ WORKSPACE_PORT="${WORKSPACE_PORT:-10000}"
 ROOT="${WORKSPACE:-$HOME}"
 AUTH="none"
 if [[ -n "${PASSWORD:-}" ]]; then
-  AUTH="password"  # code-server reads PASSWORD env when auth=password
+  # code-server reads PASSWORD env when auth=password
+  AUTH="password"
 fi
 
-# Optionally run JupyterLab alongside code-server
-if [[ "${RUN_JUPYTER:-0}" = "1" ]]; then
-  jupyter lab \
-    --no-browser \
-    --ip=0.0.0.0 \
-    --port="${WORKSPACE_PORT:-10000}" \
-    --IdentityProvider.token="${JUPYTER_TOKEN:-}" \
-    --ServerApp.allow_origin='*' \
-    --ServerApp.allow_remote_access=True \
-    --ServerApp.root_dir="${ROOT}" \
-    >/tmp/jupyter.log 2>&1 &
-fi
+sudo chown -R coder:coder /opt/code-server/
 
 exec code-server \
   --config /etc/code-server/config.yaml \
@@ -91,7 +83,10 @@ exec code-server \
   --auth "${AUTH}" \
   "${ROOT}"
 EOF
-RUN chmod 0755 /usr/local/bin/start-workbench
+
+# Fixup the permission.
+RUN chmod 0755 /usr/local/bin/codeserver
+RUN chmod 0777 /opt/code-server/extensions
 
 # This is needed as it is created by the root and it is done AFTER workspace-user-setup change the permission.
 RUN rm -rf /home/coder/.cache /home/coder/.config /home/coder/.local || true
@@ -99,4 +94,4 @@ RUN rm -rf /home/coder/.cache /home/coder/.config /home/coder/.local || true
 # Keep base ENTRYPOINT (tini -> /usr/local/bin/workspace-user-setup)
 EXPOSE 10000
 WORKDIR /home/coder/workspace
-CMD ["start-workbench"]
+CMD ["codeserver"]

@@ -244,16 +244,20 @@ run() {
   fi
 }
 
+WORKSPACE_PORT=${WORKSPACE_PORT:-10000}
+
 if $DAEMON; then
   # Detached: no TTY args
   echo "📦 Running workspace in daemon mode."
   echo "👉 Stop with '${0} -- exit'. The container will be removed (--rm) when stop."
-  echo "👉 Visit 'http://localhost:${WORKSPACE_PORT:-10000}'"
+  echo "👉 Visit 'http://localhost:${WORKSPACE_PORT}'"
   echo "👉 To open an interactive shell instead: ${0} -- bash"
   echo -n "👉 Container ID: "
   run -d \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
+    -e DAEMON=${DAEMON} \
+    -e WORKSPACE_PORT=${WORKSPACE_PORT} \
     "$IMGNAME"
 
 elif [[ ${#CMDS[@]} -eq 0 ]]; then
@@ -263,6 +267,8 @@ elif [[ ${#CMDS[@]} -eq 0 ]]; then
   run --rm "$TTY_ARGS" \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
+    -e DAEMON=${DAEMON} \
+    -e WORKSPACE_PORT=${WORKSPACE_PORT} \
     "$IMGNAME"
 
 else
@@ -271,6 +277,8 @@ else
   run --rm "$TTY_ARGS" \
     "${COMMON_ARGS[@]}" \
     "${RUN_ARGS[@]}" \
+    -e DAEMON=${DAEMON} \
+    -e WORKSPACE_PORT=${WORKSPACE_PORT} \
     "$IMGNAME" \
     bash -lc "$USER_CMD"
 fi

@@ -36,6 +36,19 @@ Typical use cases include:
   - Bare-bone development shells (VARIANT=container) where you can build on to customize as you need.
   - Isolated environments for cloud SDKs, CI builds, or teaching/training setups.
 
+## Built-in Tools
+
+The base image comes with a curated set of command-line tools for productivity, scripting, and troubleshooting:
+  - Shells & Process Management: bash, zsh, tini
+  - Networking & Transfers: curl, wget, httpie
+  - Source Control & GitHub: git, gh (GitHub CLI), tig
+  - Editors & File Browsers: nano, tilde, ranger, less
+  - Data Processing: jq, yq, tree
+  - Compression & Archiving: unzip, zip, xz-utils
+  - System Utilities: ca-certificates, locales, sudo
+
+These are installed by default so you can hit the ground running without needing extra setup.
+
 ## Quick start
 
 ```shell

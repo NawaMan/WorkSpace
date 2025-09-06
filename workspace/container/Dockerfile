@@ -20,16 +20,22 @@ RUN set -euo pipefail         \
       bash                    \
       ca-certificates         \
       curl                    \
+      gh                      \
       git                     \
+      httpie                  \
       jq                      \
       less                    \
       locales                 \
       nano                    \
+      ranger                  \
       sudo                    \
+      tig                     \
+      tilde                   \
       tini                    \
       tree                    \
       unzip                   \
       wget                    \
+      xz-utils                \
       yq                      \
       zip                     \
       zsh                     \

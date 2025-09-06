@@ -34,14 +34,16 @@ RUN set -euo pipefail \
 # Global (read-only) Jupyter config; user-writable files go to ~/.jupyter
 RUN mkdir -p /etc/jupyter \
  && cat > /etc/jupyter/jupyter_lab_config.py <<'EOF'
-c.ServerApp.ip = '0.0.0.0'
-c.ServerApp.port = 10000
+c.ServerApp.ip = 'localhost'
 c.ServerApp.open_browser = False
 c.ServerApp.allow_origin = '*'
 c.ServerApp.allow_remote_access = True
 c.ServerApp.root_dir = '/home/coder/workspace'
 # Quiet the extension manager warnings (optional; comment out to enable PyPI manager)
 c.LabApp.extension_manager = 'readonly'
+
+# >>> Make JupyterLab terminals use bash
+c.ServerApp.terminado_settings = {'shell_command': ['/bin/bash']}
 EOF
 
 # Optional: handy aliases
@@ -61,7 +63,24 @@ RUN rm -rf /home/coder/.ipython || true
 EXPOSE 10000
 WORKDIR /home/coder/workspace
 
+# Create startup script inline
+RUN cat <<'EOF' >/usr/local/bin/notebook
+#!/usr/bin/env bash
+set -euo pipefail
+WORKSPACE_PORT="${WORKSPACE_PORT:-10000}"
+exec jupyter lab \
+  --no-browser \
+  --ip=0.0.0.0 \
+  --port=10000 \
+  --IdentityProvider.token='' \
+  --ServerApp.custom_display_url="http://localhost:${WORKSPACE_PORT}/lab"
+EOF
+
+# Make it executable
+RUN chmod +x /usr/local/bin/notebook
+
 # Inherit the base ENTRYPOINT (tini + /usr/local/bin/workspace-user-setup).
-# Only set CMD; workspace-user-setup will realign ids and exec this as 'coder'.
+# Only set CMD; workspace-user-setup will realign IDs and exec this script as 'coder'.
+# This startup script prints mode info (daemon/foreground) and then launches Jupyter Lab.
 # Empty token == no auth (dev only). Provide one via -e JUPYTER_TOKEN=... if needed.
-CMD ["bash","-lc","jupyter lab --no-browser --ip=0.0.0.0 --IdentityProvider.token=''"]
+CMD ["notebook"]
