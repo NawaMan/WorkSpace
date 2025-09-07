@@ -5,8 +5,12 @@ SCRIPT_NAME="$(basename "$0")"
 
 # ---------- Defaults ----------
 IMGREPO="${IMGREPO:-nawaman/workspace}"
-VARIANT="${VARIANT:-container}"
+# CHG: Do not default VARIANT to 'container' immediately; keep unset and defer.
+VARIANT="${VARIANT-}"
+VARIANT_DEFAULT="container"   # CHG: default only when truly needed
 VERSION="${VERSION:-latest}"
+# CHG: New default for Dockerfile path (selectable via CLI/env/config)
+DOCKERFILE="${DOCKERFILE:-./Dockerfile}"
 
 # Respect overrides like docker-compose does, else detect host values
 HOST_UID="${HOST_UID:-$(id -u)}"
@@ -35,6 +39,8 @@ CLI_CONTAINER=""
 CLI_CONFIG_FILE=""
 CLI_CONTAINER_ENV_FILE=""
 CLI_DOCKER_ARGS_FILE=""
+# CHG: new CLI holder for dockerfile
+CLI_DOCKERFILE=""
 
 # holder for args loaded from docker args file
 RUN_ARGS_FROM_FILE=()
@@ -52,13 +58,14 @@ Usage:
 Options:
   -d, --daemon              Run container detached (background)
       --pull                Pull/refresh the image from registry (also pulls if image missing)
-      --variant <name>      Variant prefix        (default: container)
+      --variant <name>      Variant prefix        (default: container; see Image selection)
       --version <tag>       Version suffix        (default: latest)
       --name <name>         Container name        (default: <project-folder>)
       --config F            Launcher config file to source (default: ./workspace.env or \$WORKSPACE_CONFIG_FILE)
       --env-file F          Container env file passed to 'docker run --env-file' (default: ./.env or \$CONTAINER_ENV_FILE)
       --docker-args F       File of extra 'docker run' args (default: ./workspace-docker.args or \$DOCKER_ARGS_FILE)
-      --dryrun              Print the docker run command and exit (no side effects)
+      --dockerfile F        Dockerfile to build when no variant provided (default: ./Dockerfile or \$DOCKERFILE)
+      --dryrun              Print the docker build/run command(s) and exit (no side effects)
   -h, --help                Show this help message
 
 Notes:
@@ -66,7 +73,7 @@ Notes:
 
 Configuration:
   • Launcher config (sourced): workspace.env (override with --config or \$WORKSPACE_CONFIG_FILE)
-      Keys: IMGNAME, IMGREPO, IMG_TAG, VARIANT, VERSION, CONTAINER,
+      Keys: IMGNAME, IMGREPO, IMG_TAG, VARIANT, VERSION, CONTAINER, DOCKERFILE,
             HOST_UID, HOST_GID, WORKSPACE_PORT
   • Container env (NOT sourced): .env (or --env-file)
       Typical keys: PASSWORD, JUPYTER_TOKEN, TZ, PROXY, AWS_*, GH_TOKEN, etc.
@@ -80,6 +87,9 @@ Configuration:
   • Image selection:
       - Set IMGNAME to full image (e.g., nawaman/workspace:container-latest), or
       - Set IMGREPO and IMG_TAG (IMG_TAG defaults to VARIANT-VERSION)
+      - If NO variant is provided via CLI/config/env and a local Dockerfile exists
+        (or --dockerfile points to one), the script BUILDS that Dockerfile and runs it.
+        Otherwise it falls back to the default variant: '${VARIANT_DEFAULT}'.
 
   • Precedence (most → least):
       command-line args > workspace config file > environment variables > built-in defaults
@@ -124,6 +134,8 @@ while [[ $# -gt 0 ]]; do
       --config)      [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path";      exit 1; } ;;
       --env-file)    [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path";    exit 1; } ;;
       --docker-args) [[ -n "${2:-}" ]] && { CLI_DOCKER_ARGS_FILE="$2"   ; shift 2; } || { echo "Error: --docker-args requires a path"; exit 1; } ;;
+      # CHG: new option --dockerfile
+      --dockerfile)  [[ -n "${2:-}" ]] && { CLI_DOCKERFILE="$2"         ; shift 2; } || { echo "Error: --dockerfile requires a path";  exit 1; } ;;
       -h|--help)     show_help ; exit 0 ;;
       --)            parsing_cmds=true ; shift ;;
       *)             RUN_ARGS+=("$1") ; shift ;;
@@ -148,15 +160,29 @@ fi
 [[ -n "$CLI_CONTAINER" ]] && CONTAINER="$CLI_CONTAINER"
 [[ -n "$CLI_CONTAINER_ENV_FILE" ]] && CONTAINER_ENV_FILE="$CLI_CONTAINER_ENV_FILE"
 [[ -n "$CLI_DOCKER_ARGS_FILE" ]] && DOCKER_ARGS_FILE="$CLI_DOCKER_ARGS_FILE"
+# CHG: apply dockerfile override
+[[ -n "$CLI_DOCKERFILE" ]] && DOCKERFILE="$CLI_DOCKERFILE"
+
+# CHG: Track whether a variant was explicitly provided (CLI/config/env), not defaulted.
+VARIANT_EXPLICIT=false
+if [[ -n "$CLI_VARIANT" || -n "${VARIANT+x}" ]]; then
+  # If VARIANT is set by either CLI or sourced/env (even if empty string), treat as explicit.
+  # Only an actually non-empty value will be validated below.
+  VARIANT_EXPLICIT=true
+fi
 
 # --------- Validate & derive ---------
-case "$VARIANT" in
-  container|notebook|codeserver) ;;
-  *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
-esac
+# CHG: Only validate if a variant value is present; otherwise we may build locally.
+if [[ -n "${VARIANT:-}" ]]; then
+  case "$VARIANT" in
+    container|notebook|codeserver) ;;
+    *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
+  esac
+fi
 
-IMG_TAG="${IMG_TAG:-${VARIANT}-${VERSION}}"
-IMGNAME="${IMGNAME:-${IMGREPO}:${IMG_TAG}}"
+# Derive tag/name if variant path is chosen later; for now, leave IMGNAME possibly unset.
+IMG_TAG="${IMG_TAG-}"
+IMGNAME="${IMGNAME-}"
 
 # Default container name: <project-folder>, sanitized for Docker
 if [[ -z "${CONTAINER:-}" ]]; then
@@ -164,6 +190,11 @@ if [[ -z "${CONTAINER:-}" ]]; then
   proj_sanitized="$(printf '%s' "$proj" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
   [[ -z "$proj_sanitized" ]] && proj_sanitized="workspace"
   CONTAINER="${proj_sanitized}"
+else
+  # still need proj_sanitized for local image tag below
+  proj="$(basename "$PWD")"
+  proj_sanitized="$(printf '%s' "$proj" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
+  [[ -z "$proj_sanitized" ]] && proj_sanitized="workspace"
 fi
 
 # Build docker args common to all modes
@@ -199,7 +230,7 @@ fi
 
 # Helper: print the docker run command nicely quoted
 print_cmd() {
-  printf 'docker run'
+  printf 'docker'
   for a in "$@"; do
     if [[ "$a" =~ ^[A-Za-z0-9_./:-]+$ ]]; then
       printf ' %s' "$a"
@@ -211,24 +242,65 @@ print_cmd() {
   printf '\n'
 }
 
+# --------- Decide build-vs-variant ---------
+USE_LOCAL_BUILD=false
+LOCAL_IMGNAME=""
+if ! $VARIANT_EXPLICIT; then
+  # No variant provided by CLI/config/env → try Dockerfile path
+  if [[ -n "${DOCKERFILE:-}" && -f "$DOCKERFILE" ]]; then
+    USE_LOCAL_BUILD=true
+    LOCAL_IMGNAME="workspace-local:${proj_sanitized}"
+  fi
+fi
+
+# If not building locally and no variant set, fall back to default variant and derive image name
+if ! $USE_LOCAL_BUILD; then
+  if [[ -z "${VARIANT:-}" ]]; then
+    VARIANT="$VARIANT_DEFAULT"
+  fi
+  # Validate (in case VARIANT was defaulted just now)
+  case "$VARIANT" in
+    container|notebook|codeserver) ;;
+    *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
+  esac
+  # Derive tag/name only if IMGNAME not explicitly provided
+  IMG_TAG="${IMG_TAG:-${VARIANT}-${VERSION}}"
+  IMGNAME="${IMGNAME:-${IMGREPO}:${IMG_TAG}}"
+fi
+
 if ! $DRYRUN; then
   # Docker preflight (after parsing so --dryrun can skip)
   command -v docker >/dev/null 2>&1 || { echo "Error: docker not found in PATH. Please install Docker." >&2; exit 1; }
+fi
 
-  # Pull if requested or missing
-  if [[ -z "$IMGNAME" || "$IMGNAME" =~ [[:space:]] ]]; then
-    echo "Error: invalid image reference IMGNAME='$IMGNAME' (empty or contains whitespace)." >&2
+# CHG: Build or pull logic, honoring --dryrun and skipping pulls for local builds
+if $USE_LOCAL_BUILD; then
+  # Build local image from Dockerfile
+  if $DRYRUN; then
+    print_cmd build -f "$DOCKERFILE" -t "$LOCAL_IMGNAME" .
+  else
+    docker build -f "$DOCKERFILE" -t "$LOCAL_IMGNAME" .
+  fi
+  IMGNAME="$LOCAL_IMGNAME"
+else
+  # Variant path: pull/inspect as before
+  if [[ -z "${IMGNAME:-}" || "$IMGNAME" =~ [[:space:]] ]]; then
+    echo "Error: invalid image reference IMGNAME='${IMGNAME:-}' (empty or contains whitespace)." >&2
     exit 1
   fi
-  if $DO_PULL || ! { docker image inspect "$IMGNAME" >/dev/null 2>&1; }; then
-    echo "Pulling image: $IMGNAME"
-    docker pull "$IMGNAME" || { echo "Error: failed to pull '$IMGNAME'." >&2; exit 1; }
+  if ! $DRYRUN; then
+    if $DO_PULL || ! { docker image inspect "$IMGNAME" >/dev/null 2>&1; }; then
+      echo "Pulling image: $IMGNAME"
+      docker pull "$IMGNAME" || { echo "Error: failed to pull '$IMGNAME'." >&2; exit 1; }
+    fi
+    if ! docker image inspect "$IMGNAME" >/dev/null 2>&1; then
+      echo "Error: image '$IMGNAME' not available locally. Try '--pull'." >&2
+      exit 1
+    fi
   fi
-  if ! docker image inspect "$IMGNAME" >/dev/null 2>&1; then
-    echo "Error: image '$IMGNAME' not available locally. Try '--pull'." >&2
-    exit 1
-  fi
+fi
 
+if ! $DRYRUN; then
   # Clean up any previous container with the same name
   docker rm -f "$CONTAINER" &>/dev/null || true
 fi
@@ -238,7 +310,7 @@ fi
 # Unified runner: print when --dryrun, otherwise exec the real docker run
 run() {
   if $DRYRUN; then
-    print_cmd "$@"
+    print_cmd run "$@"
   else
     exec docker run "$@"
   fi
