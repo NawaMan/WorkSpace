@@ -10,11 +10,11 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 apt-get update
-apt-get install -y \
+apt-get install -y          \
     --no-install-recommends \
-    python3 \
-    python3-venv \
-    python3-dev \
+    python3                 \
+    python3-venv            \
+    python3-dev             \
     build-essential
 
 apt-get clean
