@@ -10,7 +10,6 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 FEATURE_DIR=${FEATURE_DIR:-.}
-
 ${FEATURE_DIR}/python-setup.sh
 
 /opt/venv/bin/pip      \

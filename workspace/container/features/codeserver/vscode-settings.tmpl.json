@@ -1,0 +1,8 @@
+{
+  "python.defaultInterpreterPath": "${VENV_DIR}/bin/python",
+  "jupyter.jupyterServerType": "local",
+  "jupyter.kernels.filter": [
+    "Python 3 (venv)",
+    "bash"
+  ]
+}
