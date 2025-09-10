@@ -5,12 +5,10 @@ SCRIPT_NAME="$(basename "$0")"
 
 # ---------- Defaults ----------
 IMGREPO="${IMGREPO:-nawaman/workspace}"
-# CHG: Do not default VARIANT to 'container' immediately; keep unset and defer.
 VARIANT="${VARIANT-}"
 VARIANT_DEFAULT="container"   # CHG: default only when truly needed
 VERSION="${VERSION:-latest}"
-# CHG: New default for Dockerfile path (selectable via CLI/env/config)
-DOCKERFILE="${DOCKERFILE:-./Dockerfile}"
+WORKSPACE="${WORKSPACE:-$PWD}"
 
 # Respect overrides like docker-compose does, else detect host values
 HOST_UID="${HOST_UID:-$(id -u)}"
@@ -27,8 +25,6 @@ CONTAINER_ENV_FILE="${CONTAINER_ENV_FILE:-.env}"                    # passed to 
 
 # Docker run-args file (NOT sourced); lines are parsed into RUN_ARGS
 DOCKER_ARGS_FILE="${DOCKER_ARGS_FILE:-./workspace-docker.args}"
-
-WORKSPACE="/home/coder/workspace"
 RUN_ARGS=()
 CMDS=()
 
@@ -39,7 +35,7 @@ CLI_CONTAINER=""
 CLI_CONFIG_FILE=""
 CLI_CONTAINER_ENV_FILE=""
 CLI_DOCKER_ARGS_FILE=""
-# CHG: new CLI holder for dockerfile
+CLI_WORKSPACE=""
 CLI_DOCKERFILE=""
 
 # holder for args loaded from docker args file
@@ -63,7 +59,8 @@ Options:
       --name <name>         Container name        (default: <project-folder>)
       --config F            Launcher config file to source (default: ./workspace.env or \$WORKSPACE_CONFIG_FILE)
       --env-file F          Container env file passed to 'docker run --env-file' (default: ./.env or \$CONTAINER_ENV_FILE)
-      --docker-args F       File of extra 'docker run' args (default: ./workspace-docker.args or \$DOCKER_ARGS_FILE)
+      --docker-args F       File of extra 'docker run' args (default: ./workspace-docker.args or \$DOCKER_ARGS_FILE)ILE)
+      --workspace F         The base folder.
       --dockerfile F        Dockerfile to build when no variant provided (default: ./Dockerfile or \$DOCKERFILE)
       --dryrun              Print the docker build/run command(s) and exit (no side effects)
   -h, --help                Show this help message
@@ -134,6 +131,7 @@ while [[ $# -gt 0 ]]; do
       --config)      [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path";      exit 1; } ;;
       --env-file)    [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path";    exit 1; } ;;
       --docker-args) [[ -n "${2:-}" ]] && { CLI_DOCKER_ARGS_FILE="$2"   ; shift 2; } || { echo "Error: --docker-args requires a path"; exit 1; } ;;
+      --workspace)   [[ -n "${2:-}" ]] && { CLI_WORKSPACE="$2"          ; shift 2; } || { echo "Error: --workspace requires a path";   exit 1; } ;;
       --dockerfile)  [[ -n "${2:-}" ]] && { CLI_DOCKERFILE="$2"         ; shift 2; } || { echo "Error: --dockerfile requires a path";  exit 1; } ;;
       -h|--help)     show_help ; exit 0 ;;
       --)            parsing_cmds=true ; shift ;;
@@ -159,7 +157,10 @@ fi
 [[ -n "$CLI_CONTAINER" ]]          && CONTAINER="$CLI_CONTAINER"
 [[ -n "$CLI_CONTAINER_ENV_FILE" ]] && CONTAINER_ENV_FILE="$CLI_CONTAINER_ENV_FILE"
 [[ -n "$CLI_DOCKER_ARGS_FILE" ]]   && DOCKER_ARGS_FILE="$CLI_DOCKER_ARGS_FILE"
+[[ -n "$CLI_WORKSPACE" ]]          && WORKSPACE="$(readlink -f "$CLI_WORKSPACE")"
 [[ -n "$CLI_DOCKERFILE" ]]         && DOCKERFILE="$CLI_DOCKERFILE"
+
+DOCKERFILE="${DOCKERFILE:-$WORKSPACE/Dockerfile}"
 
 # CHG: Track whether a variant was explicitly provided (CLI/config/env), not defaulted.
 VARIANT_EXPLICIT=false
@@ -184,13 +185,13 @@ IMGNAME="${IMGNAME-}"
 
 # Default container name: <project-folder>, sanitized for Docker
 if [[ -z "${CONTAINER:-}" ]]; then
-  proj="$(basename "$PWD")"
+  proj="$(basename "$WORKSPACE")"
   proj_sanitized="$(printf '%s' "$proj" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
   [[ -z "$proj_sanitized" ]] && proj_sanitized="workspace"
   CONTAINER="${proj_sanitized}"
 else
   # still need proj_sanitized for local image tag below
-  proj="$(basename "$PWD")"
+  proj="$(basename "$WORKSPACE")"
   proj_sanitized="$(printf '%s' "$proj" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
   [[ -z "$proj_sanitized" ]] && proj_sanitized="workspace"
 fi
@@ -204,8 +205,8 @@ COMMON_ARGS=(
   --name "$CONTAINER"
   -e HOST_UID="$HOST_UID"
   -e HOST_GID="$HOST_GID"
-  -v "$PWD":"$WORKSPACE"
-  -w "$WORKSPACE"
+  -v "$WORKSPACE":"/home/coder/workspace"
+  -w "/home/coder/workspace"
   -p "${WORKSPACE_PORT:-10000}:10000"
 )
 
@@ -250,6 +251,17 @@ if ! $VARIANT_EXPLICIT; then
     LOCAL_IMGNAME="workspace-local:${proj_sanitized}"
   fi
 fi
+
+echo "CLI_VARIANT:      $CLI_VARIANT"
+echo "VARIANT:          $VARIANT"
+echo "USE_LOCAL_BUILD:  $USE_LOCAL_BUILD"
+echo "LOCAL_IMGNAME:    $LOCAL_IMGNAME"
+echo "VARIANT_EXPLICIT: $VARIANT_EXPLICIT"
+echo "WORKSPACE:        $WORKSPACE"
+echo "DOCKERFILE:       $DOCKERFILE"
+echo "USE_LOCAL_BUILD:  $USE_LOCAL_BUILD"
+echo "proj_sanitized:   $proj_sanitized"
+
 
 # If not building locally and no variant set, fall back to default variant and derive image name
 if ! $USE_LOCAL_BUILD; then

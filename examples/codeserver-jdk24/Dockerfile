@@ -6,7 +6,6 @@ SHELL ["/bin/bash","-o","pipefail","-lc"]
 USER root
 
 ENV FEATURE_DIR=/opt/workspace/features
-RUN /opt/workspace/features/codeserver-setup.sh
-RUN /opt/workspace/features/jdk24-setup.sh
+RUN /opt/workspace/features/jdk-setup.sh 24
 
 CMD ["codeserver"]
