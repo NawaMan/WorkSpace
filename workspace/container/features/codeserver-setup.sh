@@ -93,8 +93,8 @@ PATH="${VENV_DIR}/bin:${PATH}"
 
 
 #== Write code-server config for coder ==============================
-mkdir -p "~/.config/code-server"
-CONFIG_FILE="~/.config/code-server/config.yaml"
+mkdir -p "/home/coder/.config/code-server"
+CONFIG_FILE="/home/coder/.config/code-server/config.yaml"
 AUTH=none
 PASS=$( [[ "$AUTH" == "password" ]] && echo "password: ${PASSWORD}" || echo "")
 
@@ -107,23 +107,29 @@ EOF
 
 #== Settings ========================================================
 
-SETTING_DIR=~/.local/share/code-server/User
+SETTING_DIR=/home/coder/.local/share/code-server/User
 SETTINGS_JSON="$SETTING_DIR/settings.json"
 mkdir -p "$SETTING_DIR"
 
-"${FEATURE_DIR}"/tools/load-template.sh "${FEATURE_DIR}"/codeserver/vscode-settings.tmpl.json \
-  | "${FEATURE_DIR}"/tools/apply-template.sh                                                  \
-  | "${FEATURE_DIR}"/tools/json-merge.sh --into "$SETTINGS_JSON"
+
+cat <<EOF | "${FEATURE_DIR}"/tools/apply-template.sh | \
+  "${FEATURE_DIR}"/tools/json-merge.sh --into "$SETTINGS_JSON"
+{
+  "python.defaultInterpreterPath": "${VENV_DIR}/bin/python",
+  "jupyter.jupyterServerType": "local"
+}
+EOF
 
 
-sudo chown -R "coder:coder" "~/.config"
-sudo chown -R "coder:coder" "~/.local"
+sudo chown -R "coder:coder" "/home/coder/.config"
+sudo chown -R "coder:coder" "/home/coder/.local"
 sudo chown -R "coder:coder" "$VENV_DIR" || true
 
 
 # Force bind port and auth at runtime so old configs can't override them
 AUTH=$([ -z "$PASSWORD" ] && echo none || echo password)
-exec code-server --bind-addr "0.0.0.0:${PORT}" --auth "$AUTH"
+echo "Starting code-server. This may take sometime ..."
+exec code-server --bind-addr "0.0.0.0:${PORT}" --auth "$AUTH" "/home/coder/workspace"
 
 LAUNCH
 chmod 755 /usr/local/bin/codeserver
