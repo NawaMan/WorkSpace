@@ -77,7 +77,7 @@ cat >"$CONFIG_FILE" <<EOF
 bind-addr: 0.0.0.0:${PORT}
 auth: ${AUTH}
 ${PASS}
-cert: true
+cert: false
 EOF
 
 
@@ -104,7 +104,7 @@ sudo chown -R "coder:coder" "$VENV_DIR" || true
 # Force bind port and auth at runtime so old configs can't override them
 AUTH=$([ -z "$PASSWORD" ] && echo none || echo password)
 echo "Starting code-server. This may take sometime ..."
-exec code-server --bind-addr "0.0.0.0:${PORT}" --auth "$AUTH" --cert -- "$CSHOME/workspace"
+exec code-server --bind-addr "0.0.0.0:${PORT}" --auth "$AUTH" "$CSHOME/workspace"
 
 LAUNCH
 chmod 755 /usr/local/bin/codeserver
