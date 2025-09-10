@@ -134,7 +134,6 @@ while [[ $# -gt 0 ]]; do
       --config)      [[ -n "${2:-}" ]] && { CLI_CONFIG_FILE="$2"        ; shift 2; } || { echo "Error: --config requires a path";      exit 1; } ;;
       --env-file)    [[ -n "${2:-}" ]] && { CLI_CONTAINER_ENV_FILE="$2" ; shift 2; } || { echo "Error: --env-file requires a path";    exit 1; } ;;
       --docker-args) [[ -n "${2:-}" ]] && { CLI_DOCKER_ARGS_FILE="$2"   ; shift 2; } || { echo "Error: --docker-args requires a path"; exit 1; } ;;
-      # CHG: new option --dockerfile
       --dockerfile)  [[ -n "${2:-}" ]] && { CLI_DOCKERFILE="$2"         ; shift 2; } || { echo "Error: --dockerfile requires a path";  exit 1; } ;;
       -h|--help)     show_help ; exit 0 ;;
       --)            parsing_cmds=true ; shift ;;
@@ -155,17 +154,16 @@ if [[ -n "$CLI_CONFIG_FILE" ]]; then
 fi
 
 # Apply CLI overrides last (preserve precedence)
-[[ -n "$CLI_VARIANT"   ]] && VARIANT="$CLI_VARIANT"
-[[ -n "$CLI_VERSION"   ]] && VERSION="$CLI_VERSION"
-[[ -n "$CLI_CONTAINER" ]] && CONTAINER="$CLI_CONTAINER"
+[[ -n "$CLI_VARIANT"   ]]          && VARIANT="$CLI_VARIANT"
+[[ -n "$CLI_VERSION"   ]]          && VERSION="$CLI_VERSION"
+[[ -n "$CLI_CONTAINER" ]]          && CONTAINER="$CLI_CONTAINER"
 [[ -n "$CLI_CONTAINER_ENV_FILE" ]] && CONTAINER_ENV_FILE="$CLI_CONTAINER_ENV_FILE"
-[[ -n "$CLI_DOCKER_ARGS_FILE" ]] && DOCKER_ARGS_FILE="$CLI_DOCKER_ARGS_FILE"
-# CHG: apply dockerfile override
-[[ -n "$CLI_DOCKERFILE" ]] && DOCKERFILE="$CLI_DOCKERFILE"
+[[ -n "$CLI_DOCKER_ARGS_FILE" ]]   && DOCKER_ARGS_FILE="$CLI_DOCKER_ARGS_FILE"
+[[ -n "$CLI_DOCKERFILE" ]]         && DOCKERFILE="$CLI_DOCKERFILE"
 
 # CHG: Track whether a variant was explicitly provided (CLI/config/env), not defaulted.
 VARIANT_EXPLICIT=false
-if [[ -n "$CLI_VARIANT" || -n "${VARIANT+x}" ]]; then
+if [[ -n "$CLI_VARIANT" || -n "${VARIANT}" ]]; then
   # If VARIANT is set by either CLI or sourced/env (even if empty string), treat as explicit.
   # Only an actually non-empty value will be validated below.
   VARIANT_EXPLICIT=true
@@ -273,7 +271,7 @@ if ! $DRYRUN; then
   command -v docker >/dev/null 2>&1 || { echo "Error: docker not found in PATH. Please install Docker." >&2; exit 1; }
 fi
 
-# CHG: Build or pull logic, honoring --dryrun and skipping pulls for local builds
+# Build or pull logic, honoring --dryrun and skipping pulls for local builds
 if $USE_LOCAL_BUILD; then
   # Build local image from Dockerfile
   if $DRYRUN; then
