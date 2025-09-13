@@ -6,6 +6,13 @@
 #   - If PASSWORD is set           -> auth: password (value = PASSWORD)
 set -Eeuo pipefail
 
+# This is to be run by sudo
+# Ensure script is run as root (EUID == 0)
+if [ "$EUID" -ne 0 ]; then
+  echo "❌ This script must be run as root (use sudo)" >&2
+  exit 1
+fi
+
 FEATURE_DIR=${FEATURE_DIR:-.}
 ${FEATURE_DIR}/python-setup.sh
 
@@ -70,7 +77,7 @@ cat >"$CONFIG_FILE" <<EOF
 bind-addr: 0.0.0.0:${PORT}
 auth: ${AUTH}
 ${PASS}
-cert: false
+cert: true
 EOF
 
 
@@ -97,7 +104,7 @@ sudo chown -R "coder:coder" "$VENV_DIR" || true
 # Force bind port and auth at runtime so old configs can't override them
 AUTH=$([ -z "$PASSWORD" ] && echo none || echo password)
 echo "Starting code-server. This may take sometime ..."
-exec code-server --bind-addr "0.0.0.0:${PORT}" --auth "$AUTH" "$CSHOME/workspace"
+exec code-server --bind-addr "0.0.0.0:${PORT}" --auth "$AUTH" --cert -- "$CSHOME/workspace"
 
 LAUNCH
 chmod 755 /usr/local/bin/codeserver
@@ -110,7 +117,7 @@ Start:
   /usr/local/bin/codeserver
 
 Open:
-  http://localhost:${PORT}/
+  https://localhost:${PORT}/
 
 Auth mode:
   $( [[ -z "$PASSWORD" ]] && echo "No password (auth: none)" || echo "Password set (auth: password)" )
