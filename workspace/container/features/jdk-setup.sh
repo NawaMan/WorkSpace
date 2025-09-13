@@ -33,15 +33,15 @@ jbang jdk default "$JDK_VERSION" >/dev/null 2>&1 || true
 
 echo Stable JAVA_HOME for tools
 JDK_HOME="$(jbang jdk home "$JDK_VERSION")"
-ln -snf "$JDK_HOME" /opt/jdk
+ln -snf "$JDK_HOME" /opt/jdk${JDK_VERSION}
 
-export JAVA_HOME=/opt/jdk
+export JAVA_HOME=/opt/jdk${JDK_VERSION}
 export PATH="$JAVA_HOME/bin:$PATH"
 
 # --- Shared shell config: create the file (no Dockerfile RUN here) ---
-cat >/etc/profile.d/99-custom.sh <<'EOF'
+cat >/etc/profile.d/99-custom.sh <<EOF
 # ---- container defaults (safe to source multiple times) ----
-export JAVA_HOME=/opt/jdk
+export JAVA_HOME=/opt/jdk${JDK_VERSION}
 export PATH="$JAVA_HOME/bin:$PATH"
 # ---- end defaults ----
 EOF
