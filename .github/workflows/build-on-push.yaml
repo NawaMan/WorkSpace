@@ -20,11 +20,8 @@ jobs:
           docker --version
           docker info
       - name: Build
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          ./build.sh           \
-          && ./simple-test.sh  \
-          && cd tests/basic    \
-          && ./run-all-test.sh
+        run: ./build.sh
+      - name: Simple test
+        run: ./simple-test.sh
+      - name: All tests
+        run: cd tests/basic && ./run-all-test.sh
