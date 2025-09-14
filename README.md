@@ -55,11 +55,20 @@ These are installed by default so you can hit the ground running without needing
 ./workspace.sh -- make test
 ```
 
+```shell
+./workspace.sh -- 'read -r -p "Press Enter to continue..."'
+```
+
 
 Windows (PowerShell):
 
 ```shell
 .\workspace.ps1 -- make test
+```
+
+```shell
+./workspace.ps1 -- 'read -r -p "Press Enter to continue..."'
+```
 ```
 
 ### Customization
@@ -143,7 +152,7 @@ Result: seamless dev environment, no permission headaches.
      - Override with `--env-file F` or `CONTAINER_ENV_FILE`.
    - **Docker args file (`workspace-docker.args`)**
      - Lines are parsed into extra docker run args.
-     - Override with `--docker-args F` or `DOCKER_ARGS_FILE`.
+     - Override with `--docker-run-args F` or `DOCKER_ARGS_FILE`.
      - Supports comments and quoted paths.
 
 4. Host UID/GID Handling

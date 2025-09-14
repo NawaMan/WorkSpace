@@ -354,6 +354,9 @@ COMMON_ARGS+=(
   -e "WS_WORKSPACE_PORT=${WORKSPACE_PORT}"
 )
 
+TTY_ARGS="-i"
+if [ -t 0 ] && [ -t 1 ]; then TTY_ARGS="-it"; fi
+
 if $DAEMON; then
   if [[ ${#CMDS[@]} -ne 0 ]]; then
     echo "Running command in daemon mode is not allowed: "${CMDS[@]} >&2
@@ -375,10 +378,10 @@ elif [[ ${#CMDS[@]} -eq 0 ]]; then
   echo "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
   echo "👉 To open an interactive shell instead: '${SCRIPT_NAME} -- bash'"
   echo ""
-  docker_run --rm "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
+  docker_run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
 else
   # Foreground with explicit command
   USER_CMDS="${CMDS[*]}"
-  docker_run --rm -it "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
+  docker_run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
 fi
