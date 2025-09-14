@@ -75,9 +75,9 @@ PASS=$( [[ "$AUTH" == "password" ]] && echo "password: ${PASSWORD}" || echo "")
 
 cat >"$CONFIG_FILE" <<EOF
 bind-addr: 0.0.0.0:${PORT}
+cert: false
 auth: ${AUTH}
 ${PASS}
-cert: false
 EOF
 
 
@@ -91,7 +91,7 @@ cat <<EOF | "${FEATURE_DIR}"/tools/apply-template.sh | \
   "${FEATURE_DIR}"/tools/json-merge.sh --into "$SETTINGS_JSON"
 {
   "python.defaultInterpreterPath": "${VENV_DIR}/bin/python",
-  "jupyter.jupyterServerType": "local"
+  "jupyter.jupyterServerType":     "local"
 }
 EOF
 

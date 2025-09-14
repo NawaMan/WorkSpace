@@ -1,0 +1,13 @@
+#########################################################################################
+## Workspace Docker Build Arguments File (ws-docker-build.args)                        ##
+##                                                                                     ##
+## Variables defined in this file will be used with `--build-arg`                      ##
+##   when `workspace.sh` is run in local build mode.                                   ##
+## These arguments can be used to customize Dockerfile.                                ##
+#########################################################################################
+
+## Basic example
+# VARIANT=codeserver
+# PORT=18080
+
+
