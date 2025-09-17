@@ -106,26 +106,25 @@ CMDS=( )
 
 #============ CONFIGS =============
 
+function require_arg() {
+  local opt="$1"
+  local val="$2"
+  if [[ -z "$val" || "$val" == --* ]]; then
+    echo "Error: $opt requires a value" >&2
+    exit 1
+  fi
+}
+
 ARGS=("$@")
 SET_CONFIG_FILE=false
 for (( i=0; i<${#ARGS[@]}; i++ )); do
-  if [[ "${ARGS[i]}" == "--verbose" ]]; then VERBOSE=true; fi
-  if [[ "${ARGS[i]}" == "--config"  ]]; then CONFIG_FILE="${ARGS[i+1]}" ; SET_CONFIG_FILE=true; fi
+  case "${ARGS[i]}" in
+    --verbose)    VERBOSE=true ;;
+    --config)     require_arg "--config"    "${ARGS[i+1]:-}" ; CONFIG_FILE="${ARGS[i+1]}"    ; SET_CONFIG_FILE=true ; ((i++)) ;;
+    --workspace)  require_arg "--workspace" "${ARGS[i+1]:-}" ; WORKSPACE_PATH="${ARGS[i+1]}" ;                        ((i++)) ;;
+    --dockerfile) require_arg "--workspace" "${ARGS[i+1]:-}" ; DOCKER_FILE="${ARGS[i+1]}" ;                           ((i++)) ;;
+  esac
 done
-
-if [[ "${SET_CONFIG_FILE}" == "true" ]] || [[ -f "${CONFIG_FILE}" ]]; then
-  if [[ ! -f ${CONFIG_FILE} ]]; then
-    echo "Error: --config requires a file path" >&2
-    echo "     : '${CONFIG_FILE}' found." >&2
-    exit 1
-  fi
-  if [[ "${VERBOSE}" == "true" ]]; then
-    echo "Sourcing config file: '"${CONFIG_FILE}"'"
-  fi
-  set -a
-  source "${CONFIG_FILE}"
-  set +a
-fi
 
 
 #-- Determine the IMAGE_NAME --------------------
@@ -239,6 +238,7 @@ done
 #   - Pre-built: use VARIANT and VERSION to select the pre-built
 
 if [[ -z "${IMAGE_NAME}" ]] ; then
+  # -- Local --
   if [[ "${LOCAL_BUILD}" == "true" ]] ; then
     IMAGE_NAME="workspace-local:${PROJECT_NAME}"
     if $VERBOSE ; then
