@@ -7,7 +7,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-JDK_VERSION=${1:-24}
+JDK_VERSION=${1:-21}
 
 # --- Base tools ---
 apt-get update
