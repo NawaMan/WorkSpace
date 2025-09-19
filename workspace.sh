@@ -214,8 +214,8 @@ while [[ $# -gt 0 ]]; do
       --dockerfile)  [[ -n "${2:-}" ]] && { DOCKER_FILE="$2"  ; shift 2; } || { echo "Error: --dockerfile requires a path";  exit 1; } ;;
 
       # Build
-      --build-arg)        [[ -n "${2:-}" ]] && { BUILD_ARGS+=("$2")           ; shift 2; } || { echo "Error: --build-arg requires a value";  exit 1; } ;;
-      --build-args-file)  [[ -n "${2:-}" ]] && { DOCKER_BUILD_ARGS_FILE="$2"  ; shift 2; } || { echo "Error: --build-args requires a path";  exit 1; } ;;
+      --build-arg)        [[ -n "${2:-}" ]] && { BUILD_ARGS+=(--build-arg "$2") ; shift 2; } || { echo "Error: --build-arg requires a value";  exit 1; } ;;
+      --build-args-file)  [[ -n "${2:-}" ]] && { DOCKER_BUILD_ARGS_FILE="$2"    ; shift 2; } || { echo "Error: --build-args requires a path";  exit 1; } ;;
 
       # Run
       --name)           [[ -n "${2:-}" ]] && { CONTAINER_NAME="$2"        ; shift 2; } || { echo "Error: --name requires a value";       exit 1; } ;;
@@ -246,17 +246,13 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
       echo ""
       echo "Build local image: $IMAGE_NAME"
     fi
-    BUILDARGS=()
-    for a in "${BUILD_ARGS[@]}"; do
-      BUILDARGS+=( --build-arg "$a" )
-    done
     docker_build \
       -q \
       -f "$DOCKER_FILE" \
       -t "$IMAGE_NAME"  \
       --build-arg VARIANT_TAG="${VARIANT}" \
       --build-arg VERSION_TAG="${VERSION}" \
-      "${BUILDARGS[@]}" \
+      "${BUILD_ARGS[@]}" \
       "${WORKSPACE_PATH}"
   else
     # -- Prebuild --
