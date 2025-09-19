@@ -5,7 +5,6 @@ set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
 PREBUILD_REPO="nawaman/workspace"
-DEFAULT_IMAGE="${PREBUILD_REPO}:container-latest"
 FILE_NOT_USED=none
 
 #========== FUNCTIONS ============
@@ -99,6 +98,7 @@ DOCKER_RUN_ARGS_FILE=${DOCKER_RUN_ARGS_FILE:-}
 
 CONTAINER_ENV_FILE=${CONTAINER_ENV_FILE:-}
 
+COMMON_ARGS=()
 BUILD_ARGS=()
 RUN_ARGS=()
 CMDS=( )
@@ -120,9 +120,9 @@ SET_CONFIG_FILE=false
 for (( i=0; i<${#ARGS[@]}; i++ )); do
   case "${ARGS[i]}" in
     --verbose)    VERBOSE=true ;;
-    --config)     require_arg "--config"    "${ARGS[i+1]:-}" ; CONFIG_FILE="${ARGS[i+1]}"    ; SET_CONFIG_FILE=true ; ((i++)) ;;
-    --workspace)  require_arg "--workspace" "${ARGS[i+1]:-}" ; WORKSPACE_PATH="${ARGS[i+1]}" ;                        ((i++)) ;;
-    --dockerfile) require_arg "--workspace" "${ARGS[i+1]:-}" ; DOCKER_FILE="${ARGS[i+1]}" ;                           ((i++)) ;;
+    --config)     require_arg "--config"     "${ARGS[i+1]:-}" ; CONFIG_FILE="${ARGS[i+1]}"    ; SET_CONFIG_FILE=true ; ((++i)) ;;
+    --workspace)  require_arg "--workspace"  "${ARGS[i+1]:-}" ; WORKSPACE_PATH="${ARGS[i+1]}" ;                        ((++i)) ;;
+    --dockerfile) require_arg "--dockerfile" "${ARGS[i+1]:-}" ; DOCKER_FILE="${ARGS[i+1]}" ;                           ((++i)) ;;
   esac
 done
 
@@ -214,6 +214,7 @@ while [[ $# -gt 0 ]]; do
       --dockerfile)  [[ -n "${2:-}" ]] && { DOCKER_FILE="$2"  ; shift 2; } || { echo "Error: --dockerfile requires a path";  exit 1; } ;;
 
       # Build
+      --build-arg)        [[ -n "${2:-}" ]] && { BUILD_ARGS+=("$2")           ; shift 2; } || { echo "Error: --build-arg requires a value";  exit 1; } ;;
       --build-args-file)  [[ -n "${2:-}" ]] && { DOCKER_BUILD_ARGS_FILE="$2"  ; shift 2; } || { echo "Error: --build-args requires a path";  exit 1; } ;;
 
       # Run
@@ -245,11 +246,17 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
       echo ""
       echo "Build local image: $IMAGE_NAME"
     fi
+    BUILDARGS=()
+    for a in "${BUILD_ARGS[@]}"; do
+      BUILDARGS+=( --build-arg "$a" )
+    done
     docker_build \
+      -q \
       -f "$DOCKER_FILE" \
       -t "$IMAGE_NAME"  \
       --build-arg VARIANT_TAG="${VARIANT}" \
       --build-arg VERSION_TAG="${VERSION}" \
+      "${BUILDARGS[@]}" \
       "${WORKSPACE_PATH}"
   else
     # -- Prebuild --

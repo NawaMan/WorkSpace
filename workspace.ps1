@@ -118,9 +118,10 @@ $script:DOCKER_RUN_ARGS_FILE   = $env:DOCKER_RUN_ARGS_FILE
 
 $script:CONTAINER_ENV_FILE = $env:CONTAINER_ENV_FILE
 
-$script:BUILD_ARGS = @()
-$script:RUN_ARGS   = @()
-$script:CMDS       = @()
+$script:COMMON_ARGS = @()
+$script:BUILD_ARGS  = @()
+$script:RUN_ARGS    = @()
+$script:CMDS        = @()
 
 #============ CONFIGS =============
 
@@ -400,6 +401,17 @@ while ($i -lt $script:ARGS.Count) {
     }
 
     # Build
+    '--build-arg' {
+      if ($i + 1 -lt $script:ARGS.Count -and -not [string]::IsNullOrEmpty($script:ARGS[$i+1])) {
+        $script:BUILD_ARGS += $script:ARGS[$i+1]
+        $i += 2
+        continue
+      } else {
+        Write-Error 'Error: --build-arg requires a value'
+        exit 1
+      }
+    }
+    # Build
     '--build-args-file' {
       if ($i + 1 -lt $script:ARGS.Count -and -not [string]::IsNullOrEmpty($script:ARGS[$i+1])) {
         $script:DOCKER_BUILD_ARGS_FILE = $script:ARGS[$i+1]; $i += 2; continue
@@ -468,11 +480,17 @@ if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
       Write-Host "Build local image: $script:IMAGE_NAME"
     }
 
+    $script:BUILDARGS = @()
+    foreach ($a in $script:BUILD_ARGS) {
+        $script:BUILDARGS += @('--build-arg', $a)
+    }
     $buildArgs = @(
+      '-q'
       '-f', $script:DOCKER_FILE
       '-t', $script:IMAGE_NAME
       '--build-arg', "VARIANT_TAG=$($script:VARIANT)"
       '--build-arg', "VERSION_TAG=$($script:VERSION)"
+      $script:BUILDARGS
       $script:WORKSPACE_PATH
     )
     docker_build @buildArgs
