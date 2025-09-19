@@ -403,6 +403,7 @@ while ($i -lt $script:ARGS.Count) {
     # Build
     '--build-arg' {
       if ($i + 1 -lt $script:ARGS.Count -and -not [string]::IsNullOrEmpty($script:ARGS[$i+1])) {
+        $script:BUILD_ARGS += '--build-arg'
         $script:BUILD_ARGS += $script:ARGS[$i+1]
         $i += 2
         continue
@@ -443,22 +444,31 @@ while ($i -lt $script:ARGS.Count) {
       }
     }
 
-    # Note: The literal `--` was already split out above, so we won't see it here.
     Default {
-      # If it looks like a docker run arg (starts with -), treat it as RUN_ARGS.
-      # Otherwise: we've reached the command; send the rest to CMDS and exit the loop.
+      # Everything that looks like an option (short/long) before `--` goes to RUN_ARGS.
       if ($arg -like '-*') {
         $script:RUN_ARGS += $arg
-        $i++
-      } else {
-        if ($i -lt $script:ARGS.Count) {
-          $script:CMDS = @($script:ARGS[$i..($script:ARGS.Count - 1)])
+
+        # If the next token exists and is not another option, treat it as this option's value.
+        $next = if ($i + 1 -lt $script:ARGS.Count) { $script:ARGS[$i + 1] } else { $null }
+
+        # Do NOT consume a next token if current has '=' (e.g., --env=FOO=bar).
+        if ($null -ne $next -and $next -notlike '-*' -and $arg -notmatch '^-{1,2}[^=]+=' ) {
+          $script:RUN_ARGS += $next
+          $i += 2
         } else {
-          $script:CMDS = @()
+          $i += 1
         }
-        # exit the WHILE loop by jumping index to the end
-        $i = $script:ARGS.Count
+        continue
       }
+
+      # First non-option before `--` → everything else is the user command.
+      if ($i -lt $script:ARGS.Count) {
+        $script:CMDS = @($script:ARGS[$i..($script:ARGS.Count - 1)])
+      } else {
+        $script:CMDS = @()
+      }
+      $i = $script:ARGS.Count
       continue
     }
   }
@@ -479,21 +489,16 @@ if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
       Write-Host ""
       Write-Host "Build local image: $script:IMAGE_NAME"
     }
-
-    $script:BUILDARGS = @()
-    foreach ($a in $script:BUILD_ARGS) {
-        $script:BUILDARGS += @('--build-arg', $a)
-    }
     $buildArgs = @(
       '-q'
       '-f', $script:DOCKER_FILE
       '-t', $script:IMAGE_NAME
       '--build-arg', "VARIANT_TAG=$($script:VARIANT)"
       '--build-arg', "VERSION_TAG=$($script:VERSION)"
-      $script:BUILDARGS
+      $script:BUILD_ARGS
       $script:WORKSPACE_PATH
     )
-    docker_build @buildArgs
+    docker_build -Args $buildArgs   # CHANGED: pass as named array to avoid param-binding issues
   }
   else {
     # -- Prebuild --
@@ -575,10 +580,10 @@ if (_is_true $script:VERBOSE) {
   Write-Host "DOCKER_BUILD_ARGS_FILE: $script:DOCKER_BUILD_ARGS_FILE"
   Write-Host "DOCKER_RUN_ARGS_FILE:   $script:DOCKER_RUN_ARGS_FILE"
   Write-Host ""
-  Write-Host ("BUILD_ARGS: " + (print_args @script:BUILD_ARGS))
-  Write-Host ("RUN_ARGS:   " + (print_args @script:RUN_ARGS))
+  Write-Host ("BUILD_ARGS: " + (print_args -Args $script:BUILD_ARGS))
+  Write-Host ("RUN_ARGS:   " + (print_args -Args $script:RUN_ARGS))
   Write-Host ""
-  Write-Host ("CMDS: " + (print_args @script:CMDS))
+  Write-Host ("CMDS: "      + (print_args -Args $script:CMDS))
   Write-Host ""
 
   if ($script:BUILD_ARGS.Count -gt 0 -and -not (_is_true $script:LOCAL_BUILD) -and (_is_true $script:VERBOSE)) {
@@ -617,7 +622,7 @@ if (-not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
 
 if (_is_true $script:DAEMON) {
   if ($script:CMDS.Count -ne 0) {
-    [Console]::Error.WriteLine("Running command in daemon mode is not allowed: " + (print_args @script:CMDS))
+    [Console]::Error.WriteLine("Running command in daemon mode is not allowed: " + (print_args -Args $script:CMDS))  # CHANGED
     exit 1
   }
 
@@ -630,7 +635,8 @@ if (_is_true $script:DAEMON) {
   if (_is_true $script:DRYRUN) {
     Write-Host "<--dryrun-->"; Write-Host ""
   } else {
-    docker_run -d @script:COMMON_ARGS @script:RUN_ARGS $script:IMAGE_NAME
+    $run = @('-d') + $script:COMMON_ARGS + $script:RUN_ARGS + @($script:IMAGE_NAME)   # CHANGED
+    docker_run -Args $run                                                                 # CHANGED
     Write-Host ""
   }
 
@@ -639,10 +645,13 @@ if (_is_true $script:DAEMON) {
   Write-Host "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
   Write-Host "👉 To open an interactive shell instead: '$script:SCRIPT_NAME -- bash'"
   Write-Host ""
-  docker_run --rm $TTY_ARGS @script:COMMON_ARGS @script:RUN_ARGS $script:IMAGE_NAME
+  $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS + @($script:IMAGE_NAME)  # CHANGED
+  docker_run -Args $run                                                                          # CHANGED
 
 } else {
   # Foreground with explicit command
   $USER_CMDS = ($script:CMDS -join ' ')
-  docker_run --rm $TTY_ARGS @script:COMMON_ARGS @script:RUN_ARGS $script:IMAGE_NAME bash -lc $USER_CMDS
+  $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS +      # CHANGED
+         @($script:IMAGE_NAME, 'bash', '-lc', $USER_CMDS)                     # CHANGED
+  docker_run -Args $run                                                       # CHANGED
 }

@@ -7,7 +7,7 @@
 #########################################################################################
 
 ## Basic example
-# VARIANT=codeserver
-# PORT=18080
+# --build-arg VARIANT=codeserver
+# --build-arg PORT=18080
 
 
