@@ -60,6 +60,7 @@ build_variant() {
 
     log "Building with buildx (push)"
     docker buildx build \
+      --no-cache \
       --platform "${PLATFORMS}" \
       -f "${DOCKER_FILE}" \
       "${TAGS_ARG[@]}" \

@@ -490,7 +490,6 @@ if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
       Write-Host "Build local image: $script:IMAGE_NAME"
     }
     $buildArgs = @(
-      '-q'
       '-f', $script:DOCKER_FILE
       '-t', $script:IMAGE_NAME
       '--build-arg', "VARIANT_TAG=$($script:VARIANT)"
@@ -498,7 +497,7 @@ if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
       $script:BUILD_ARGS
       $script:WORKSPACE_PATH
     )
-    docker_build -Args $buildArgs   # CHANGED: pass as named array to avoid param-binding issues
+    docker_build -Args $buildArgs
   }
   else {
     # -- Prebuild --
@@ -622,7 +621,7 @@ if (-not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
 
 if (_is_true $script:DAEMON) {
   if ($script:CMDS.Count -ne 0) {
-    [Console]::Error.WriteLine("Running command in daemon mode is not allowed: " + (print_args -Args $script:CMDS))  # CHANGED
+    [Console]::Error.WriteLine("Running command in daemon mode is not allowed: " + (print_args -Args $script:CMDS))
     exit 1
   }
 
@@ -635,8 +634,8 @@ if (_is_true $script:DAEMON) {
   if (_is_true $script:DRYRUN) {
     Write-Host "<--dryrun-->"; Write-Host ""
   } else {
-    $run = @('-d') + $script:COMMON_ARGS + $script:RUN_ARGS + @($script:IMAGE_NAME)   # CHANGED
-    docker_run -Args $run                                                                 # CHANGED
+    $run = @('-d') + $script:COMMON_ARGS + $script:RUN_ARGS + @($script:IMAGE_NAME)
+    docker_run -Args $run
     Write-Host ""
   }
 
@@ -645,13 +644,13 @@ if (_is_true $script:DAEMON) {
   Write-Host "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
   Write-Host "👉 To open an interactive shell instead: '$script:SCRIPT_NAME -- bash'"
   Write-Host ""
-  $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS + @($script:IMAGE_NAME)  # CHANGED
-  docker_run -Args $run                                                                          # CHANGED
+  $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS + @($script:IMAGE_NAME)
+  docker_run -Args $run
 
 } else {
   # Foreground with explicit command
   $USER_CMDS = ($script:CMDS -join ' ')
-  $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS +      # CHANGED
-         @($script:IMAGE_NAME, 'bash', '-lc', $USER_CMDS)                     # CHANGED
-  docker_run -Args $run                                                       # CHANGED
+  $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS +
+         @($script:IMAGE_NAME, 'bash', '-lc', $USER_CMDS)
+  docker_run -Args $run
 }
