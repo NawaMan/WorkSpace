@@ -13,8 +13,16 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+# ---- configurable args (safe defaults) ----
+PY_VERSION=${1:-3.11}              # accepts 3.13, 3.13.7, 3.12, ...
+PYENV_ROOT="/opt/pyenv"            # system-wide pyenv
+VENV_ROOT="/opt/venvs"             # shared venvs root
+PIP_CACHE_DIR="/opt/pip-cache"     # shared pip cache
+STABLE_PY_LINK="/opt/python"       # stable, version-agnostic symlink
+PROFILE_FILE="/etc/profile.d/99-custom.sh"
+
 FEATURE_DIR=${FEATURE_DIR:-.}
-${FEATURE_DIR}/python-setup.sh
+${FEATURE_DIR}/python-setup.sh "${PY_VERSION}"
 
 ### ---- Tunables (override with env) ----
 PORT="${PORT:-10000}"                          # code-server port
@@ -126,5 +134,3 @@ Kernels available (scoped to venv):
   - Python 3 (venv)
   - bash
 EOF
-
-chmod 755 /usr/local/bin/codeserver

@@ -6,6 +6,6 @@ USER root
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 
 ENV FEATURE_DIR=/opt/workspace/features
-RUN /opt/workspace/features/codeserver-setup.sh
+# RUN /opt/workspace/features/codeserver-setup.sh
 
 CMD ["codeserver"]

@@ -247,7 +247,6 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
       echo "Build local image: $IMAGE_NAME"
     fi
     docker_build \
-      -q \
       -f "$DOCKER_FILE" \
       -t "$IMAGE_NAME"  \
       --build-arg VARIANT_TAG="${VARIANT}" \
@@ -352,6 +351,8 @@ COMMON_ARGS+=(
   # Metadata
   -e "WS_DAEMON=${DAEMON}"
   -e "WS_IMAGE_NAME=${IMAGE_NAME}"
+  -e "WS_VARIANT_TAG=${VARIANT}"
+  -e "WS_VERSION_TAG=${VERSION}"
   -e "WS_CONTAINER_NAME=${CONTAINER_NAME}"
   -e "WS_WORKSPACE_PATH=${WORKSPACE_PATH}"
   -e "WS_WORKSPACE_PORT=${WORKSPACE_PORT}"
