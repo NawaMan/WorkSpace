@@ -219,6 +219,7 @@ while [[ $# -gt 0 ]]; do
 
       # Run
       --name)           [[ -n "${2:-}" ]] && { CONTAINER_NAME="$2"        ; shift 2; } || { echo "Error: --name requires a value";       exit 1; } ;;
+      --port)           [[ -n "${2:-}" ]] && { WORKSPACE_PORT="$2"        ; shift 2; } || { echo "Error: --port requires a value";       exit 1; } ;;
       --run-args-file)  [[ -n "${2:-}" ]] && { DOCKER_RUN_ARGS_FILE="$2"  ; shift 2; } || { echo "Error: --run-args requires a path";    exit 1; } ;;
       --env-file)       [[ -n "${2:-}" ]] && { CONTAINER_ENV_FILE="$2"    ; shift 2; } || { echo "Error: --env-file requires a path";    exit 1; } ;;
       --)               parsing_cmds=true ; shift ;;
@@ -335,9 +336,70 @@ fi
 
 # --------- Execute ---------
 
-if ! $DRYRUN; then
-  # Clean up any previous container with the same name
-  docker rm -f "$CONTAINER_NAME" &>/dev/null || true
+# Helper to check if a port is free on localhost
+is_port_free() {
+  local p="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ! ss -ltn "( sport = :$p )" 2>/dev/null | grep -q ":$p"
+  elif command -v lsof >/dev/null 2>&1; then
+    ! lsof -iTCP:"$p" -sTCP:LISTEN -Pn 2>/dev/null | grep -q .
+  else
+    ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$p" >/dev/null 2>&1)
+  fi
+}
+
+# Track whether port was auto-generated
+PORT_GENERATED=false
+
+# Resolve WORKSPACE_PORT into a concrete host port
+HOST_PORT="${WORKSPACE_PORT:-10000}"
+UPPER_PORT="${HOST_PORT^^}"
+
+if [[ "$UPPER_PORT" == "RANDOM" ]]; then
+  for _ in $(seq 1 200); do
+    cand=$(( (RANDOM % (65535 - 10000)) + 10001 ))
+    if is_port_free "$cand"; then
+      HOST_PORT="$cand"
+      PORT_GENERATED=true
+      break
+    fi
+  done
+  if [[ "$PORT_GENERATED" != "true" ]]; then
+    echo "Error: unable to find a free RANDOM port above 10000." >&2
+    exit 1
+  fi
+elif [[ "$UPPER_PORT" == "NEXT" ]]; then
+  cand=10000
+  while [[ "$cand" -le 65535 ]]; do
+    if is_port_free "$cand"; then
+      HOST_PORT="$cand"
+      PORT_GENERATED=true
+      break
+    fi
+    cand=$((cand + 1))
+  done
+  if [[ "$PORT_GENERATED" != "true" ]]; then
+    echo "Error: unable to find the NEXT free port above 10000." >&2
+    exit 1
+  fi
+else
+  # Ensure numeric if not RANDOM/NEXT
+  if ! [[ "$HOST_PORT" =~ ^[0-9]+$ ]]; then
+    echo "Error: WORKSPACE_PORT/--port must be a number, 'RANDOM', or 'NEXT' (got '$HOST_PORT')." >&2
+    exit 1
+  fi
+fi
+
+# Print banner only if (auto-generated OR VERBOSE) AND no CMDS
+if [[ ( "$PORT_GENERATED" == "true" || "$VERBOSE" == "true" ) && ${#CMDS[@]} -eq 0 ]]; then
+  echo ""
+  echo "============================================================"
+  echo "🚀 WORKSPACE PORT SELECTED"
+  echo "============================================================"
+  printf "🔌 Using host port: \033[1;32m%s\033[0m -> container: \033[1;34m10000\033[0m\n" "$HOST_PORT"
+  echo "🌐 Open: http://localhost:${HOST_PORT}"
+  echo "============================================================"
+  echo ""
 fi
 
 COMMON_ARGS+=(
@@ -346,7 +408,7 @@ COMMON_ARGS+=(
   -e HOST_GID="$HOST_GID"
   -v "$WORKSPACE_PATH":"/home/coder/workspace"
   -w "/home/coder/workspace"
-  -p "${WORKSPACE_PORT:-10000}:10000"
+  -p "${HOST_PORT:-10000}:10000"
 
   # Metadata
   -e "WS_DAEMON=${DAEMON}"

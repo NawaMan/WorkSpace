@@ -111,7 +111,8 @@ $script:DO_PULL = if ($env:DO_PULL) { $env:DO_PULL } else { $false }
 
 $script:CONTAINER_NAME = if ($env:CONTAINER_NAME) { $env:CONTAINER_NAME } else { $script:PROJECT_NAME }
 $script:DAEMON         = if ($env:DAEMON) { $env:DAEMON } else { $false }
-$script:WORKSPACE_PORT = if ($env:WORKSPACE_PORT) { [int]$env:WORKSPACE_PORT } else { 10000 }
+
+$script:WORKSPACE_PORT = if ($env:WORKSPACE_PORT) { $env:WORKSPACE_PORT } else { 10000 }
 
 $script:DOCKER_BUILD_ARGS_FILE = $env:DOCKER_BUILD_ARGS_FILE
 $script:DOCKER_RUN_ARGS_FILE   = $env:DOCKER_RUN_ARGS_FILE
@@ -252,14 +253,12 @@ if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
   }
 
   # If DOCKER_FILE is given at this point, it is expected to be a file.
-  if (-not [string]::IsNullOrEmpty($script:DOCKER_FILE)) {
-    if (-not (Test-Path -LiteralPath $script:DOCKER_FILE -PathType Leaf)) {
-      Write-Error "DOCKER_FILE ($script:DOCKER_FILE) is not a file."
-      exit 1
+  if (-not (Test-Path -LiteralPath $script:DOCKER_FILE -PathType Leaf)) {
+    Write-Error "DOCKER_FILE ($script:DOCKER_FILE) is not a file."
+    exit 1
     }
     $script:LOCAL_BUILD = $true
     $script:IMAGE_MODE  = 'LOCAL-BUILD'
-  }
 }
 else {
   $script:IMAGE_MODE = 'CUSTOM-BUILD'
@@ -429,6 +428,13 @@ while ($i -lt $script:ARGS.Count) {
         Write-Error 'Error: --name requires a value'; exit 1
       }
     }
+    '--port' {
+      if ($i + 1 -lt $script:ARGS.Count -and -not [string]::IsNullOrEmpty($script:ARGS[$i+1])) {
+        $script:WORKSPACE_PORT = $script:ARGS[$i+1]; $i += 2; continue     # may be number/RANDOM/NEXT
+      } else {
+        Write-Error 'Error: --port requires a value'; exit 1
+      }
+    }
     '--run-args-file' {
       if ($i + 1 -lt $script:ARGS.Count -and -not [string]::IsNullOrEmpty($script:ARGS[$i+1])) {
         $script:DOCKER_RUN_ARGS_FILE = $script:ARGS[$i+1]; $i += 2; continue
@@ -590,7 +596,93 @@ if (_is_true $script:VERBOSE) {
     Write-Host ""
   }
 }
+
 # --------- Execute ---------
+
+# Helper: is a local TCP port free?
+function Test-PortFree {
+  param([Parameter(Mandatory)][int]$Port)
+  $listener = $null
+  try {
+    $addr = [System.Net.IPAddress]::Parse('127.0.0.1')
+    $listener = [System.Net.Sockets.TcpListener]::new($addr, $Port)
+    $listener.Start()
+    $true
+  } catch {
+    $false
+  } finally {
+    if ($listener) { try { $listener.Stop() } catch { } }
+  }
+}
+
+# Resolve WORKSPACE_PORT into a concrete host port.
+# MOD: prefer script var (already reflects --port), not env; then normalize
+$rawPort   = $script:WORKSPACE_PORT   # MOD
+$upperPort = "$rawPort".Trim().ToUpperInvariant()
+$hostPort  = $null
+$portGenerated = $false
+
+switch ($upperPort) {
+  'RANDOM' {
+    # Try up to 200 random ports in 10001..65535
+    $found = $false
+    for ($i = 0; $i -lt 200; $i++) {
+      $cand = Get-Random -Minimum 10001 -Maximum 65536
+      if (Test-PortFree -Port $cand) {
+        $hostPort = $cand
+        $portGenerated = $true
+        $found = $true
+        break
+      }
+    }
+    if (-not $found) {
+      Write-Error "Error: unable to find a free RANDOM port above 10000."
+      exit 1
+    }
+  }
+  'NEXT' {
+    $cand = 10000
+    $found = $false
+    while ($cand -le 65535) {
+      if (Test-PortFree -Port $cand) {
+        $hostPort = $cand
+        $portGenerated = $true
+        $found = $true
+        break
+      }
+      $cand++
+    }
+    if (-not $found) {
+      Write-Error "Error: unable to find the NEXT free port above 10000."
+      exit 1
+    }
+  }
+  Default {
+    # Numeric / default behavior (accepts string or int)
+    if (-not [int]::TryParse("$rawPort", [ref]([int]$null))) {
+      # If non-numeric and not RANDOM/NEXT, treat as error
+      Write-Error "Error: WORKSPACE_PORT must be a number, 'RANDOM', or 'NEXT' (got '$rawPort')."
+      exit 1
+    }
+    $hostPort = [int]$rawPort
+  }
+}
+
+# MOD: propagate resolved port so all downstream prints/args use it
+$script:WORKSPACE_PORT = $hostPort   # MOD
+
+# Print banner only if (auto-generated OR VERBOSE) AND no CMDS
+if ( ($portGenerated -or (_is_true $script:VERBOSE)) -and ($script:CMDS.Count -eq 0) ) {
+  $green = "$([char]27)[1;32m"; $blue = "$([char]27)[1;34m"; $reset = "$([char]27)[0m"  # MOD (clean ANSI)
+  Write-Host ""
+  Write-Host "============================================================"
+  Write-Host "🚀 WORKSPACE PORT SELECTED"
+  Write-Host "============================================================"
+  Write-Host ("🔌 Using host port: {0}{1}{2} -> container: {3}10000{2}" -f $green, $script:WORKSPACE_PORT, $reset, $blue)  # MOD
+  Write-Host "🌐 Open: http://localhost:$($script:WORKSPACE_PORT)"
+  Write-Host "============================================================"
+  Write-Host ""
+}
 
 # Clean up any previous container with the same name
 if (-not (_is_true $script:DRYRUN)) {
