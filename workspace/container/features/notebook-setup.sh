@@ -12,11 +12,11 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # ---- configurable args (safe defaults) ----
-PY_VERSION=${1:-3.11}              # accepts 3.13, 3.13.7, 3.12, ...
-PYENV_ROOT="/opt/pyenv"            # system-wide pyenv
-VENV_ROOT="/opt/venvs"             # shared venvs root
-PIP_CACHE_DIR="/opt/pip-cache"     # shared pip cache
-STABLE_PY_LINK="/opt/python"       # stable, version-agnostic symlink
+PY_VERSION=${1:-3.11}                # accepts 3.13, 3.13.7, 3.12, ...
+PYENV_ROOT="/opt/pyenv"              # system-wide pyenv
+VENV_ROOT="/opt/venvs"               # shared venvs root  (fixed: define before use)
+PIP_CACHE_DIR="/opt/pip-cache"       # shared pip cache
+STABLE_PY_LINK="/opt/python"         # stable, version-agnostic symlink
 PROFILE_FILE="/etc/profile.d/99-custom.sh"
 
 # ---- Jupyter kernel registration tunables (can override via env) ----
@@ -47,7 +47,7 @@ resolve_latest_patch() {
 }
 
 ensure_python_series() {
-  # Ensures a pyenv CPython X.Y.Z and venv /opt/venvs/pyXY exist, links /opt/python -> that venv
+  # Ensures a pyenv CPython X.Y.Z and venv /opt/venvs/pyX.Y.Z exist, links /opt/python -> that venv
   # $1 = X.Y or X.Y.Z
   local req="$1"
   local ver="$req"
@@ -62,7 +62,7 @@ ensure_python_series() {
   fi
 
   local series="${ver%.*}"           # X.Y
-  local env_name="py${series/./}"    # py311, py312, py313, ...
+  local env_name="py${ver}"          # <= keep dots: py3.13.7
   local env_path="${VENV_ROOT}/${env_name}"
 
   # Install CPython via pyenv if missing
@@ -88,6 +88,9 @@ ensure_python_series() {
 
   # Point stable symlink at this venv
   ln -snf "${env_path}" "${STABLE_PY_LINK}"
+
+  # Optional convenience symlink: /opt/venvs/py3.13 -> /opt/venvs/py3.13.7
+  ln -sfn "${env_path}" "${VENV_ROOT}/py${series}"
 
   # Return values via globals for later steps
   PY_VERSION_RESOLVED="$ver"
