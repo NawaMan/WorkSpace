@@ -107,8 +107,8 @@ PY_PREFIX="$("$PYENV_ROOT/bin/pyenv" prefix "$PY_VERSION")"
 [ -x "$PY_PREFIX/bin/python" ] || { echo "❌ pyenv prefix invalid"; exit 1; }
 
 # ---- create venv at a fixed path (idempotent) ----
-SERIES="${PY_VERSION%.*}"            # e.g. 3.13.7 -> 3.13
-ENV_NAME="py${SERIES//./}"           # py313
+# Use full patch in the directory name, dots allowed: /opt/venvs/py3.13.7
+ENV_NAME="py${PY_VERSION}"            # e.g. py3.13.7
 ENV_PATH="${VENV_ROOT}/${ENV_NAME}"
 
 if [ -d "${ENV_PATH}" ]; then
@@ -121,6 +121,10 @@ else
   [ -x "${ENV_PATH}/bin/python" ] || { [ -x "${ENV_PATH}/bin/python3" ] && ln -sfn python3 "${ENV_PATH}/bin/python"; }
 fi
 chmod -R 0777 "${ENV_PATH}"
+
+# Optional: maintain a series convenience symlink (e.g., py3.13 -> py3.13.7)
+SERIES="${PY_VERSION%.*}"                              # 3.13
+ln -sfn "${ENV_PATH}" "${VENV_ROOT}/py${SERIES}"
 
 # ---- stable symlink & convenience shims ----
 ln -snf "$ENV_PATH" "$STABLE_PY_LINK"

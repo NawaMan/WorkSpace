@@ -20,6 +20,7 @@ RUN set -euo pipefail         \
       bash                    \
       ca-certificates         \
       curl                    \
+      gettext-base            \
       git                     \
       jq                      \
       less                    \
