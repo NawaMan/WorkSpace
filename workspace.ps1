@@ -610,6 +610,8 @@ $script:COMMON_ARGS += @(
   # Metadata
   '-e', "WS_DAEMON=$($script:DAEMON)"
   '-e', "WS_IMAGE_NAME=$($script:IMAGE_NAME)"
+  '-e', "WS_VARIANT_TAG=$($script:VARIANT)"
+  '-e', "WS_VERSION_TAG=$($script:VERSION)"
   '-e', "WS_CONTAINER_NAME=$($script:CONTAINER_NAME)"
   '-e', "WS_WORKSPACE_PATH=$($script:WORKSPACE_PATH)"
   '-e', "WS_WORKSPACE_PORT=$($script:WORKSPACE_PORT)"
