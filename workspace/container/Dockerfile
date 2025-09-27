@@ -48,7 +48,7 @@ ENV USER_NAME=coder  \
     WORKSPACE=/home/coder/workspace
 
 # Make the venv default and set pip knobs AFTER the upgrade above
-ENV PATH=/opt/venv/bin:/home/coder/.local/bin:$PATH \
+ENV PATH=/opt/workspace/features:/opt/venv/bin:/home/coder/.local/bin:$PATH \
     EDITOR=tilde
 
 # ---- Belt & suspenders: seed a 'coder' user/group even if 1000 is taken ----
@@ -105,7 +105,7 @@ RUN apt-get update && apt-get install -y ttyd \
 
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
-COPY --chmod=0755 features/ /opt/workspace/features/
+COPY --chmod=0755 ../features/ /opt/workspace/features/
 
 
 # Always start as root so workspace-user-setup can realign ids
