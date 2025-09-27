@@ -1,50 +1,105 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-# Ensure script is run as root
-if [ "$EUID" -ne 0 ]; then
-  echo "❌ This script must be run as root (use sudo)" >&2
-  exit 1
-fi
+# ---------------------------------------------
+# jdk-setup.sh — Install JBang + chosen JDK
+#
+# Vendor selection:
+#   1) CLI arg #2 (e.g., "graalvm") → sets JBANG_JDK_VENDOR
+#   2) Existing JBANG_JDK_VENDOR env
+#   3) Fallback default: temurin
+#
+# Usage:
+#   sudo ./jdk-setup.sh                 # version=21, vendor=$JBANG_JDK_VENDOR or temurin
+#   sudo ./jdk-setup.sh 25              # version=25, vendor from env/default
+#   sudo ./jdk-setup.sh 25 graalvm      # version=25, vendor=graalvm (sets env for this run)
+# ---------------------------------------------
 
-JDK_VERSION=${1:-21}
+log() { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
+die() { echo "❌ $*" >&2; exit 1; }
+
+# --- Root check ---
+[[ "${EUID}" -eq 0 ]] || die "This script must be run as root (use sudo)."
+
+# --- Inputs & vendor policy ---
+JDK_VERSION="${1:-21}"
+CLI_VENDOR="${2:-}"  # optional: temurin | graalvm | (any vendor JBang supports)
+if [[ -n "$CLI_VENDOR" ]]; then
+  export JBANG_JDK_VENDOR="$CLI_VENDOR"
+fi
+: "${JBANG_JDK_VENDOR:=temurin}"   # default if env not set
+ACTIVE_VENDOR="$JBANG_JDK_VENDOR"
 
 # --- Base tools ---
+export DEBIAN_FRONTEND=noninteractive
+log "Installing base packages..."
 apt-get update
 apt-get install -y --no-install-recommends curl unzip zip ca-certificates
 rm -rf /var/lib/apt/lists/*
 
-# --- Choose shared, predictable locations for JBang state (must be EXPORTED) ---
+# --- JBang dirs ---
 export JBANG_DIR=/opt/jbang-home
 export JBANG_CACHE_DIR=/opt/jbang-cache
+mkdir -p "$JBANG_DIR" "$JBANG_CACHE_DIR"
+chmod -R 0777 "$JBANG_DIR" "$JBANG_CACHE_DIR"
 
-# --- Install JBang system-wide (binary only) into our chosen JBANG_DIR ---
-# The installer will place the launcher at $JBANG_DIR/bin/jbang thanks to the exported env vars.
+# --- Install JBang (binary) ---
+log "Installing JBang..."
 curl -Ls https://sh.jbang.dev | bash -s - app setup
 install -Dm755 "${JBANG_DIR}/bin/jbang" /usr/local/bin/jbang
 
-# --- Make the state dirs writable for any runtime user (dev-friendly) ---
-mkdir -p      "$JBANG_DIR" "$JBANG_CACHE_DIR"
-chmod -R 0777 "$JBANG_DIR" "$JBANG_CACHE_DIR"
+# --- Install JDK (vendor controlled by JBANG_JDK_VENDOR) ---
+log "Installing JDK ${JDK_VERSION} (vendor: ${ACTIVE_VENDOR}) via JBang..."
+jbang jdk install "${JDK_VERSION}"
 
-echo "Installing JDK $JDK_VERSION via JBang..."
-jbang jdk install "$JDK_VERSION"
-jbang jdk default "$JDK_VERSION" >/dev/null 2>&1 || true
+# Try to make it default (ok if multiple vendors exist)
+jbang jdk default "${JDK_VERSION}" >/dev/null 2>&1 || true
 
-echo Stable JAVA_HOME for tools
-JDK_HOME="$(jbang jdk home "$JDK_VERSION")"
-ln -snf "$JDK_HOME" /opt/jdk${JDK_VERSION}
+# --- Resolve JAVA_HOME for this version (per active vendor selection) ---
+JDK_HOME="$(jbang jdk home "${JDK_VERSION}")"
+[[ -n "$JDK_HOME" && -d "$JDK_HOME" ]] || die "Could not resolve JDK home for ${JDK_VERSION} (${ACTIVE_VENDOR})."
 
-export JAVA_HOME=/opt/jdk${JDK_VERSION}
+# --- Stable symlinks ---
+GENERIC_LINK="/opt/jdk${JDK_VERSION}"
+VENDOR_LINK="/opt/jdk-${JDK_VERSION}-${ACTIVE_VENDOR}"
+log "Creating symlinks: ${GENERIC_LINK} and ${VENDOR_LINK}"
+ln -snf "$JDK_HOME" "$GENERIC_LINK"
+ln -snf "$JDK_HOME" "$VENDOR_LINK"
+
+# --- Export for current shell ---
+export JAVA_HOME="$GENERIC_LINK"
 export PATH="$JAVA_HOME/bin:$PATH"
 
-# --- Shared shell config: create the file (no Dockerfile RUN here) ---
+# --- Optional extras for GraalVM ---
+if [[ "${ACTIVE_VENDOR}" == "graalvm" ]]; then
+  log "GraalVM selected; attempting to install native-image (optional)..."
+  if command -v gu >/dev/null 2>&1; then
+    gu install native-image || true
+  elif [[ -x "${JAVA_HOME}/bin/gu" ]]; then
+    "${JAVA_HOME}/bin/gu" install native-image || true
+  else
+    log "Graal 'gu' not found; skipping native-image."
+  fi
+fi
+
+# --- System-wide profile for future shells ---
+log "Writing /etc/profile.d/99-custom.sh ..."
 cat >/etc/profile.d/99-custom.sh <<EOF
 # ---- container defaults (safe to source multiple times) ----
-export JAVA_HOME=/opt/jdk${JDK_VERSION}
-export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME=${GENERIC_LINK}
+export PATH="\$JAVA_HOME/bin:\$PATH"
+# vendor-specific symlink for convenience
+export JAVA_HOME_${JDK_VERSION}_VENDOR=${VENDOR_LINK}
 # ---- end defaults ----
 EOF
 chmod 0644 /etc/profile.d/99-custom.sh
 
-echo "✅ JBang launcher installed to /usr/local/bin/jbang, /opt/jdk and shared dirs prepared."
+# --- Summary ---
+echo "✅ JDK ${JDK_VERSION} (${ACTIVE_VENDOR}) installed."
+echo "   JAVA_HOME = ${GENERIC_LINK}"
+echo "   Vendor link = ${VENDOR_LINK}"
+echo "   JBang launcher = /usr/local/bin/jbang"
+echo "   Profile script = /etc/profile.d/99-custom.sh"
+echo
+echo "Tip: List available JDKs/vendors:"
+echo "  jbang jdk list --available --show-details"

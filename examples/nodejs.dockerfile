@@ -5,15 +5,14 @@ ARG PORT=10000
 FROM nawaman/workspace:${VARIANT_TAG}-${VERSION_TAG}
 
 # The default value is the latest LTS
-ARG JDK_VERSION=21
-
+ARG NODEJS_VERSION=24.9.0
 ARG PORT=10000
 
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 USER root
 
 ENV FEATURE_DIR=/opt/workspace/features
-ENV JDK_VERSION="${JDK_VERSION}"
+ENV NODEJS_VERSION="${NODEJS_VERSION}"
 ENV PORT="${PORT}"
 
-RUN "$FEATURE_DIR/jdk-setup.sh" "${JDK_VERSION}" 
+RUN "$FEATURE_DIR/nodejs-setup.sh" "${NODEJS_VERSION}" 
