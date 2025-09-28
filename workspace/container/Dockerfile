@@ -20,6 +20,7 @@ RUN set -euo pipefail         \
       bash                    \
       ca-certificates         \
       curl                    \
+      direnv                  \
       gettext-base            \
       git                     \
       jq                      \
@@ -49,6 +50,7 @@ ENV USER_NAME=coder  \
 
 # Make the venv default and set pip knobs AFTER the upgrade above
 ENV PATH=/opt/workspace/features:/opt/venv/bin:/home/coder/.local/bin:$PATH \
+    TERM=xterm-256color \
     EDITOR=tilde
 
 # ---- Belt & suspenders: seed a 'coder' user/group even if 1000 is taken ----
@@ -84,6 +86,7 @@ alias tree='tree -C'
 
 # Environment
 export EDITOR=${EDITOR:-tilde}
+export TERM=${TERM:-xterm-256color}
 
 # Permissions: default to 0664 files / 0775 dirs
 umask 0002
@@ -98,6 +101,13 @@ RUN set -euo pipefail                                                           
       || printf "\n[ -f /etc/profile.d/99-custom.sh ] && . /etc/profile.d/99-custom.sh\n" >> /etc/bash.bashrc \
  && grep -Fq '/etc/profile.d/99-custom.sh' /etc/zsh/zshrc                                                     \
       || printf "\n[ -f /etc/profile.d/99-custom.sh ] && . /etc/profile.d/99-custom.sh\n" >> /etc/zsh/zshrc
+
+# Make sudo see feature scripts (extend secure_path)
+RUN set -euo pipefail \
+ && printf 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/workspace/features"\n' \
+      > /etc/sudoers.d/99-workspace-secure-path \
+ && chmod 0440 /etc/sudoers.d/99-workspace-secure-path \
+ && visudo -cf /etc/sudoers.d/99-workspace-secure-path
 
 # --- Install the tidy terminal 
 RUN apt-get update && apt-get install -y ttyd \

@@ -22,7 +22,7 @@ die() { echo "❌ $*" >&2; exit 1; }
 [[ "${EUID}" -eq 0 ]] || die "This script must be run as root (use sudo)."
 
 # --- Inputs & vendor policy ---
-JDK_VERSION="${1:-21}"
+JDK_VERSION="${1:-25}"
 CLI_VENDOR="${2:-}"  # optional: temurin | graalvm | (any vendor JBang supports)
 if [[ -n "$CLI_VENDOR" ]]; then
   export JBANG_JDK_VENDOR="$CLI_VENDOR"
