@@ -104,6 +104,7 @@ cat >/etc/profile.d/99-go.sh <<'EOF'
 # ---- container defaults (safe to source multiple times) ----
 export GOROOT=/opt/go-stable
 export PATH="$GOROOT/bin:$PATH"
+export GOPATH="$(go env GOPATH)"
 # ---- end defaults ----
 EOF
 chmod 0644 /etc/profile.d/99-go.sh
@@ -112,3 +113,5 @@ echo "✅ Go ${GO_VERSION} installed at ${TARGET_DIR}"
 echo "   Symlink: ${LINK_DIR}"
 echo "   Binaries: /usr/local/bin/go, /usr/local/bin/gofmt"
 echo "   Try: go version"
+echo "   Set GOPATH: export GOPATH=\"\$(go env GOPATH)\""
+echo ""

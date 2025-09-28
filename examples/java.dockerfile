@@ -5,7 +5,7 @@ ARG PORT=10000
 FROM nawaman/workspace:${VARIANT_TAG}-${VERSION_TAG}
 
 # The default value is the latest LTS
-ARG JDK_VERSION=21
+ARG JDK_VERSION=25
 ARG JDK_VENDOR=temurin
 ARG MVN_VERSION=3.9.11
 ARG PORT=10000
