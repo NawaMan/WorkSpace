@@ -11,7 +11,7 @@ ARG PORT=10000
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 USER root
 
-ENV FEATURE_DIR=/opt/workspace/features
+ENV FEATURE_DIR=/opt/workspace/setups
 ENV NODEJS_VERSION="${NODEJS_VERSION}"
 ENV PORT="${PORT}"
 

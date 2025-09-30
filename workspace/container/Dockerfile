@@ -49,7 +49,7 @@ ENV USER_NAME=coder  \
     WORKSPACE=/home/coder/workspace
 
 # Make the venv default and set pip knobs AFTER the upgrade above
-ENV PATH=/opt/workspace/features:/opt/venv/bin:/home/coder/.local/bin:$PATH \
+ENV PATH=/opt/workspace/setups:/opt/venv/bin:/home/coder/.local/bin:$PATH \
     TERM=xterm-256color \
     EDITOR=tilde
 
@@ -104,7 +104,7 @@ RUN set -euo pipefail                                                           
 
 # Make sudo see feature scripts (extend secure_path)
 RUN set -euo pipefail \
- && printf 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/workspace/features"\n' \
+ && printf 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/workspace/setups"\n' \
       > /etc/sudoers.d/99-workspace-secure-path \
  && chmod 0440 /etc/sudoers.d/99-workspace-secure-path \
  && visudo -cf /etc/sudoers.d/99-workspace-secure-path
@@ -115,7 +115,7 @@ RUN apt-get update && apt-get install -y ttyd \
 
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
-COPY --chmod=0755 ../features/ /opt/workspace/features/
+COPY --chmod=0755 ./setups/ /opt/workspace/setups/
 
 
 # Always start as root so workspace-user-setup can realign ids

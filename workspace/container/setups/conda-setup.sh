@@ -9,7 +9,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # ---- configurable args (safe defaults) ----
-PY_VERSION=${1:-3.11}            # e.g. 3.12, 3.11, 3.10
+PY_VERSION=${1:-3.12}            # e.g. 3.12, 3.11, 3.10
 ENV_NAME="py${PY_VERSION//./}"   # py312, py311, ...
 CONDA_PREFIX="/opt/conda"        # Miniforge location
 CONDA_ENVS_DIR="/opt/conda-envs" # shared envs root

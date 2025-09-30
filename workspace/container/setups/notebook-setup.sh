@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # notebook-setup.sh
-# Uses consolidated Python setup (/opt/workspace/features/python-setup.sh),
+# Uses consolidated Python setup (/opt/workspace/setups/python-setup.sh),
 # then installs Jupyter and registers kernels + a "notebook" launcher.
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
@@ -12,7 +12,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # ---- configurable args (safe defaults) ----
-PY_VERSION=${1:-3.11}                    # accepts X.Y or X.Y.Z
+PY_VERSION=${1:-3.12}                    # accepts X.Y or X.Y.Z
 PYENV_ROOT="${PYENV_ROOT:-/opt/pyenv}"   # kept only for parity/logging
 VENV_ROOT="${VENV_ROOT:-/opt/venvs}"     # kept only for parity/logging
 PIP_CACHE_DIR="${PIP_CACHE_DIR:-/opt/pip-cache}"
@@ -21,7 +21,7 @@ PROFILE_FILE="${PROFILE_FILE:-/etc/profile.d/99-custom.sh}"
 VENV_DIR="${VENV_DIR:-/opt/venvs/py${PY_VERSION}}"
 
 # Use python-setup.sh exactly like setup-code-server-jupyter.sh
-FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/features}
+FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/setups}
 "${FEATURE_DIR}/python-setup.sh" "${PY_VERSION}"
 
 # Ensure venv exists (built from the stable interpreter)

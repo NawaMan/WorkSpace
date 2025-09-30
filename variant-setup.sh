@@ -9,7 +9,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # ---- configurable args (safe defaults) ----
-PY_VERSION=${1:-3.11}              # accepts X.Y or X.Y.Z (exact patch recommended)
+PY_VERSION=${1:-3.12}              # accepts X.Y or X.Y.Z (exact patch recommended)
 VARIANT_TAG=${VARIANT_TAG:-container}
 
 echo PY_VERSION: $PY_VERSION
