@@ -31,10 +31,15 @@ build_variant() {
   DOCKER_FILE="${CONTEXT_DIR}/Dockerfile"
 
   TAGS_ARG+=( -t "${IMAGE_NAME}:${VARIANT}-${VERSION_TAG}" )
-  TAGS_ARG+=( -t "${IMAGE_NAME}:${VARIANT}-latest"         )
   if [[ "$VARIANT" == "container" ]]; then
     TAGS_ARG+=( -t "${IMAGE_NAME}:${VERSION_TAG}" )
-    TAGS_ARG+=( -t "${IMAGE_NAME}:latest"         )
+  fi
+
+  if [[ ! "$VERSION_TAG" =~ --rc([0-9]+)?$ ]]; then
+    TAGS_ARG+=( -t "${IMAGE_NAME}:${VARIANT}-latest" )
+    if [[ "$VARIANT" == "container" ]]; then
+      TAGS_ARG+=( -t "${IMAGE_NAME}:latest" )
+    fi
   fi
 
   # Pretty-print tags

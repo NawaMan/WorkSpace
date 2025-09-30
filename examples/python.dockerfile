@@ -5,14 +5,14 @@ ARG PORT=10000
 FROM nawaman/workspace:${VARIANT_TAG}-${VERSION_TAG}
 
 # The default value is the latest LTS
-ARG PY_VERSION=3.11
+ARG PY_VERSION=3.12
 ARG VARIANT_TAG=container
 ARG PORT=10000
 
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 USER root
 
-ENV FEATURE_DIR=/opt/workspace/features
+ENV FEATURE_DIR=/opt/workspace/setups
 ENV VARIANT_TAG="${VARIANT_TAG}"
 ENV WS_VARIANT_TAG="${VARIANT_TAG}"
 ENV PORT="${PORT}"

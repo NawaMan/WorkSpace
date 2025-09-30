@@ -9,7 +9,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # ---- configurable args (safe defaults) ----
-PY_VERSION=${1:-3.11}              # accepts X.Y or X.Y.Z (exact patch recommended)
+PY_VERSION=${1:-3.12}              # accepts X.Y or X.Y.Z (exact patch recommended)
 PYENV_ROOT="/opt/pyenv"            # system-wide pyenv
 VENV_ROOT="/opt/venvs"             # shared venvs root
 PIP_CACHE_DIR="/opt/pip-cache"     # shared pip cache
