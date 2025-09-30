@@ -1,4 +1,6 @@
 #requires -Version 7.0
+# VERSION: 0.2.0--rc
+
 # Rough equivalents of: set -euo pipefail
 $ErrorActionPreference = 'Stop'                      # like `set -e`
 Set-StrictMode -Version Latest                       # like `-u`
