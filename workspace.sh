@@ -265,19 +265,22 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
     # Construct the full image name.
     IMAGE_NAME="${PREBUILD_REPO}:${VARIANT}-${VERSION}"
 
-    if ! $DRYRUN || $DO_PULL || ! { docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; }; then
-      if $VERBOSE ; then
-        echo "Pulling image: $IMAGE_NAME"
-      fi
+    if $DO_PULL; then
+      $VERBOSE && echo "Pulling image (forced): $IMAGE_NAME"
       if ! output=$(docker pull "$IMAGE_NAME" 2>&1); then
         echo "Error: failed to pull '$IMAGE_NAME':"
         echo "$output" >&2
         exit 1
       fi
-      if $VERBOSE ; then
-        echo "$output"
-        echo ""
+      $VERBOSE && { echo "$output"; echo; }
+    elif ! $DRYRUN && ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+      $VERBOSE && echo "Image not found locally. Pulling: $IMAGE_NAME"
+      if ! output=$(docker pull "$IMAGE_NAME" 2>&1); then
+        echo "Error: failed to pull '$IMAGE_NAME':"
+        echo "$output" >&2
+        exit 1
       fi
+      $VERBOSE && { echo "$output"; echo; }
     fi
   fi
 fi  # else => Custom image
@@ -420,6 +423,10 @@ COMMON_ARGS+=(
   -e "WS_WORKSPACE_PATH=${WORKSPACE_PATH}"
   -e "WS_WORKSPACE_PORT=${WORKSPACE_PORT}"
 )
+
+if [[ "$DO_PULL" == false ]]; then
+  COMMON_ARGS+=( "--pull=never" )
+fi
 
 TTY_ARGS="-i"
 if [ -t 0 ] && [ -t 1 ]; then TTY_ARGS="-it"; fi

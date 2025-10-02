@@ -25,7 +25,6 @@ FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/setups}
 ${FEATURE_DIR}/python-setup.sh "${PY_VERSION}"
 
 ### ---- Tunables (override with env) ----
-PORT="${PORT:-10000}"                                 # code-server port
 PASSWORD="${PASSWORD:-}"                              # empty => no password
 VENV_DIR="${VENV_DIR:-/opt/venvs/py${PY_VERSION}}"    # Jupyter virtualenv location
 
@@ -89,7 +88,6 @@ export PY_VERSION="${PY_VERSION_BAKED}"
 
 # ==== Runtime tunables ====
 PASSWORD="${PASSWORD:-}"                 # empty => no password
-PORT="${PORT:-10000}"
 FEATURE_DIR=${FEATURE_DIR:-.}
 PATH="${VENV_DIR}/bin:${PATH}"
 
@@ -113,7 +111,7 @@ AUTH=$( [ -z "$PASSWORD" ] && echo none || echo password )
 PASS_LINE=$( [ "$AUTH" = "password" ] && echo "password: $PASSWORD" || echo "" )
 
 cat >"$CONFIG_FILE" <<EOF
-bind-addr: 0.0.0.0:${PORT}
+bind-addr: 0.0.0.0:10000
 cert: false
 auth: ${AUTH}
 ${PASS_LINE}
@@ -144,7 +142,7 @@ sudo chown -R "coder:coder" "$VENV_DIR" || true
 echo "Starting code-server. This may take sometime ..."
 exec sudo -u "$CSUSER" -H env PATH="$VENV_DIR/bin:$PATH" PASSWORD="$PASSWORD" JUPYTER_PATH="$JUPYTER_PATH" \
   code-server --extensions-dir "$CODESERVER_EXTENSION_DIR" \
-              --bind-addr "0.0.0.0:${PORT}" --auth "$AUTH" "$CSHOME/workspace"
+              --bind-addr "0.0.0.0:10000" --auth "$AUTH" "$CSHOME/workspace"
 LAUNCH
 chmod 755 /usr/local/bin/codeserver
 
@@ -154,9 +152,6 @@ cat <<EOF
 
 Start:
   /usr/local/bin/codeserver
-
-Open:
-  https://localhost:${PORT}/
 
 Auth mode:
   $( [[ -z "$PASSWORD" ]] && echo "No password (auth: none)" || echo "Password set (auth: password)" )
