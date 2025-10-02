@@ -1,6 +1,4 @@
 #requires -Version 7.0
-# VERSION: 0.2.0--rc
-
 # Rough equivalents of: set -euo pipefail
 $ErrorActionPreference = 'Stop'                      # like `set -e`
 Set-StrictMode -Version Latest                       # like `-u`
@@ -243,24 +241,31 @@ $script:LOCAL_BUILD = $false
 $script:IMAGE_MODE  = 'PRE-BUILD'
 
 if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
-  # Normalize the path to file ...
+  # Try to resolve a Dockerfile for local build
   if ($script:DOCKER_FILE -and
       (Test-Path -LiteralPath $script:DOCKER_FILE -PathType Container) -and
       (Test-Path -LiteralPath (Join-Path $script:DOCKER_FILE 'Dockerfile') -PathType Leaf)) {
     $script:DOCKER_FILE = Join-Path $script:DOCKER_FILE 'Dockerfile'
   }
-  elseif (([string]::IsNullOrEmpty($script:DOCKER_FILE)) -and
-          (Test-Path -LiteralPath (Join-Path $script:WORKSPACE_PATH 'Dockerfile') -PathType Leaf)) {
-    $script:DOCKER_FILE = Join-Path $script:WORKSPACE_PATH 'Dockerfile'
+  elseif ([string]::IsNullOrEmpty($script:DOCKER_FILE)) {
+    $candidate = Join-Path $script:WORKSPACE_PATH 'Dockerfile'
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+      $script:DOCKER_FILE = $candidate
+    }
   }
 
-  # If DOCKER_FILE is given at this point, it is expected to be a file.
-  if (-not (Test-Path -LiteralPath $script:DOCKER_FILE -PathType Leaf)) {
-    Write-Error "DOCKER_FILE ($script:DOCKER_FILE) is not a file."
-    exit 1
+  if (-not [string]::IsNullOrEmpty($script:DOCKER_FILE)) {
+    if (-not (Test-Path -LiteralPath $script:DOCKER_FILE -PathType Leaf)) {
+      Write-Error "DOCKER_FILE ($script:DOCKER_FILE) is not a file."
+      exit 1
     }
     $script:LOCAL_BUILD = $true
     $script:IMAGE_MODE  = 'LOCAL-BUILD'
+  } else {
+    # No Dockerfile → use prebuilt image (default path)
+    $script:LOCAL_BUILD = $false
+    $script:IMAGE_MODE  = 'PRE-BUILD'
+  }
 }
 else {
   $script:IMAGE_MODE = 'CUSTOM-BUILD'
@@ -486,8 +491,14 @@ while ($i -lt $script:ARGS.Count) {
 
 function Test-DockerImage {
   param([Parameter(Mandatory)][string]$Name)
-  & docker image inspect $Name *> $null
-  return ($LASTEXITCODE -eq 0)
+  try {
+    & docker image inspect $Name *> $null
+    return $true
+  } catch {
+    # Non-zero exit from native command is a terminating error with PSNativeCommandUseErrorActionPreference=$true
+    # Treat that as "image not present".
+    return $false
+  }
 }
 
 if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
@@ -517,22 +528,26 @@ if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
     # Construct the full image name.
     $script:IMAGE_NAME = "$($script:PREBUILD_REPO):$($script:VARIANT)-$($script:VERSION)"
 
-    # Pull if not dry-run, or explicitly requested, or not present locally
-    if ((-not (_is_true $script:DRYRUN)) -or (_is_true $script:DO_PULL) -or (-not (Test-DockerImage $script:IMAGE_NAME))) {
-      if (_is_true $script:VERBOSE) {
-        Write-Host "Pulling image: $script:IMAGE_NAME"
-      }
+    # Pull policy: force pull if --pull, else pull when missing (and not dryrun)
+    if (_is_true $script:DO_PULL) {
+      if (_is_true $script:VERBOSE) { Write-Host "Pulling image (forced): $script:IMAGE_NAME" }
       $output = (& docker pull $script:IMAGE_NAME 2>&1 | Out-String)
       if ($LASTEXITCODE -ne 0) {
         Write-Error ("Error: failed to pull '{0}':" -f $script:IMAGE_NAME)
-        # mirror bash: print docker's output to stderr
         [Console]::Error.WriteLine($output)
         exit 1
       }
-      if (_is_true $script:VERBOSE) {
-        Write-Host $output
-        Write-Host ""
+      if (_is_true $script:VERBOSE) { Write-Host $output; Write-Host "" }
+    }
+    elseif ((-not (_is_true $script:DRYRUN)) -and (-not (Test-DockerImage $script:IMAGE_NAME))) {
+      if (_is_true $script:VERBOSE) { Write-Host "Image not found locally. Pulling: $script:IMAGE_NAME" }
+      $output = (& docker pull $script:IMAGE_NAME 2>&1 | Out-String)
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error ("Error: failed to pull '{0}':" -f $script:IMAGE_NAME)
+        [Console]::Error.WriteLine($output)
+        exit 1
       }
+      if (_is_true $script:VERBOSE) { Write-Host $output; Write-Host "" }
     }
   }
 } # else => Custom image
@@ -565,6 +580,11 @@ if (-not [string]::IsNullOrEmpty($script:CONTAINER_ENV_FILE) -and
   }
 
   $script:COMMON_ARGS += @('--env-file', $script:CONTAINER_ENV_FILE)
+}
+
+# --- Add --pull=never to docker run when not explicitly pulling ---
+if (-not (_is_true $script:DO_PULL)) {
+  $script:COMMON_ARGS += @('--pull=never')
 }
 
 #=========== RUN (verbose dump) =============
@@ -661,12 +681,13 @@ switch ($upperPort) {
   }
   Default {
     # Numeric / default behavior (accepts string or int)
-    if (-not [int]::TryParse("$rawPort", [ref]([int]$null))) {
+    $tmp = 0
+    if (-not [int]::TryParse("$rawPort", [ref]$tmp)) {
       # If non-numeric and not RANDOM/NEXT, treat as error
       Write-Error "Error: WORKSPACE_PORT must be a number, 'RANDOM', or 'NEXT' (got '$rawPort')."
       exit 1
     }
-    $hostPort = [int]$rawPort
+    $hostPort = $tmp
   }
 }
 
@@ -688,8 +709,7 @@ if ( ($portGenerated -or (_is_true $script:VERBOSE)) -and ($script:CMDS.Count -e
 
 # Clean up any previous container with the same name
 if (-not (_is_true $script:DRYRUN)) {
-  & docker rm -f $script:CONTAINER_NAME *> $null
-  # ignore errors
+  try { & docker rm -f $script:CONTAINER_NAME *> $null } catch { }
 }
 
 # Build COMMON_ARGS
@@ -723,9 +743,9 @@ if (_is_true $script:DAEMON) {
 
   # Detached: no TTY args
   Write-Host "📦 Running workspace in daemon mode."
-  Write-Host "👉 Stop with '$script:SCRIPT_NAME -- exit'. The container will be removed (--rm) when stop."
+  Write-Host "👉 Stop with '$SCRIPT_NAME -- exit'. The container will be removed (--rm) when stop."
   Write-Host "👉 Visit 'http://localhost:$($script:WORKSPACE_PORT)'"
-  Write-Host "👉 To open an interactive shell instead: $script:SCRIPT_NAME -- bash"
+  Write-Host "👉 To open an interactive shell instead: $SCRIPT_NAME -- bash"
   Write-Host -NoNewline "👉 Container ID: "
   if (_is_true $script:DRYRUN) {
     Write-Host "<--dryrun-->"; Write-Host ""
@@ -738,7 +758,7 @@ if (_is_true $script:DAEMON) {
 } elseif ($script:CMDS.Count -eq 0) {
   Write-Host "📦 Running workspace in foreground."
   Write-Host "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
-  Write-Host "👉 To open an interactive shell instead: '$script:SCRIPT_NAME -- bash'"
+  Write-Host "👉 To open an interactive shell instead: '$SCRIPT_NAME -- bash'"
   Write-Host ""
   $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS + @($script:IMAGE_NAME)
   docker_run -Args $run
