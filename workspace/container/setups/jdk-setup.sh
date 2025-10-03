@@ -66,7 +66,7 @@ log "Creating symlinks: ${GENERIC_LINK} and ${VENDOR_LINK}"
 ln -snf "$JDK_HOME" "$GENERIC_LINK"
 ln -snf "$JDK_HOME" "$VENDOR_LINK"
 
-# --- Export for current shell ---
+# --- Export for current shell (this root shell) ---
 export JAVA_HOME="$GENERIC_LINK"
 export "JAVA_${JDK_VERSION}_HOME=$GENERIC_LINK"
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -83,9 +83,25 @@ if [[ "${ACTIVE_VENDOR}" == "graalvm" ]]; then
   fi
 fi
 
-# --- System-wide profile for future shells ---
+# --- Register with update-alternatives (immediate availability for all shells) ---
+log "Registering JDK ${JDK_VERSION} with update-alternatives..."
+update-alternatives --install /usr/bin/java   java   "${GENERIC_LINK}/bin/java"   20000
+update-alternatives --install /usr/bin/javac  javac  "${GENERIC_LINK}/bin/javac"  20000
+update-alternatives --install /usr/bin/jar    jar    "${GENERIC_LINK}/bin/jar"    20000
+update-alternatives --install /usr/bin/jcmd   jcmd   "${GENERIC_LINK}/bin/jcmd"   20000
+update-alternatives --install /usr/bin/jps    jps    "${GENERIC_LINK}/bin/jps"    20000
+update-alternatives --install /usr/bin/jstack jstack "${GENERIC_LINK}/bin/jstack" 20000
+# Set them explicitly to our freshly installed JDK
+update-alternatives --set java   "${GENERIC_LINK}/bin/java"
+update-alternatives --set javac  "${GENERIC_LINK}/bin/javac"  || true
+update-alternatives --set jar    "${GENERIC_LINK}/bin/jar"    || true
+update-alternatives --set jcmd   "${GENERIC_LINK}/bin/jcmd"   || true
+update-alternatives --set jps    "${GENERIC_LINK}/bin/jps"    || true
+update-alternatives --set jstack "${GENERIC_LINK}/bin/jstack" || true
+
+# --- System-wide profile for future shells (nice env vars) ---
 log "Writing /etc/profile.d/99-custom.sh ..."
-cat >/etc/profile.d/99-codecontainer.sh <<EOF
+cat >/etc/profile.d/99-custom.sh <<EOF
 # ---- container defaults (safe to source multiple times) ----
 export JAVA_HOME=${GENERIC_LINK}
 export PATH="\$JAVA_HOME/bin:\$PATH"
@@ -106,6 +122,7 @@ echo "   JAVA_${JDK_VERSION}_HOME = ${GENERIC_LINK}"
 echo "   Vendor link = ${VENDOR_LINK}"
 echo "   JBang launcher = /usr/local/bin/jbang"
 echo "   Profile script = /etc/profile.d/99-custom.sh"
+echo "   Alternatives:   $(command -v java) -> $(readlink -f "$(command -v java)")"
 echo
 echo "Tip: List available JDKs/vendors:"
 echo "  jbang jdk list --available --show-details"
