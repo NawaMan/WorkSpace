@@ -258,7 +258,7 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
   else
     # -- Prebuild --
     case "${VARIANT}" in
-      container|notebook|codeserver) ;;
+      container|notebook|codeserver|desktop) ;;
       *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
     esac
 
