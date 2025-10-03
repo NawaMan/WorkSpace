@@ -97,6 +97,9 @@ chmod -R a+rX "${BASH_KDIR}" || true
 cat > /usr/local/bin/notebook <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+PORT=${1:-10000}
+
 # Ensure PATH and /opt/python are active in non-login shells
 source /etc/profile.d/99-custom.sh || true
 
@@ -112,9 +115,9 @@ export JUPYTER_PATH="${VENV_DIR}/share/jupyter:/usr/local/share/jupyter:/usr/sha
 exec "${VENV_DIR}/bin/jupyter-lab" \
   --no-browser \
   --ip=0.0.0.0 \
-  --port=10000 \
+  --port=$PORT \
   --ServerApp.token='' \
-  --ServerApp.custom_display_url="http://localhost:10000/lab"
+  --ServerApp.custom_display_url="http://localhost:$PORT/lab"
 EOF
 # Bake in the venv path
 sed -i "s#__VENV_DIR_PLACEHOLDER__#${VENV_DIR}#g" /usr/local/bin/notebook

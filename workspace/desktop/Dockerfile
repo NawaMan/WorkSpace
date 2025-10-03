@@ -8,7 +8,10 @@ SHELL ["/bin/bash","-o","pipefail","-lc"]
 ENV FEATURE_DIR=/opt/workspace/setups
 
 RUN "$FEATURE_DIR/xfce-setup.sh"
+
+# Not really needed but feel unuseful without them.
 RUN "$FEATURE_DIR/firefox-setup.sh"
 RUN "$FEATURE_DIR/chrome-setup.sh"
+RUN "$FEATURE_DIR/vscode-setup.sh"
 
 CMD ["start-xfce"]
