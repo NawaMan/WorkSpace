@@ -68,6 +68,7 @@ ln -snf "$JDK_HOME" "$VENDOR_LINK"
 
 # --- Export for current shell ---
 export JAVA_HOME="$GENERIC_LINK"
+export "JAVA_${JDK_VERSION}_HOME=$GENERIC_LINK"
 export PATH="$JAVA_HOME/bin:$PATH"
 
 # --- Optional extras for GraalVM ---
@@ -84,10 +85,14 @@ fi
 
 # --- System-wide profile for future shells ---
 log "Writing /etc/profile.d/99-custom.sh ..."
-cat >/etc/profile.d/99-custom.sh <<EOF
+cat >/etc/profile.d/99-codecontainer.sh <<EOF
 # ---- container defaults (safe to source multiple times) ----
 export JAVA_HOME=${GENERIC_LINK}
 export PATH="\$JAVA_HOME/bin:\$PATH"
+
+# version-specific JAVA_<ver>_HOME
+export JAVA_${JDK_VERSION}_HOME=${GENERIC_LINK}
+
 # vendor-specific symlink for convenience
 export JAVA_HOME_${JDK_VERSION}_VENDOR=${VENDOR_LINK}
 # ---- end defaults ----
@@ -97,6 +102,7 @@ chmod 0644 /etc/profile.d/99-custom.sh
 # --- Summary ---
 echo "✅ JDK ${JDK_VERSION} (${ACTIVE_VENDOR}) installed."
 echo "   JAVA_HOME = ${GENERIC_LINK}"
+echo "   JAVA_${JDK_VERSION}_HOME = ${GENERIC_LINK}"
 echo "   Vendor link = ${VENDOR_LINK}"
 echo "   JBang launcher = /usr/local/bin/jbang"
 echo "   Profile script = /etc/profile.d/99-custom.sh"
