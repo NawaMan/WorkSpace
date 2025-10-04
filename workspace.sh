@@ -2,13 +2,13 @@
 # VERSION: 0.2.0--rc
 set -euo pipefail
 
-#========== CONSTANTS ============
+#== CONSTANTS ==================================================================
 
 SCRIPT_NAME="$(basename "$0")"
 PREBUILD_REPO="nawaman/workspace"
 FILE_NOT_USED=none
 
-#========== FUNCTIONS ============
+#== FUNCTIONS ==================================================================
 
 function abs_path() {
   if command -v realpath >/dev/null 2>&1; then
@@ -103,8 +103,7 @@ strip_network_flags() {
   fi
 }
 
-
-#=========== DEFAULTS ============
+#== DEFAULTS ===================================================================
 
 DRYRUN=${DRYRUN:-false}
 VERBOSE=${VERBOSE:-false}
@@ -139,7 +138,7 @@ BUILD_ARGS=()
 RUN_ARGS=()
 CMDS=( )
 
-#============ CONFIGS =============
+#== CONFIGS (EARLY ARG SCAN) ===================================================
 
 function require_arg() {
   local opt="$1"
@@ -161,7 +160,8 @@ for (( i=0; i<${#ARGS[@]}; i++ )); do
   esac
 done
 
-#-- Determine the IMAGE_NAME --------------------
+#== IMAGE NAME RESOLUTION ======================================================
+
 LOCAL_BUILD=false
 IMAGE_MODE=PRE-BUILD
 if [[ -z "${IMAGE_NAME}" ]] ; then
@@ -186,7 +186,7 @@ else
   IMAGE_MODE=CUSTOM-BUILD
 fi
 
-#========== ARGUMENTS ============
+#== ARGUMENT FILES LOADING =====================================================
 
 # Usage:
 #   load_args_file path/to/file       RUN_ARGS
@@ -217,7 +217,7 @@ fi
 load_args_file "${DOCKER_BUILD_ARGS_FILE}" BUILD_ARGS
 load_args_file "${DOCKER_RUN_ARGS_FILE}"   RUN_ARGS
 
-#========== PARAMETERS ============
+#== PARAMETER PARSING ==========================================================
 
 parsing_cmds=false
 while [[ $# -gt 0 ]]; do
@@ -259,7 +259,7 @@ while [[ $# -gt 0 ]]; do
   fi
 done
 
-#========== IMAGE ============
+#== IMAGE (BUILD/PULL/VERIFY) ==================================================
 
 # There are three mode of image selection:
 #   - Direction selection: IMAGE_NAME is given.
@@ -320,7 +320,7 @@ if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
   exit 1
 fi
 
-#========== ENV FILE ============
+#== ENV FILE ===================================================================
 
 # If VAR has no value and default file exists, use the default.
 if [[ -z "${CONTAINER_ENV_FILE}" ]] && [[ -f "${WORKSPACE_PATH:-.}/.env" ]]; then
@@ -333,7 +333,7 @@ if [[ -n "${CONTAINER_ENV_FILE}" ]] && [[ "$CONTAINER_ENV_FILE" != "$FILE_NOT_US
   COMMON_ARGS+=(--env-file "$CONTAINER_ENV_FILE")
 fi
 
-#=========== RUN =============
+#== RUN: DEBUG BANNER ===========================================================
 
 if [[ "${VERBOSE}" == "true" ]] ; then
   echo ""
@@ -366,7 +366,7 @@ if [[ "${VERBOSE}" == "true" ]] ; then
   fi
 fi
 
-# --------- Execute ---------
+#== PORT RESOLUTION =============================================================
 
 # Helper to check if a port is free on localhost
 is_port_free() {
@@ -434,6 +434,8 @@ if [[ ( "$PORT_GENERATED" == "true" || "$VERBOSE" == "true" ) && ${#CMDS[@]} -eq
   echo ""
 fi
 
+#== COMMON ARGS BASELINE ========================================================
+
 COMMON_ARGS+=(
   --name "$CONTAINER_NAME"
   -e HOST_UID="$HOST_UID"
@@ -456,7 +458,8 @@ if [[ "$DO_PULL" == false ]]; then
   COMMON_ARGS+=( "--pull=never" )
 fi
 
-# --------- DinD sidecar wiring (only if --dind) ---------
+#== DinD SIDE-CAR WIRING (ONLY IF --dind) ======================================
+
 DIND_NET=""
 DIND_NAME=""
 DOCKER_BIN=""
@@ -524,6 +527,8 @@ if [[ "$DIND" == "true" ]]; then
     $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container."
   fi
 fi
+
+#== EXECUTION ==================================================================
 
 TTY_ARGS="-i"
 if [ -t 0 ] && [ -t 1 ]; then TTY_ARGS="-it"; fi

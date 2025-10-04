@@ -119,6 +119,8 @@ $script:DOCKER_RUN_ARGS_FILE   = $env:DOCKER_RUN_ARGS_FILE
 
 $script:CONTAINER_ENV_FILE = $env:CONTAINER_ENV_FILE
 
+$script:DIND = if ($env:DIND) { $env:DIND } else { $false }
+
 $script:COMMON_ARGS = @()
 $script:BUILD_ARGS  = @()
 $script:RUN_ARGS    = @()
@@ -158,7 +160,7 @@ function Import-EnvFile {
 # Capture raw args like bash's ARGS=("$@")
 $script:ARGS = @($args)
 
-# --- NEW: Robustly split user command after `--` like bash ---
+# --- Robustly split user command after `--` like bash ---
 $dd = [Array]::IndexOf($script:ARGS, '--')
 if ($dd -ge 0) {
   if ($dd + 1 -lt $script:ARGS.Count) {
@@ -217,6 +219,12 @@ for ($i = 0; $i -lt $script:ARGS.Count; $i++) {
       Require-Arg -Opt '--dockerfile' -Val $next
       $script:DOCKER_FILE = $next
       $i++  # consume the value
+      continue
+    }
+
+    # --dind flag
+    '--dind' {
+      $script:DIND = $true
       continue
     }
   }
@@ -520,8 +528,8 @@ if ([string]::IsNullOrEmpty($script:IMAGE_NAME)) {
   }
   else {
     # -- Prebuild --
-    if ($script:VARIANT -notin @('container','notebook','codeserver')) {
-      Write-Error "Error: unknown --variant '$script:VARIANT' (expected: container|notebook|codeserver)"
+    if ($script:VARIANT -notin @('container','notebook','codeserver','desktop')) {
+      Write-Error "Error: unknown --variant '$script:VARIANT' (expected: container|notebook|codeserver|desktop)"
       exit 1
     }
 
@@ -601,6 +609,7 @@ if (_is_true $script:VERBOSE) {
   Write-Host "IMAGE_MODE:     $script:IMAGE_MODE"
   Write-Host "WORKSPACE_PATH: $script:WORKSPACE_PATH"
   Write-Host "WORKSPACE_PORT: $script:WORKSPACE_PORT"
+  Write-Host "DIND:           $script:DIND"
   Write-Host ""
   Write-Host "CONTAINER_ENV_FILE: $script:CONTAINER_ENV_FILE"
   Write-Host ""
@@ -731,6 +740,86 @@ $script:COMMON_ARGS += @(
   '-e', "WS_WORKSPACE_PORT=$($script:WORKSPACE_PORT)"
 )
 
+#== SEGMENT: DIND helpers ================================================
+function Strip-NetworkFlags {
+  param([string[]]$Args)
+  $out = @()
+  for ($i=0; $i -lt $Args.Count; $i++) {
+    $tok = $Args[$i]
+    if ($tok -eq '--network' -or $tok -eq '--net') { $i++; continue }
+    if ($tok -like '--network=*' -or $tok -like '--net=*') { continue }
+    $out += $tok
+  }
+  ,$out
+}
+#== END SEGMENT: DIND helpers ============================================
+
+#== SEGMENT: DIND sidecar wiring =========================================
+$script:CREATED_DIND_NET = $false
+$dindNet  = $null
+$dindName = $null
+if (_is_true $script:DIND) {
+  $dindNet  = "{0}-{1}-net"  -f $script:CONTAINER_NAME, $script:WORKSPACE_PORT
+  $dindName = "{0}-{1}-dind" -f $script:CONTAINER_NAME, $script:WORKSPACE_PORT
+
+  # create network if missing
+  $netExists = $false
+  try { & docker network inspect $dindNet *> $null; if ($LASTEXITCODE -eq 0) { $netExists = $true } } catch {}
+  if (-not $netExists) {
+    if (_is_true $script:VERBOSE) { Write-Host "Creating network: $dindNet" }
+    & docker network create $dindNet *> $null
+    $script:CREATED_DIND_NET = $true
+  }
+
+  # start sidecar if not running
+  $running = $false
+  try {
+    $rn = (& docker ps --filter "name=^/$dindName$" --format '{{.Names}}' 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $rn -and ($rn.Trim() -eq $dindName)) { $running = $true }
+  } catch {}
+  if (-not $running) {
+    if (_is_true $script:VERBOSE) { Write-Host "Starting DinD sidecar: $dindName" }
+    & docker run -d --rm --privileged `
+        --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw `
+        --name $dindName `
+        --network $dindNet `
+        -e DOCKER_TLS_CERTDIR= `
+        docker:dind *> $null
+  }
+
+  # wait until sidecar responds (up to ~20s)
+  $ready = $false
+  for ($i = 0; $i -lt 80; $i++) {
+    try {
+      & docker run --rm --network $dindNet docker:cli `
+        -H ("tcp://{0}:2375" -f $dindName) version *> $null
+      if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+    } catch {}
+    Start-Sleep -Milliseconds 250
+  }
+  if (-not $ready) {
+    Write-Warning "DinD did not become ready. Check: docker logs $dindName"
+  }
+
+  # strip any user-provided network flags to avoid duplication
+  $script:RUN_ARGS    = Strip-NetworkFlags $script:RUN_ARGS
+  $script:COMMON_ARGS = Strip-NetworkFlags $script:COMMON_ARGS
+
+  # wire main container to the per-instance network and endpoint
+  $script:COMMON_ARGS += @('--network', $dindNet)
+  $script:COMMON_ARGS += @('-e', ('DOCKER_HOST=tcp://{0}:2375' -f $dindName))
+
+  # mount host docker CLI (if present)
+  $dockerPath = $null
+  try { $dockerPath = (Get-Command docker -ErrorAction SilentlyContinue).Source } catch {}
+  if ($dockerPath) {
+    $script:COMMON_ARGS += @('-v', ("{0}:/usr/bin/docker:ro" -f $dockerPath))
+  } elseif (_is_true $script:VERBOSE) {
+    Write-Warning "docker CLI not found on host; not mounting into container."
+  }
+}
+#== END SEGMENT: DIND sidecar wiring =====================================
+
 # TTY handling: like `[ -t 0 ] && [ -t 1 ]`
 $TTY_ARGS = '-i'
 if (-not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) { $TTY_ARGS = '-it' }
@@ -755,6 +844,11 @@ if (_is_true $script:DAEMON) {
     Write-Host ""
   }
 
+  if (_is_true $script:DIND) {
+    Write-Host "🔧 DinD sidecar running: $dindName (network: $dindNet)"
+    Write-Host "   Stop with:  docker stop $dindName; docker network rm $dindNet"
+  }
+
 } elseif ($script:CMDS.Count -eq 0) {
   Write-Host "📦 Running workspace in foreground."
   Write-Host "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
@@ -763,10 +857,22 @@ if (_is_true $script:DAEMON) {
   $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS + @($script:IMAGE_NAME)
   docker_run -Args $run
 
+  # cleanup DinD if used
+  if (_is_true $script:DIND) {
+    try { & docker stop $dindName *> $null } catch {}
+    if ($script:CREATED_DIND_NET) { try { & docker network rm $dindNet *> $null } catch {} }
+  }
+
 } else {
   # Foreground with explicit command
   $USER_CMDS = ($script:CMDS -join ' ')
   $run = @('--rm', $TTY_ARGS) + $script:COMMON_ARGS + $script:RUN_ARGS +
          @($script:IMAGE_NAME, 'bash', '-lc', $USER_CMDS)
   docker_run -Args $run
+
+  # cleanup DinD if used
+  if (_is_true $script:DIND) {
+    try { & docker stop $dindName *> $null } catch {}
+    if ($script:CREATED_DIND_NET) { try { & docker network rm $dindNet *> $null } catch {} }
+  }
 }
