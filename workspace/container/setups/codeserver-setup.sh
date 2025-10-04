@@ -82,6 +82,8 @@ envsubst '$VENV_DIR_BAKED $PY_VERSION_BAKED' > /usr/local/bin/codeserver <<'LAUN
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+PORT=${1:-10000}
+
 # ==== Baked-in values from build time ====
 export VENV_DIR="${VENV_DIR_BAKED}"
 export PY_VERSION="${PY_VERSION_BAKED}"
@@ -111,7 +113,7 @@ AUTH=$( [ -z "$PASSWORD" ] && echo none || echo password )
 PASS_LINE=$( [ "$AUTH" = "password" ] && echo "password: $PASSWORD" || echo "" )
 
 cat >"$CONFIG_FILE" <<EOF
-bind-addr: 0.0.0.0:10000
+bind-addr: 0.0.0.0:$PORT
 cert: false
 auth: ${AUTH}
 ${PASS_LINE}
@@ -139,10 +141,22 @@ sudo chown -R "coder:coder" "$CSHOME/.config"
 sudo chown -R "coder:coder" "$CSHOME/.local"
 sudo chown -R "coder:coder" "$VENV_DIR" || true
 
+# -------- default shell for everything code-server launches (incl. Jupyter ext) --------
+DEFAULT_SHELL="/bin/bash"
+if ! command -v bash >/dev/null 2>&1; then
+  DEFAULT_SHELL="/bin/sh"
+fi
+
 echo "Starting code-server. This may take sometime ..."
-exec sudo -u "$CSUSER" -H env PATH="$VENV_DIR/bin:$PATH" PASSWORD="$PASSWORD" JUPYTER_PATH="$JUPYTER_PATH" \
+exec sudo --preserve-env=DOCKER_HOST,DOCKER_TLS_VERIFY,DOCKER_CERT_PATH \
+  -u "$CSUSER" -H env \
+  SHELL="$DEFAULT_SHELL" \
+  PATH="$VENV_DIR/bin:$PATH" \
+  PASSWORD="$PASSWORD" \
+  JUPYTER_PATH="$JUPYTER_PATH" \
   code-server --extensions-dir "$CODESERVER_EXTENSION_DIR" \
-              --bind-addr "0.0.0.0:10000" --auth "$AUTH" "$CSHOME/workspace"
+              --bind-addr "0.0.0.0:$PORT" --auth "$AUTH" "$CSHOME/workspace"
+
 LAUNCH
 chmod 755 /usr/local/bin/codeserver
 

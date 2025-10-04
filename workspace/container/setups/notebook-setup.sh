@@ -117,7 +117,8 @@ exec "${VENV_DIR}/bin/jupyter-lab" \
   --ip=0.0.0.0 \
   --port=$PORT \
   --ServerApp.token='' \
-  --ServerApp.custom_display_url="http://localhost:$PORT/lab"
+  --ServerApp.custom_display_url="http://localhost:$PORT/lab" \
+  --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}'
 EOF
 # Bake in the venv path
 sed -i "s#__VENV_DIR_PLACEHOLDER__#${VENV_DIR}#g" /usr/local/bin/notebook
