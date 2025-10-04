@@ -71,6 +71,38 @@ function project_name() {
   echo "${PROJECT}"
 }
 
+# Remove any --network / --net flags from an array variable (by name)
+strip_network_flags() {
+  local arr_name="$1"
+  local -n _in="$arr_name"
+  local _out=()
+  local skip_next=false
+  for ((i=0; i<${#_in[@]}; i++)); do
+    if $skip_next; then
+      skip_next=false
+      continue
+    fi
+    case "${_in[$i]}" in
+      --network|--net)
+        # drop this and the following value
+        skip_next=true
+        ;;
+      --network=*|--net=*)
+        # drop this single token
+        ;;
+      *)
+        _out+=("${_in[$i]}")
+        ;;
+    esac
+  done
+  # safe with `set -u`
+  if ((${#_out[@]})); then
+    _in=("${_out[@]}")
+  else
+    _in=()
+  fi
+}
+
 
 #=========== DEFAULTS ============
 
@@ -99,11 +131,13 @@ DOCKER_RUN_ARGS_FILE=${DOCKER_RUN_ARGS_FILE:-}
 
 CONTAINER_ENV_FILE=${CONTAINER_ENV_FILE:-}
 
+# DinD toggle
+DIND=${DIND:-false}
+
 COMMON_ARGS=()
 BUILD_ARGS=()
 RUN_ARGS=()
 CMDS=( )
-
 
 #============ CONFIGS =============
 
@@ -127,7 +161,6 @@ for (( i=0; i<${#ARGS[@]}; i++ )); do
   esac
 done
 
-
 #-- Determine the IMAGE_NAME --------------------
 LOCAL_BUILD=false
 IMAGE_MODE=PRE-BUILD
@@ -142,19 +175,16 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
   # If DOCKER_FILE is given at this point, it is expected to be a file.
   if [[ "${DOCKER_FILE:-}" != "" ]]; then
     # -- Local Build --
-
     if [[ ! -f "${DOCKER_FILE}" ]]; then
       echo "DOCKER_FILE (${DOCKER_FILE}) is not a file." >&2
       exit 1
     fi
-
     LOCAL_BUILD=true
     IMAGE_MODE=LOCAL-BUILD
   fi
 else
   IMAGE_MODE=CUSTOM-BUILD
 fi
-
 
 #========== ARGUMENTS ============
 
@@ -176,7 +206,6 @@ load_args_file() {
   done < <(sed $'s/\r$//' "$f")
 }
 
-
 # If VAR has no value and default file exists, use the default.
 if [[ -z "${DOCKER_BUILD_ARGS_FILE}" ]] && [[ -f "${WORKSPACE_PATH:-.}/ws-docker-build.args" ]]; then
   DOCKER_BUILD_ARGS_FILE="${WORKSPACE_PATH:-.}/ws-docker-build.args"
@@ -187,7 +216,6 @@ fi
 
 load_args_file "${DOCKER_BUILD_ARGS_FILE}" BUILD_ARGS
 load_args_file "${DOCKER_RUN_ARGS_FILE}"   RUN_ARGS
-
 
 #========== PARAMETERS ============
 
@@ -203,6 +231,8 @@ while [[ $# -gt 0 ]]; do
       --pull)     DO_PULL=true ; shift ;;
       --daemon)   DAEMON=true  ; shift ;;
       --help)     show_help    ; exit 0 ;;
+
+      --dind)     DIND=true    ; shift ;;
 
       # General
       --config)     [[ -n "${2:-}" ]] && { CONFIG_FILE="$2"    ; shift 2; } || { echo "Error: --config requires a path";      exit 1; } ;;
@@ -228,7 +258,6 @@ while [[ $# -gt 0 ]]; do
     esac
   fi
 done
-
 
 #========== IMAGE ============
 
@@ -291,7 +320,6 @@ if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
   exit 1
 fi
 
-
 #========== ENV FILE ============
 
 # If VAR has no value and default file exists, use the default.
@@ -304,7 +332,6 @@ if [[ -n "${CONTAINER_ENV_FILE}" ]] && [[ "$CONTAINER_ENV_FILE" != "$FILE_NOT_US
   fi
   COMMON_ARGS+=(--env-file "$CONTAINER_ENV_FILE")
 fi
-
 
 #=========== RUN =============
 
@@ -320,6 +347,7 @@ if [[ "${VERBOSE}" == "true" ]] ; then
   echo "IMAGE_MODE:     $IMAGE_MODE"
   echo "WORKSPACE_PATH: $WORKSPACE_PATH"
   echo "WORKSPACE_PORT: $WORKSPACE_PORT"
+  echo "DIND:           $DIND"
   echo ""
   echo "CONTAINER_ENV_FILE: $CONTAINER_ENV_FILE"
   echo ""
@@ -428,6 +456,75 @@ if [[ "$DO_PULL" == false ]]; then
   COMMON_ARGS+=( "--pull=never" )
 fi
 
+# --------- DinD sidecar wiring (only if --dind) ---------
+DIND_NET=""
+DIND_NAME=""
+DOCKER_BIN=""
+CREATED_DIND_NET=false
+
+if [[ "$DIND" == "true" ]]; then
+  # Unique per-instance network + sidecar (always)
+  DIND_NET="${CONTAINER_NAME}-${HOST_PORT}-net"
+  DIND_NAME="${CONTAINER_NAME}-${HOST_PORT}-dind"
+
+  # Create network if missing (quietly)
+  if ! docker network inspect "$DIND_NET" >/dev/null 2>&1; then
+    $VERBOSE && echo "Creating network: $DIND_NET"
+    if [[ "${DRYRUN:-false}" != "true" ]]; then
+      command docker network create "$DIND_NET" >/dev/null
+    else
+      print_cmd docker network create "$DIND_NET"
+    fi
+    CREATED_DIND_NET=true
+  fi
+
+  # Start DinD sidecar on our private network (silence ID)
+  if ! docker ps --filter "name=^/${DIND_NAME}$" --format '{{.Names}}' | grep -qx "$DIND_NAME"; then
+    $VERBOSE && echo "Starting DinD sidecar: $DIND_NAME"
+    docker_run -d --rm --privileged \
+      --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+      --name "$DIND_NAME" \
+      --network "$DIND_NET" \
+      -e DOCKER_TLS_CERTDIR= \
+      docker:dind >/dev/null
+  else
+    $VERBOSE && echo "DinD sidecar already running: $DIND_NAME"
+  fi
+
+  # Wait until the sidecar daemon is ready (fast loop, ~10s max)
+  if [[ "${DRYRUN:-false}" != "true" ]]; then
+    $VERBOSE && echo "Waiting for DinD to become ready at tcp://${DIND_NAME}:2375 ..."
+    ready=false
+    for i in $(seq 1 40); do
+      if docker run --rm --network "$DIND_NET" docker:cli \
+           -H "tcp://${DIND_NAME}:2375" version >/dev/null 2>&1; then
+        ready=true; break
+      fi
+      sleep 0.25
+    done
+    if [[ "$ready" != true ]]; then
+      echo "⚠️  DinD did not become ready. Check: docker logs $DIND_NAME" >&2
+    fi
+  fi
+
+  # Remove any user-provided --network from RUN_ARGS to avoid duplication
+  strip_network_flags RUN_ARGS
+
+  # Wire main container to DinD network + endpoint
+  COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
+
+  # Mount host docker CLI binary if present (so your image need not include it)
+  if DOCKER_BIN="$(command -v docker 2>/dev/null)"; then
+    # Resolve to absolute path for safety
+    if command -v readlink >/dev/null 2>&1; then
+      DOCKER_BIN="$(readlink -f "$DOCKER_BIN" || echo "$DOCKER_BIN")"
+    fi
+    COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
+  else
+    $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container."
+  fi
+fi
+
 TTY_ARGS="-i"
 if [ -t 0 ] && [ -t 1 ]; then TTY_ARGS="-it"; fi
 
@@ -447,6 +544,12 @@ if $DAEMON; then
 
   docker_run -d "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
+  # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
+  if [[ "$DIND" == "true" ]]; then
+    echo "🔧 DinD sidecar running: $DIND_NAME (network: $DIND_NET)"
+    echo "   Stop with:  docker stop $DIND_NAME && docker network rm $DIND_NET"
+  fi
+
 elif [[ ${#CMDS[@]} -eq 0 ]]; then
   echo "📦 Running workspace in foreground."
   echo "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
@@ -454,8 +557,24 @@ elif [[ ${#CMDS[@]} -eq 0 ]]; then
   echo ""
   docker_run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
+  # Foreground cleanup: stop sidecar & network if DinD was used
+  if [[ "$DIND" == "true" ]]; then
+    command docker stop "$DIND_NAME" >/dev/null 2>&1 || true
+    if [[ "${CREATED_DIND_NET}" == "true" ]]; then
+      command docker network rm "$DIND_NET" >/dev/null 2>&1 || true
+    fi
+  fi
+
 else
   # Foreground with explicit command
   USER_CMDS="${CMDS[*]}"
   docker_run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
+
+  # Foreground-with-command cleanup for DinD
+  if [[ "$DIND" == "true" ]]; then
+    command docker stop "$DIND_NAME" >/dev/null 2>&1 || true
+    if [[ "${CREATED_DIND_NET}" == "true" ]]; then
+      command docker network rm "$DIND_NET" >/dev/null 2>&1 || true
+    fi
+  fi
 fi

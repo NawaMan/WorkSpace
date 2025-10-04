@@ -159,7 +159,7 @@ if [ -z "${JAVA_HOME:-}" ] || [ ! -x "${JAVA_HOME}/bin/jshell" ]; then
   cat >&2 <<'EOF'
 ❌ JAVA_HOME is not set or jshell is missing.
 Run your JDK installer first, e.g.:
-  sudo ./jdk-setup.sh 21
+  sudo ./jdk-setup.sh 25
 Then re-run this script.
 EOF
   exit 1
