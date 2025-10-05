@@ -147,3 +147,6 @@ if ($PUSH) {
 Build-Variant 'container'
 Build-Variant 'notebook'
 Build-Variant 'codeserver'
+Build-Variant 'desktop-xfce'
+Build-Variant 'desktop-kde'
+Gnome
