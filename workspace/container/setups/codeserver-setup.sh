@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # setup-code-server-jupyter.sh
-# Installs code-server + Jupyter (Python venv + Bash kernel) on Ubuntu
+# Installs code-server + Jupyter (Python venv). Bash kernel is installed via external script.
 # Auth behavior:
 #   - If PASSWORD is empty or unset -> auth: none (no password)
 #   - If PASSWORD is set           -> auth: password (value = PASSWORD)
@@ -26,7 +26,7 @@ ${FEATURE_DIR}/python-setup.sh "${PY_VERSION}"
 
 ### ---- Tunables (override with env) ----
 PASSWORD="${PASSWORD:-}"                              # empty => no password
-VENV_DIR="${VENV_DIR:-/opt/venvs/py${PY_VERSION}}"    # Jupyter virtualenv location
+VENV_DIR="${VENV_DIR:-/opt/venvs/py${PY_VERSION}}"
 
 echo "[1/9] Install code-server…"
 if ! command -v code-server >/dev/null 2>&1; then
@@ -45,11 +45,17 @@ if [[ ! -d "$VENV_DIR" ]]; then
   "${STABLE_PY_LINK}/bin/python" -m venv "$VENV_DIR"
 fi
 "$VENV_DIR/bin/pip" install --upgrade pip setuptools wheel
-"$VENV_DIR/bin/pip" install jupyter bash_kernel ipykernel
-"$VENV_DIR/bin/python" -m bash_kernel.install --sys-prefix
+"$VENV_DIR/bin/pip" install jupyter ipykernel
 "$VENV_DIR/bin/python" -m ipykernel install --sys-prefix --name=python3 --display-name="Python ${PY_VERSION} (venv)"
 # # Ensure the coder user can access the venv (useful in containers)
 # sudo chown -R "coder:coder" "$VENV_DIR" || true
+
+echo "[3/9] Install Bash kernel via external script…"
+if [ -x "${FEATURE_DIR}/bash-nb-kernel-setup.sh" ]; then
+  "${FEATURE_DIR}/bash-nb-kernel-setup.sh" --venv-dir "$VENV_DIR"
+else
+  echo "⚠️  ${FEATURE_DIR}/bash-nb-kernel-setup.sh not found or not executable; skipping Bash kernel install." >&2
+fi
 
 # Export VENV_DIR and prepend to PATH for interactive shells
 {
@@ -93,10 +99,10 @@ PASSWORD="${PASSWORD:-}"                 # empty => no password
 FEATURE_DIR=${FEATURE_DIR:-.}
 PATH="${VENV_DIR}/bin:${PATH}"
 
-# NEW: make venv kernels visible to any Jupyter process
+# Make venv kernels visible to any Jupyter process
 export JUPYTER_PATH="${VENV_DIR}/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter${JUPYTER_PATH:+:$JUPYTER_PATH}"
 
-# NEW: use the shared extensions dir at runtime so preinstalled extensions are available on first run
+# Use the shared extensions dir at runtime so preinstalled extensions are available on first run
 CODESERVER_EXTENSION_DIR="${CODESERVER_EXTENSION_DIR:-/usr/local/share/code-server/extensions}"
 
 CSUSER=coder
@@ -172,5 +178,5 @@ Auth mode:
 
 Kernels available (scoped to venv):
   - Python 3 (venv)
-  - bash
+  - Bash
 EOF

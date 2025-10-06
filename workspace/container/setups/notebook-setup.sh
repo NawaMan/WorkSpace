@@ -2,6 +2,7 @@
 # notebook-setup.sh
 # Uses consolidated Python setup (/opt/workspace/setups/python-setup.sh),
 # then installs Jupyter and registers kernels + a "notebook" launcher.
+# NOTE: Bash kernel installation is delegated to ${FEATURE_DIR}/bash-nb-kernel-setup.sh
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
@@ -85,13 +86,13 @@ rm -rf "${KDIR}" || true
   --display-name="${JUPYTER_KERNEL_DISPLAY}"
 chmod -R a+rX "${KDIR}" || true
 
-# ---- Add a system-wide Bash kernel ----
-echo "🧩 Installing Bash kernel and registering kernelspec ..."
-"${VENV_PY}" -m pip install -q --upgrade bash_kernel
-BASH_KDIR="${JUPYTER_KERNEL_PREFIX}/share/jupyter/kernels/bash"
-rm -rf "${BASH_KDIR}" || true
-"${VENV_PY}" -m bash_kernel.install --prefix="${JUPYTER_KERNEL_PREFIX}"
-chmod -R a+rX "${BASH_KDIR}" || true
+# ---- Bash kernel: delegate to external installer ----
+echo "🧩 Installing Bash kernel via external script ..."
+if [ -x "${FEATURE_DIR}/bash-nb-kernel-setup.sh" ]; then
+  "${FEATURE_DIR}/bash-nb-kernel-setup.sh" --venv-dir "${VENV_DIR}" --prefix "${JUPYTER_KERNEL_PREFIX}"
+else
+  echo "⚠️  ${FEATURE_DIR}/bash-nb-kernel-setup.sh not found or not executable; skipping Bash kernel install." >&2
+fi
 
 # ---- Create startup script (ensures terminals inherit the venv) ----
 cat > /usr/local/bin/notebook <<'EOF'
@@ -127,12 +128,13 @@ chmod +x /usr/local/bin/notebook
 # ---- friendly summary ----
 "${VENV_PY}" -V || true
 "${VENV_DIR}/bin/pip" --version || true
+BASH_KDIR="${JUPYTER_KERNEL_PREFIX}/share/jupyter/kernels/bash"
 echo "✅ pyenv root (for reference): ${PYENV_ROOT}"
 echo "✅ Venvs root (for reference): ${VENV_ROOT}"
 echo "✅ Stable Python symlink at ${STABLE_PY_LINK}"
 echo "✅ Active venv at ${VENV_DIR}"
 echo "✅ Jupyter kernel '${JUPYTER_KERNEL_NAME}' registered at ${KDIR} with display name '${JUPYTER_KERNEL_DISPLAY}'"
-echo "✅ Bash kernel registered at ${BASH_KDIR}"
+echo "✅ Bash kernel installed via ${FEATURE_DIR}/bash-nb-kernel-setup.sh (expected at ${BASH_KDIR})"
 
 echo
 echo "Use it now in this shell (without reopening):"
