@@ -44,38 +44,6 @@ function docker_run() {
   fi
 }
 
-# Remove any --network / --net flags from an array variable (by name)
-strip_network_flags() {
-  local arr_name="$1"
-  local -n _in="$arr_name"
-  local _out=()
-  local skip_next=false
-  for ((i=0; i<${#_in[@]}; i++)); do
-    if $skip_next; then
-      skip_next=false
-      continue
-    fi
-    case "${_in[$i]}" in
-      --network|--net)
-        # drop this and the following value
-        skip_next=true
-        ;;
-      --network=*|--net=*)
-        # drop this single token
-        ;;
-      *)
-        _out+=("${_in[$i]}")
-        ;;
-    esac
-  done
-  # safe with `set -u`
-  if ((${#_out[@]})); then
-    _in=("${_out[@]}")
-  else
-    _in=()
-  fi
-}
-
 #== DEFAULTS ===================================================================
 
 DRYRUN=${DRYRUN:-false}
@@ -85,7 +53,7 @@ CONFIG_FILE=${CONFIG_FILE:-./ws-config.env}
 HOST_UID="${HOST_UID:-$(id -u)}"
 HOST_GID="${HOST_GID:-$(id -g)}"
 WORKSPACE_PATH="${WORKSPACE_PATH:-$PWD}"
-PROJECT_NAME="$(lib project_name ${WORKSPACE_PATH})"
+PROJECT_NAME="$(lib project_name "${WORKSPACE_PATH}")"
 
 DOCKER_FILE="${DOCKER_FILE:-}"
 IMAGE_NAME="${IMAGE_NAME:-}"
@@ -148,37 +116,6 @@ else
   IMAGE_MODE=CUSTOM-BUILD
 fi
 
-#== ARGUMENT FILES LOADING =====================================================
-
-# Usage:
-#   load_args_file path/to/file       RUN_ARGS
-#   load_args_file path/to/other_file BUILD_ARGS
-load_args_file() {
-  local f="$1" target="$2"
-  if [[      "$f" == "$FILE_NOT_USED" ]]; then                                        return 0; fi
-  if [[   -z "$f"                     ]]; then                                        return 0; fi
-  if [[ ! -f "$f"                     ]]; then echo "Error: '$f' is not a file" >&2 ; return 1; fi
-  if [[   -z "$target"                ]]; then                                        return 0; fi
-  # shellcheck disable=SC2016
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ "$line" =~ ^[[:space:]]*$ ]] && continue   # blank line
-    [[ "$line" =~ ^[[:space:]]*# ]] && continue   # comment
-    # shellcheck disable=SC2086
-    eval "$target+=($line)"
-  done < <(sed $'s/\r$//' "$f")
-}
-
-# If VAR has no value and default file exists, use the default.
-if [[ -z "${DOCKER_BUILD_ARGS_FILE}" ]] && [[ -f "${WORKSPACE_PATH:-.}/ws-docker-build.args" ]]; then
-  DOCKER_BUILD_ARGS_FILE="${WORKSPACE_PATH:-.}/ws-docker-build.args"
-fi
-if [[ -z "${DOCKER_RUN_ARGS_FILE}" ]] && [[ -f "${WORKSPACE_PATH:-.}/ws-docker-run.args" ]]; then
-  DOCKER_RUN_ARGS_FILE="${WORKSPACE_PATH:-.}/ws-docker-run.args"
-fi
-
-load_args_file "${DOCKER_BUILD_ARGS_FILE}" BUILD_ARGS
-load_args_file "${DOCKER_RUN_ARGS_FILE}"   RUN_ARGS
-
 #== PARAMETER PARSING ==========================================================
 
 parsing_cmds=false
@@ -220,6 +157,14 @@ while [[ $# -gt 0 ]]; do
     esac
   fi
 done
+
+#== ARGUMENT FILES LOADING (moved after CLI parse) =============================
+
+DOCKER_BUILD_ARGS_FILE="$(lib default_file_if_exists "${DOCKER_BUILD_ARGS_FILE}" "${WORKSPACE_PATH:-.}/ws-docker-build.args")"
+DOCKER_RUN_ARGS_FILE="$(lib   default_file_if_exists "${DOCKER_RUN_ARGS_FILE}"   "${WORKSPACE_PATH:-.}/ws-docker-run.args")"
+
+while IFS= read -r line; do eval "BUILD_ARGS+=($line)"; done < <(lib parse_args_file "${DOCKER_BUILD_ARGS_FILE}")
+while IFS= read -r line; do eval "RUN_ARGS+=($line)";   done < <(lib parse_args_file "${DOCKER_RUN_ARGS_FILE}")
 
 #== IMAGE (BUILD/PULL/VERIFY) ==================================================
 
@@ -276,7 +221,7 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
   fi
 fi  # else => Custom image
 
-# Ensrure the image exists.
+# Ensure the image exists.
 if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
   echo "Error: image '$IMAGE_NAME' not available locally. Try '--pull'." >&2
   exit 1
@@ -386,14 +331,7 @@ fi
 
 # Print banner only if (auto-generated OR VERBOSE) AND no CMDS
 if [[ ( "$PORT_GENERATED" == "true" || "$VERBOSE" == "true" ) && ${#CMDS[@]} -eq 0 ]]; then
-  echo ""
-  echo "============================================================"
-  echo "🚀 WORKSPACE PORT SELECTED"
-  echo "============================================================"
-  printf "🔌 Using host port: \033[1;32m%s\033[0m -> container: \033[1;34m10000\033[0m\n" "$HOST_PORT"
-  echo "🌐 Open: http://localhost:${HOST_PORT}"
-  echo "============================================================"
-  echo ""
+  lib port_banner "$HOST_PORT"
 fi
 
 #== COMMON ARGS BASELINE ========================================================
@@ -473,7 +411,7 @@ if [[ "$DIND" == "true" ]]; then
   fi
 
   # Remove any user-provided --network from RUN_ARGS to avoid duplication
-  strip_network_flags RUN_ARGS
+  mapfile -t RUN_ARGS < <(lib strip_network_flags "${RUN_ARGS[@]}")
 
   # Wire main container to DinD network + endpoint
   COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
