@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# workspace-entry
+# workspace-user-setup
 #
 # Purpose:
 #   Container entry script that aligns the in-container "coder" user/group with
@@ -19,7 +19,7 @@ set -euo pipefail
 #      and login shell USER_SHELL (moving any user that already holds HOST_UID).
 #   3) Add passwordless sudo for "coder".
 #   4) Create $HOME and $WORKSPACE; chown them (optionally recursive).
-#   5) cd into $WORKSPACE and exec the given command as "coder".
+#   5) cd into $WORKSPACE_PATH and exec the given command as "coder".
 #
 # Environment variables:
 #   HOST_UID           Host user id (default: 1000)
@@ -28,7 +28,8 @@ set -euo pipefail
 #
 #   USER_NAME          Target username inside container (default: coder)  [const below]
 #   HOME_DIR           Home dir for USER_NAME (default: /home/coder)      [const below]
-#   WORKSPACE          Workspace dir (default: /home/coder/workspace)     [const below]
+#   WORDKSPACE         Folder name inside container (default: workspace)  [const below]
+#   WORKSPACE_DIR      Workspace dir (default: /home/coder/workspace)     [const below]
 #
 # Usage:
 #   As container entrypoint (Dockerfile):
@@ -52,7 +53,9 @@ set -euo pipefail
 #== Constants ==
 USER_NAME="coder"
 HOME_DIR="/home/${USER_NAME}"
-WORKSPACE="/home/${USER_NAME}/workspace"
+
+WORKSPACE_NAME=${WORKSPACE_NAME:-workspace}
+WORKSPACE_DIR="/home/${USER_NAME}/${WORKSPACE_NAME}"
 
 # Allow environment to override config
 USER_SHELL="${USER_SHELL:-/bin/bash}"
@@ -66,7 +69,7 @@ find_free_gid() { local gid=2000; while getent group  "$gid" >/dev/null 2>&1; do
 # --- GROUP: ensure HOST_GID is owned by group 'coder' ---
 # 1) Ensure 'coder' group exists (with any GID for now). Prefer HOST_GID if free.
 if ! getent group "$USER_NAME" >/dev/null 2>&1; then
-  if getent group "$HOST_GID" >/dev/null 2>&1; then
+  if getent group "$HOST_GID"  >/dev/null 2>&1; then
     groupadd "$USER_NAME"               # temp gid
   else
     groupadd -g "$HOST_GID" "$USER_NAME"
@@ -97,7 +100,7 @@ if id -u "$USER_NAME" >/dev/null 2>&1; then
     fi
     usermod -u "$HOST_UID" -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
   else
-    usermod -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
+    usermod                -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
   fi
 else
   # 'coder' doesn't exist yet; if HOST_UID is already taken, move that user aside
@@ -106,7 +109,7 @@ else
   fi
   # Create coder. Reuse existing HOME_DIR if present; otherwise create it (-m).
   if [ -d "$HOME_DIR" ]; then
-    useradd -u "$HOST_UID" -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
+    useradd    -u "$HOST_UID" -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
   else
     useradd -m -u "$HOST_UID" -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
   fi
@@ -117,14 +120,54 @@ echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/${USER_NAME}
 chmod 0440 /etc/sudoers.d/${USER_NAME}
 
 # Ensure home & workspace exist; chown as requested
-mkdir -p "$HOME_DIR" "$WORKSPACE"
-chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE" || true
+mkdir -p                       "$HOME_DIR" "$WORKSPACE_DIR"
+chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" || true
 
 # Set up environment for coder and switch to workspace
 export HOME="$HOME_DIR"
 export PATH="$HOME/.local/bin:$PATH"
-cd "$WORKSPACE" 2>/dev/null || true
+cd "$WORKSPACE_DIR" 2>/dev/null || true
 
-# Exec the requested command as coder (default to USER_SHELL if none provided)
-[ "$#" -eq 0 ] && set -- "$USER_SHELL"
-exec runuser -u "$USER_NAME" -- "$@"
+# Populate skeleton dotfiles if missing (so non-login shells get env/aliases)
+if [ ! -f "$HOME_DIR/.bashrc" ]; then
+  if [ -f /etc/skel/.bashrc ]; then
+    cp /etc/skel/.bashrc "$HOME_DIR/.bashrc"
+  else
+    cat >"$HOME_DIR/.bashrc" <<'RC'
+# Minimal bashrc
+[ -f /etc/bash.bashrc ] && . /etc/bash.bashrc
+if [ -d /etc/profile.d ]; then
+  for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done
+fi
+RC
+  fi
+fi
+
+if [ ! -f "$HOME_DIR/.profile" ]; then
+  if [ -f /etc/skel/.profile ]; then
+    cp /etc/skel/.profile "$HOME_DIR/.profile"
+  else
+    cat >"$HOME_DIR/.profile" <<'RC'
+# Minimal profile for login shells
+[ -f /etc/profile ] && . /etc/profile
+RC
+  fi
+fi
+
+if [ ! -f "$HOME_DIR/.zshrc" ]; then
+  cat >"$HOME_DIR/.zshrc" <<'ZRC'
+# Minimal zshrc
+if [ -d /etc/profile.d ]; then
+  for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done
+fi
+ZRC
+fi
+
+chown "$HOST_UID:$HOST_GID" "$HOME_DIR/.bashrc" "$HOME_DIR/.profile" "$HOME_DIR/.zshrc" 2>/dev/null || true
+
+# Exec the requested command as coder (default to login shell if none provided)
+if [ "$#" -eq 0 ]; then
+  exec runuser -u "$USER_NAME" --login
+else
+  exec runuser -u "$USER_NAME" -- "$@"
+fi
