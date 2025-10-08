@@ -12,18 +12,17 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# ---- configurable args (safe defaults) ----
-PY_VERSION=${1:-3.12}                    # accepts X.Y or X.Y.Z
-PYENV_ROOT="${PYENV_ROOT:-/opt/pyenv}"   # kept only for parity/logging
-VENV_ROOT="${VENV_ROOT:-/opt/venvs}"     # kept only for parity/logging
-PIP_CACHE_DIR="${PIP_CACHE_DIR:-/opt/pip-cache}"
-STABLE_PY_LINK="${STABLE_PY_LINK:-/opt/python}"
-PROFILE_FILE="${PROFILE_FILE:-/etc/profile.d/99-custom.sh}"
-VENV_DIR="${VENV_DIR:-/opt/venvs/py${PY_VERSION}}"
-
 # Use python-setup.sh exactly like setup-code-server-jupyter.sh
+PY_VERSION=${1:-3.12}                    # accepts X.Y or X.Y.Z
 FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/setups}
 "${FEATURE_DIR}/python-setup.sh" "${PY_VERSION}"
+
+# ---- configurable args (safe defaults) ----
+PYENV_ROOT="/opt/pyenv"                               # system-wide pyenv
+VENV_ROOT="/opt/venvs"                                # shared venvs root
+VENV_DIR="${VENV_DIR:-${VENV_ROOT}/py${PY_VERSION}}"  # venv directory
+PIP_CACHE_DIR="/opt/pip-cache"                        # shared pip cache
+STABLE_PY_LINK="/opt/python"                          # stable, version-agnostic symlink
 
 # Ensure venv exists (built from the stable interpreter)
 if [ ! -x "${VENV_DIR}/bin/python" ]; then
@@ -138,4 +137,4 @@ echo "✅ Bash kernel installed via ${FEATURE_DIR}/bash-nb-kernel-setup.sh (expe
 
 echo
 echo "Use it now in this shell (without reopening):"
-echo "  . ${PROFILE_FILE} && python -V && which python"
+echo "python -V && which python"

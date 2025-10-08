@@ -189,7 +189,23 @@ Result: seamless dev environment, no permission headaches.
    - `-h` / `--help` prints detailed usage, configuration, and notes.
 
 
+## Implementation Notes
+
+### Profile Ordering
+
+Guideline to profile ordering `/etc/profile.d/##-XXXXXX.sh`.
+
+- 50 - 54 : workspace base setup
+- 55 - 59 : OS/UI setup (except python -- needed for the basic)
+- 60 - 64 : language/development platform setup
+- 65 - 69 : language/development platform extension setup
+- 70 - 74 : language/development tool (like IDE) setup
+- 75 - 79 : language/development tool extension setup
+
+
 ## Community & feedback
 
 WorkSpace aims to cover **typical developer needs** without overcomplicating things. 
 If you find a gap, edge case, or improvement, please open an issue or PR -- we’d love to hear how you use it.
+
+
