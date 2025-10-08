@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+for arg in "$@"; do
+    printf ' "%s"' "$arg"
+done
+echo

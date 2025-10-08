@@ -5,23 +5,24 @@ set -euo pipefail
 #== CONSTANTS ==================================================================
 
 SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+LIB_DIR=${SCRIPT_DIR}/libs
 PREBUILD_REPO="nawaman/workspace"
 FILE_NOT_USED=none
 
 #== FUNCTIONS ==================================================================
 
-function abs_path() {
-  if command -v realpath >/dev/null 2>&1; then
-    realpath "$1"
-  else
-    (cd "$(dirname "$1")" && printf '%s/%s\n' "$(pwd)" "$(basename "$1")")
-  fi
+function lib() {
+  local cmd=$1
+  shift
+
+  "${LIB_DIR}/${cmd}" "$@"
 }
 
 function docker_build() {
   # Print the command if dry-run or verbose
   if [[ "${DRYRUN:-false}" == true || "${VERBOSE:-false}" == true ]]; then
-    print_cmd docker build "$@"
+    lib print_cmd docker build "$@"
   fi
   # Actually run unless dry-run
   if [[ "${DRYRUN:-false}" != true ]]; then
@@ -33,7 +34,7 @@ function docker_build() {
 function docker_run() {
   # Print the command if dry-run or verbose
   if [[ "${DRYRUN:-false}" == "true" || "${VERBOSE:-false}" == "true" ]]; then
-    print_cmd docker run "$@"
+    lib print_cmd docker run "$@"
     echo ""
   fi
   # Actually run unless dry-run
@@ -41,34 +42,6 @@ function docker_run() {
     command docker run "$@"
     return $?   # propagate exit code
   fi
-}
-
-function print_cmd() {
-  printf ''
-  for a in "$@"; do
-    if [[ "$a" =~ ^[A-Za-z0-9_./:-]+$ ]]; then
-      printf '%s ' "$a"
-    else
-      q=${a//\'/\'\\\'\'}
-      printf "'%s' " "$q"
-    fi
-  done
-  printf '\n'
-}
-
-function print_args() {
-  for arg in "$@"; do
-    printf ' "%s"' "$arg"
-  done
-  echo
-}
-
-function project_name() {
-  WS_PATH=$(readlink -f "${1:-$PWD}")
-  PROJECT="$(basename "${WS_PATH}")"
-  PROJECT="$(printf '%s' "$PROJECT" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
-  [[ -z "$PROJECT" ]] && PROJECT="workspace"
-  echo "${PROJECT}"
 }
 
 # Remove any --network / --net flags from an array variable (by name)
@@ -112,7 +85,7 @@ CONFIG_FILE=${CONFIG_FILE:-./ws-config.env}
 HOST_UID="${HOST_UID:-$(id -u)}"
 HOST_GID="${HOST_GID:-$(id -g)}"
 WORKSPACE_PATH="${WORKSPACE_PATH:-$PWD}"
-PROJECT_NAME="$(project_name ${WORKSPACE_PATH})"
+PROJECT_NAME="$(lib project_name ${WORKSPACE_PATH})"
 
 DOCKER_FILE="${DOCKER_FILE:-}"
 IMAGE_NAME="${IMAGE_NAME:-}"
@@ -138,25 +111,14 @@ BUILD_ARGS=()
 RUN_ARGS=()
 CMDS=( )
 
-#== CONFIGS (EARLY ARG SCAN) ===================================================
-
-function require_arg() {
-  local opt="$1"
-  local val="$2"
-  if [[ -z "$val" || "$val" == --* ]]; then
-    echo "Error: $opt requires a value" >&2
-    exit 1
-  fi
-}
-
 ARGS=("$@")
 SET_CONFIG_FILE=false
 for (( i=0; i<${#ARGS[@]}; i++ )); do
   case "${ARGS[i]}" in
     --verbose)    VERBOSE=true ;;
-    --config)     require_arg "--config"     "${ARGS[i+1]:-}" ; CONFIG_FILE="${ARGS[i+1]}"    ; SET_CONFIG_FILE=true ; ((++i)) ;;
-    --workspace)  require_arg "--workspace"  "${ARGS[i+1]:-}" ; WORKSPACE_PATH="${ARGS[i+1]}" ;                        ((++i)) ;;
-    --dockerfile) require_arg "--dockerfile" "${ARGS[i+1]:-}" ; DOCKER_FILE="${ARGS[i+1]}" ;                           ((++i)) ;;
+    --config)     lib require_arg "--config"     "${ARGS[i+1]:-}" ; CONFIG_FILE="${ARGS[i+1]}"    ; SET_CONFIG_FILE=true ; ((++i)) ;;
+    --workspace)  lib require_arg "--workspace"  "${ARGS[i+1]:-}" ; WORKSPACE_PATH="${ARGS[i+1]}" ;                        ((++i)) ;;
+    --dockerfile) lib require_arg "--dockerfile" "${ARGS[i+1]:-}" ; DOCKER_FILE="${ARGS[i+1]}" ;                           ((++i)) ;;
   esac
 done
 
@@ -354,10 +316,10 @@ if [[ "${VERBOSE}" == "true" ]] ; then
   echo "DOCKER_BUILD_ARGS_FILE: $DOCKER_BUILD_ARGS_FILE"
   echo "DOCKER_RUN_ARGS_FILE:   $DOCKER_RUN_ARGS_FILE"
   echo ""
-  echo "BUILD_ARGS: "$(print_args "${BUILD_ARGS[@]}")
-  echo "RUN_ARGS:   "$(print_args "${RUN_ARGS[@]}")
+  echo "BUILD_ARGS: "$(lib print_args "${BUILD_ARGS[@]}")
+  echo "RUN_ARGS:   "$(lib print_args "${RUN_ARGS[@]}")
   echo ""
-  echo "CMDS: "$(print_args "${CMDS[@]}")
+  echo "CMDS: "$(lib print_args "${CMDS[@]}")
   echo ""
 
   if [[ ${#BUILD_ARGS[@]} -gt 0 ]] && [[ "${LOCAL_BUILD}" == "false" ]] && [[ "${VERBOSE}" == "true" ]]; then
@@ -476,7 +438,7 @@ if [[ "$DIND" == "true" ]]; then
     if [[ "${DRYRUN:-false}" != "true" ]]; then
       command docker network create "$DIND_NET" >/dev/null
     else
-      print_cmd docker network create "$DIND_NET"
+      lib print_cmd docker network create "$DIND_NET"
     fi
     CREATED_DIND_NET=true
   fi
