@@ -118,7 +118,7 @@ if [[ "${PUSH}" == "true" ]]; then
 fi
 
 build_variant container
-# build_variant notebook
-# build_variant codeserver
+build_variant notebook
+build_variant codeserver
 # build_variant desktop-xfce
 # build_variant desktop-kde

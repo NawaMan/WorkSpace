@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# setup-code-server-jupyter.sh
+# codeserver-setup.sh
 # Installs code-server + Jupyter (Python venv). Bash kernel is installed via external script.
 # Auth behavior:
 #   - If PASSWORD is empty or unset -> auth: none (no password)
 #   - If PASSWORD is set           -> auth: password (value = PASSWORD)
 set -Eeuo pipefail
+trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
 # This is to be run by sudo
 # Ensure script is run as root (EUID == 0)
@@ -13,20 +14,23 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# ---- configurable args (safe defaults) ----
-PY_VERSION=${1:-3.12}              # accepts 3.13, 3.13.7, 3.12, ...
-PYENV_ROOT="/opt/pyenv"            # system-wide pyenv
-VENV_ROOT="/opt/venvs"             # shared venvs root
-PIP_CACHE_DIR="/opt/pip-cache"     # shared pip cache
-STABLE_PY_LINK="/opt/python"       # stable, version-agnostic symlink
-PROFILE_FILE="/etc/profile.d/99-custom.sh"
-
+# Use python-setup.sh exactly like setup-code-server-jupyter.sh
+PY_VERSION=${1:-3.12}                    # accepts X.Y or X.Y.Z
 FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/setups}
-${FEATURE_DIR}/python-setup.sh "${PY_VERSION}"
+"${FEATURE_DIR}/python-setup.sh" "${PY_VERSION}"
+
+# Load python env exported by the base setup
+source /etc/profile.d/53-python.sh         2>/dev/null || true
+source /etc/profile.d/54-python-version.sh 2>/dev/null || true
+
+# Profile snippet this script will write to (used later)
+PROFILE_FILE="/etc/profile.d/56-codeserver.sh"
 
 ### ---- Tunables (override with env) ----
 PASSWORD="${PASSWORD:-}"                              # empty => no password
-VENV_DIR="${VENV_DIR:-/opt/venvs/py${PY_VERSION}}"
+# Prefer the series symlink if python-setup created it; fall back to the requested version
+VENV_DIR="${VENV_DIR:-${VENV_SERIES_DIR:-/opt/venvs/py${PY_VERSION}}}"
+
 
 echo "[1/9] Install code-server…"
 if ! command -v code-server >/dev/null 2>&1; then
@@ -34,47 +38,143 @@ if ! command -v code-server >/dev/null 2>&1; then
 fi
 command -v code-server >/dev/null
 
-# # Ensure the runtime user exists (minimal safeguard)
-# if ! id -u coder >/dev/null 2>&1; then
-#   useradd -m -s /bin/bash coder
-# fi
 
 echo "[2/9] Pre-seed Jupyter into ${VENV_DIR} (build-time)…"
+
 # Ensure venv exists and seed Jupyter so jupyter_client is available before runtime
-if [[ ! -d "$VENV_DIR" ]]; then
-  "${STABLE_PY_LINK}/bin/python" -m venv "$VENV_DIR"
+if [[ ! -x "$VENV_DIR/bin/python" ]]; then
+  mkdir -p "${VENV_DIR%/*}"
+  "${PY_STABLE}/bin/python" -m venv "$VENV_DIR"
 fi
-"$VENV_DIR/bin/pip" install --upgrade pip setuptools wheel
-"$VENV_DIR/bin/pip" install jupyter ipykernel
-"$VENV_DIR/bin/python" -m ipykernel install --sys-prefix --name=python3 --display-name="Python ${PY_VERSION} (venv)"
-# # Ensure the coder user can access the venv (useful in containers)
-# sudo chown -R "coder:coder" "$VENV_DIR" || true
+
+VENV_PY="$VENV_DIR/bin/python"
+VENV_PIP="$VENV_DIR/bin/pip"
+
+# Upgrade basics
+env PIP_CACHE_DIR="${PIP_CACHE_DIR:-/opt/pip-cache}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
+  "$VENV_PY" -m pip install -U pip setuptools wheel
+
+# Install Jupyter + ipykernel into the venv
+env PIP_CACHE_DIR="${PIP_CACHE_DIR:-/opt/pip-cache}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
+  "$VENV_PY" -m pip install -U jupyter ipykernel
+
+# Kernelspec (use actual patch version for display)
+ACTUAL_VER="$("$VENV_PY" -c 'import sys;print(".".join(map(str,sys.version_info[:3])))')"
+"$VENV_PY" -m ipykernel install --sys-prefix --name=python3 --display-name="Python ${ACTUAL_VER} (venv)"
+
 
 echo "[3/9] Install Bash kernel via external script…"
 if [ -x "${FEATURE_DIR}/bash-nb-kernel-setup.sh" ]; then
-  "${FEATURE_DIR}/bash-nb-kernel-setup.sh" --venv-dir "$VENV_DIR"
+  VENV_DIR="${VENV_DIR}" "${FEATURE_DIR}/bash-nb-kernel-setup.sh"
 else
   echo "⚠️  ${FEATURE_DIR}/bash-nb-kernel-setup.sh not found or not executable; skipping Bash kernel install." >&2
 fi
 
 # Export VENV_DIR and prepend to PATH for interactive shells
+PROFILE_FILE="${PROFILE_FILE:-/etc/profile.d/56-codeserver.sh}"
 {
   echo "export VENV_DIR=\"${VENV_DIR}\""
   echo 'if [ -d "$VENV_DIR/bin" ] && [[ ":$PATH:" != *":$VENV_DIR/bin:"* ]]; then export PATH="$VENV_DIR/bin:$PATH"; fi'
 } >> "$PROFILE_FILE"
 
+cat >> "$PROFILE_FILE" <<'SH'
+# codeserver setup inspector
+# Usage: codeserver-setup-info
+codeserver_setup_info() {
+  set -o pipefail
+  _hdr() { printf "\n\033[1m%s\033[0m\n" "$*"; }
+  _ok()  { printf "✅ %s\n" "$*"; }
+  _warn(){ printf "⚠️  %s\n" "$*"; }
+  _err() { printf "❌ %s\n" "$*"; }
+
+  # Defaults that match your setup
+  local csuser="${CSUSER:-coder}"
+  local cshome="${CSHOME:-/home/$csuser}"
+  local config_file="${CONFIG_FILE:-$cshome/.config/code-server/config.yaml}"
+  local ext_dir="${CODESERVER_EXTENSION_DIR:-/usr/local/share/code-server/extensions}"
+  local launcher="${LAUNCHER:-/usr/local/bin/codeserver}"
+
+  _hdr "code-server"
+  if command -v code-server >/dev/null 2>&1; then
+    _ok "Binary: $(command -v code-server)"
+    _ok "Version: $(code-server --version 2>/dev/null | head -n1)"
+  else
+    _err "code-server not found on PATH"
+  fi
+  [ -x "$launcher" ] && _ok "Launcher: $launcher"
+
+  _hdr "Python / venv"
+  local venv="${VENV_DIR:-${VENV_SERIES_DIR:-/opt/venvs/py${PY_SERIES:-}}}"
+  if [ -n "$venv" ] && [ -x "$venv/bin/python" ]; then
+    _ok "VENV_DIR: $venv"
+    _ok "Python: $("$venv/bin/python" -V 2>&1)"
+  elif [ -x /opt/python/bin/python ]; then
+    _warn "VENV_DIR not set; using /opt/python"
+    _ok "Python: $(/opt/python/bin/python -V 2>&1)"
+  else
+    _err "No Python interpreter found"
+  fi
+
+  _hdr "Jupyter"
+  local jbin=""
+  if [ -n "$venv" ] && [ -x "$venv/bin/jupyter" ]; then
+    jbin="$venv/bin/jupyter"
+  elif command -v jupyter >/dev/null 2>&1; then
+    jbin="$(command -v jupyter)"
+  fi
+  if [ -n "$jbin" ]; then
+    _ok "jupyter: $("$jbin" --version 2>/dev/null | head -n1)"
+    "$jbin" kernelspec list 2>/dev/null | sed 's/^/  /'
+  else
+    _warn "jupyter not found"
+  fi
+
+  _hdr "Extensions"
+  if [ -d "$ext_dir" ]; then
+    local n
+    n="$(find "$ext_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+    _ok "Shared dir: $ext_dir (count: $n)"
+    find "$ext_dir" -mindepth 1 -maxdepth 1 -type d -printf "  - %f\n" 2>/dev/null | sort | head -n 20
+  else
+    _warn "Extensions dir not found: $ext_dir"
+  fi
+
+  _hdr "Auth config"
+  if [ -f "$config_file" ]; then
+    local auth pass_set
+    auth="$(grep -E '^[[:space:]]*auth:' "$config_file" | awk '{print $2}' | tr -d '\r' || true)"
+    grep -Eq '^[[:space:]]*password:' "$config_file" && pass_set=yes || pass_set=no
+    _ok "Config: $config_file"
+    _ok "Auth: ${auth:-unknown}  Password set: $pass_set"
+  else
+    _warn "Config not found: $config_file"
+  fi
+
+  _hdr "Quick start"
+  echo "  codeserver 10000   # start on port 10000 (uses current \$PASSWORD if set)"
+}
+alias codeserver-setup-info='codeserver_setup_info'
+SH
+
+chmod 0644 "$PROFILE_FILE"
+# Make it available in THIS shell immediately:
+. "$PROFILE_FILE" || true
+
+
+# Make it usable right away in THIS shell
 source "$VENV_DIR/bin/activate"
 
 CODESERVER_EXTENSION_DIR=/usr/local/share/code-server/extensions
 
 # 1) Create a shared directory
 mkdir -p "$CODESERVER_EXTENSION_DIR"
-chmod -R a+rX "$CODESERVER_EXTENSION_DIR"
-# (root will write here; everyone else needs read+exec)
+chown root:root "$CODESERVER_EXTENSION_DIR"
+chmod 0755 "$CODESERVER_EXTENSION_DIR"     # root-writable, others read/exec
 
 # 2) (Optional) Move what you already installed as root
 if [ -d /root/.local/share/code-server/extensions ]; then
   rsync -a /root/.local/share/code-server/extensions/ "$CODESERVER_EXTENSION_DIR"/
+  chmod -R a+rX "$CODESERVER_EXTENSION_DIR"
 fi
 
 # 3) Install future extensions into the shared dir
@@ -82,11 +182,16 @@ code-server --extensions-dir "$CODESERVER_EXTENSION_DIR" \
   --install-extension ms-toolsai.jupyter \
   --install-extension ms-python.python
 
+# Extensions now in $CODESERVER_EXTENSION_DIR
+code-server --extensions-dir "$CODESERVER_EXTENSION_DIR" --list-extensions || true
+
+
 echo "[4/9] Create launcher: /usr/local/bin/codeserver"
 VENV_DIR_BAKED="$VENV_DIR" PY_VERSION_BAKED="$PY_VERSION" \
 envsubst '$VENV_DIR_BAKED $PY_VERSION_BAKED' > /usr/local/bin/codeserver <<'LAUNCH'
 #!/usr/bin/env bash
 set -Eeuo pipefail
+trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
 PORT=${1:-10000}
 
