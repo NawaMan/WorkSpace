@@ -183,6 +183,7 @@ cat >"$PROFILE_FILE" <<'EOF'
 # Stable Python (managed by python-setup.sh)
 export PYENV_ROOT="/opt/pyenv"
 export PY_STABLE="/opt/python"
+export VENV_ROOT="/opt/venvs"
 export PIP_CACHE_DIR="/opt/pip-cache"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PYTHONUNBUFFERED=1
@@ -291,7 +292,6 @@ print("sys.version:", sys.version.split()[0])
 print("site:", os.__file__)
 PY
 }
-
 EOF
 chmod 0644 "$PROFILE_VER_FILE"
 
@@ -306,6 +306,7 @@ ensure_env() {
 
 ensure_env PYENV_ROOT                    /opt/pyenv
 ensure_env PY_STABLE                     /opt/python
+ensure_env VENV_ROOT                     /opt/venvs
 ensure_env PIP_CACHE_DIR                 /opt/pip-cache
 ensure_env PIP_DISABLE_PIP_VERSION_CHECK 1
 ensure_env PYTHONUNBUFFERED              1
