@@ -4,17 +4,11 @@
 #   2) code-server's Jupyter extension
 # can see it.
 #
-# Inputs (flags or env):
-#   --py-version <X.Y[.Z]>   -> derive VENV_DIR as /opt/venvs/pyX.Y
-#   --venv-dir <path>        -> explicit venv path (takes precedence)
-#   --jdk-version <version>  -> display name's JDK version (else auto-detect)
-#   --ijava-version <ver>    -> IJava release tag (default: 1.3.0)
-#   Env fallbacks: PY_VERSION, JDK_VERSION
+# No CLI args. It auto-detects the venv and JDK, or errors out with guidance.
 #
-# Auto-detection (when flags/env missing):
-#   - For Python: use python3/python --version to guess X.Y, prefer /opt/venvs/pyX.Y if it exists,
-#     else scan /opt/venvs/py*/ for a venv that has jupyter_client installed.
-#   - For JDK: parse `java -version` (or $JAVA_HOME/bin/java -version) to get the version for display.
+# Env you MAY set:
+#   IJAVA_VERSION      -> IJava release tag (default: 1.3.0)
+#   VENV_DIR           -> Explicit venv path (optional)
 #
 # Prereqs:
 #   - JDK installed (JAVA_HOME set or java/jshell on PATH).
@@ -34,36 +28,16 @@ IJAVA_VERSION="${IJAVA_VERSION:-1.3.0}"              # default IJava tag
 JUPYTER_KERNEL_PREFIX="${JUPYTER_KERNEL_PREFIX:-/usr/local}"
 KERNEL_NAME="${KERNEL_NAME:-java}"
 KERNEL_DISPLAY_NAME="${KERNEL_DISPLAY_NAME:-}"        # optional override
-VENV_DIR="${VENV_DIR:-}"                              # may be set by flags below
+VENV_DIR="${VENV_DIR:-}"                              # may be pre-set via env
 WORKDIR="${WORKDIR:-/opt/ijava}"
 TMPDIR="$(mktemp -d)"
 
-# ---------------- CLI parsing ----------------
-PY_VERSION_REQ=""
-JDK_VERSION_OVERRIDE=""
-print_usage() {
-  cat <<'USAGE'
-Usage: java-nb-kernel-setup.sh [options]
-
-Options:
-  --py-version X.Y[.Z]     Derive VENV_DIR as /opt/venvs/pyX.Y
-  --venv-dir PATH          Explicit venv path (overrides --py-version)
-  --jdk-version VERSION    JDK version string for display name (e.g. 21.0.4)
-  --ijava-version VERSION  IJava release tag (default: 1.3.0)
-  --help                   Show this help and exit
-USAGE
-}
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --py-version)   PY_VERSION_REQ="${2:-}"; shift 2;;
-    --venv-dir)     VENV_DIR="${2:-}"; shift 2;;
-    --jdk-version)  JDK_VERSION_OVERRIDE="${2:-}"; shift 2;;
-    --ijava-version)IJAVA_VERSION="${2:-}"; shift 2;;
-    --help|-h)      print_usage; exit 0;;
-    *) echo "❌ Unknown option: $1" >&2; print_usage; exit 2;;
-  esac
-done
+# ---------------- Source helpful profiles (if present) ----------------
+# Python env from your base setup
+[ -r /etc/profile.d/53-python.sh ]         && source /etc/profile.d/53-python.sh
+[ -r /etc/profile.d/54-python-version.sh ] && source /etc/profile.d/54-python-version.sh
+# JDK env from your JDK setup (you chose 60)
+[ -r /etc/profile.d/60-jdk.sh ] && source /etc/profile.d/60-jdk.sh
 
 # ---------------- Helpers ----------------
 infer_python_series_from_cmd() {
@@ -109,51 +83,71 @@ detect_java_version_string() {
   elif command -v java >/dev/null 2>&1; then
     out="$(java -version 2>&1 || true)"
   fi
-  # First line, quoted version if present
   ver="$(printf "%s" "$out" | awk -F\" '/version/ {print $2; exit}')"
   if [ -z "$ver" ]; then
-    # Fallback: grab first numeric token
     ver="$(printf "%s" "$out" | sed -n '1s/.*\([0-9][0-9.]*\).*/\1/p')"
   fi
   printf "%s" "$ver"
 }
 
-# ---------------- Python / venv resolution ----------------
-# Prefer explicit flag; else PY_VERSION env; else try to infer from python --version.
-if [ -z "${PY_VERSION_REQ}" ] && [ -n "${PY_VERSION:-}" ]; then
-  PY_VERSION_REQ="${PY_VERSION}"
-fi
-
-# If no explicit VENV_DIR, try to derive it.
+# ---------------- Resolve VENV_DIR ----------------
+# Priority:
+#   1) $VENV_DIR (env)
+#   2) $VENV_SERIES_DIR from 54-python-version.sh (your series symlink)
+#   3) /opt/venvs/py${PY_SERIES} when defined
+#   4) infer from python on PATH and try /opt/venvs/pyX.Y
+#   5) scan for any venv with jupyter_client
 if [ -z "${VENV_DIR}" ]; then
-  if [ -n "${PY_VERSION_REQ}" ] && [[ "$PY_VERSION_REQ" =~ ^([0-9]+)\.([0-9]+) ]]; then
-    VENV_DIR="/opt/venvs/py${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+  if [ -n "${VENV_SERIES_DIR:-}" ] && [ -x "${VENV_SERIES_DIR}/bin/python" ]; then
+    VENV_DIR="${VENV_SERIES_DIR}"
+  elif [ -n "${PY_SERIES:-}" ] && [ -d "/opt/venvs/py${PY_SERIES}/bin" ]; then
+    VENV_DIR="/opt/venvs/py${PY_SERIES}"
   else
-    # Try to infer X.Y from python3/python
     series="$(infer_python_series_from_cmd || true)"
-    if [ -n "$series" ] && [ -d "/opt/venvs/py${series}" ]; then
+    if [ -n "$series" ] && [ -d "/opt/venvs/py${series}/bin" ]; then
       VENV_DIR="/opt/venvs/py${series}"
     fi
   fi
 fi
 
-# If still no VENV_DIR, scan for a venv that already has jupyter_client.
 if [ -z "${VENV_DIR}" ]; then
   VENV_DIR="$(find_venv_with_jupyter_client || true)"
 fi
 
+if [ -z "${VENV_DIR}" ] || [ ! -x "${VENV_DIR}/bin/python" ]; then
+  cat >&2 <<'EOF'
+❌ Could not determine a Python venv with Jupyter.
+Make sure your Python/Jupyter setup ran first (e.g., notebook-setup.sh).
+You can also set VENV_DIR explicitly, e.g.:
+  export VENV_DIR=/opt/venvs/py3.12
+  sudo -E ./java-nb-kernel-setup.sh
+EOF
+  exit 2
+fi
+
+# Ensure chosen python has jupyter_client
+if ! "${VENV_DIR}/bin/python" - <<'PY' >/dev/null 2>&1
+import importlib.util as u
+raise SystemExit(0 if u.find_spec("jupyter_client") else 1)
+PY
+then
+  echo "❌ ${VENV_DIR}/bin/python does not have 'jupyter_client'. Install Jupyter first." >&2
+  exit 2
+fi
+
 # ---------------- Resolve JAVA_HOME (+ jshell) ----------------
 if [ -z "${JAVA_HOME:-}" ]; then
-  for f in /etc/profile.d/99-custom.sh /etc/profile.d/98-java.sh /etc/profile.d/90-java.sh; do
-    [ -r "$f" ] && . "$f"
-  done
+  # try profile again in case user's env didn't include it
+  [ -r /etc/profile.d/60-jdk.sh ] && source /etc/profile.d/60-jdk.sh
 fi
 if [ -z "${JAVA_HOME:-}" ]; then
-  CANDIDATE="$(find /opt -maxdepth 1 -type l -name 'jdk*' -exec test -x '{}/bin/jshell' \; -print -quit 2>/dev/null || true)"
-  [ -n "$CANDIDATE" ] && export JAVA_HOME="$CANDIDATE"
-fi
-if [ -z "${JAVA_HOME:-}" ] && command -v /usr/lib/jvm/default-java/bin/jshell >/dev/null 2>&1; then
-  export JAVA_HOME="/usr/lib/jvm/default-java"
+  # last resort: derive from update-alternatives
+  if command -v java >/dev/null 2>&1; then
+    jpath="$(readlink -f "$(command -v java)")" || true
+    # Expect .../jre/bin/java or .../bin/java; go up two/three levels
+    base="$(dirname "$(dirname "$jpath")")"
+    [ -x "$base/bin/jshell" ] && export JAVA_HOME="$base"
+  fi
 fi
 if [ -z "${JAVA_HOME:-}" ] || [ ! -x "${JAVA_HOME}/bin/jshell" ]; then
   cat >&2 <<'EOF'
@@ -165,20 +159,14 @@ EOF
   exit 1
 fi
 
-# ---------------- JDK version for display (flag/env, else auto-detect) ----------------
-if [ -n "${JDK_VERSION_OVERRIDE}" ]; then
-  JDK_VERSION_FULL="${JDK_VERSION_OVERRIDE}"
-elif [ -n "${JDK_VERSION:-}" ]; then
-  JDK_VERSION_FULL="${JDK_VERSION}"
-else
-  JDK_VERSION_FULL="$(detect_java_version_string || true)"
-  if [ -z "$JDK_VERSION_FULL" ]; then
-    cat >&2 <<'EOF'
+# ---------------- JDK version string for display ----------------
+JDK_VERSION_FULL="$(detect_java_version_string || true)"
+if [ -z "$JDK_VERSION_FULL" ]; then
+  cat >&2 <<'EOF'
 ❌ Could not determine JDK version for kernel display name.
-Provide --jdk-version 21.0.4 or export JDK_VERSION=21.0.4
+Ensure 'java -version' works or set JAVA_HOME.
 EOF
-    exit 2
-  fi
+  exit 2
 fi
 JDK_MAJOR="${JDK_VERSION_FULL%%.*}"
 [ -z "$JDK_MAJOR" ] && JDK_MAJOR="$JDK_VERSION_FULL"
@@ -189,40 +177,6 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends curl unzip ca-certificates python3
 rm -rf /var/lib/apt/lists/*
-
-# ---------------- Pick Python to run install.py (must have jupyter_client) ----------------
-pick_python() {
-  local c
-  for c in \
-    "${VENV_DIR:+${VENV_DIR}/bin/python}" \
-    "$(command -v python3 || true)" \
-    "$(command -v python || true)"; do
-    [ -n "$c" ] || continue
-    if [ -x "$c" ] && "$c" - <<'PY' >/dev/null 2>&1
-import importlib.util as u
-raise SystemExit(0 if u.find_spec("jupyter_client") else 1)
-PY
-    then
-      printf "%s" "$c"
-      return 0
-    fi
-  done
-  return 1
-}
-
-if ! PYBIN="$(pick_python)"; then
-  cat >&2 <<EOF
-❌ Could not find a Python with 'jupyter_client' installed.
-Tried:
-  - \${VENV_DIR}/bin/python (${VENV_DIR:-not set or missing jupyter_client})
-  - python3 / python on PATH
-Fixes:
-  - Pass --venv-dir /opt/venvs/pyX.Y (your Jupyter venv), or
-  - Pass --py-version X.Y (uses /opt/venvs/pyX.Y), or
-  - Ensure an interpreter on PATH has 'jupyter_client' installed.
-EOF
-  exit 1
-fi
 
 # ---------------- Fetch IJava release ----------------
 mkdir -p "${WORKDIR}"
@@ -245,7 +199,7 @@ chmod -R a+rX "${WORKDIR}"
 echo "🧩 Registering IJava kernel under ${JUPYTER_KERNEL_PREFIX} (system-wide) …"
 pushd "${WORKDIR}" >/dev/null
 export JAVA_HOME PATH="${JAVA_HOME}/bin:${PATH}"
-"$PYBIN" install.py --prefix "${JUPYTER_KERNEL_PREFIX}"
+"${VENV_DIR}/bin/python" install.py --prefix "${JUPYTER_KERNEL_PREFIX}"
 
 KDIR="${JUPYTER_KERNEL_PREFIX}/share/jupyter/kernels/${KERNEL_NAME}"
 if [ ! -d "${KDIR}" ]; then
@@ -274,28 +228,24 @@ with open(p, "w") as f:
 PY
 fi
 
-# ---------------- Optionally: also register into code-server venv ----------------
-if [ -n "${VENV_DIR:-}" ] && [ -x "${VENV_DIR}/bin/python" ]; then
-  echo "🧩 Also registering IJava into venv: ${VENV_DIR} (sys-prefix) …"
-  export JAVA_HOME PATH="${JAVA_HOME}/bin:${PATH}"
-  "${VENV_DIR}/bin/python" install.py --sys-prefix || true
-fi
+# ---------------- Also register into the venv (sys-prefix) ----------------
+echo "🧩 Also registering IJava into venv: ${VENV_DIR} (sys-prefix) …"
+export JAVA_HOME PATH="${JAVA_HOME}/bin:${PATH}"
+"${VENV_DIR}/bin/python" install.py --sys-prefix || true
 
 popd >/dev/null
 
 # ---------------- Verification ----------------
 echo
 echo "🔎 Kernels (system):"
-"$PYBIN" -m jupyter kernelspec list || true
-if [ -n "${VENV_DIR:-}" ] && [ -x "${VENV_DIR}/bin/python" ]; then
-  echo
-  echo "🔎 Kernels (venv):"
-  "${VENV_DIR}/bin/python" -m jupyter kernelspec list || true
-fi
+"${VENV_DIR}/bin/python" -m jupyter kernelspec list || true
+echo
+echo "🔎 Kernels (venv):"
+"${VENV_DIR}/bin/python" -m jupyter kernelspec list || true
 
 echo
 echo "✅ IJava installed at: ${KDIR}"
 echo "   Display name: ${KERNEL_DISPLAY_NAME}"
 echo "   JAVA_HOME:    ${JAVA_HOME}"
-echo "   Python used:  ${PYBIN}"
-[ -n "${VENV_DIR:-}" ] && echo "   VENV_DIR:     ${VENV_DIR}"
+echo "   Python used:  ${VENV_DIR}/bin/python"
+echo "   VENV_DIR:     ${VENV_DIR}"
