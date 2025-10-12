@@ -14,10 +14,6 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Use python-setup.sh exactly like setup-code-server-jupyter.sh
-PY_VERSION=${1:-3.12}                    # accepts X.Y or X.Y.Z
-FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/setups}
-"${FEATURE_DIR}/python-setup.sh" "${PY_VERSION}"
 
 # Load python env exported by the base setup
 source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
@@ -25,8 +21,11 @@ source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
 # Profile snippet this script will write to (used later)
 PROFILE_FILE="/etc/profile.d/55-ws-codeserver.sh"
 
-### ---- Tunables (override with env) ----
-PASSWORD="${PASSWORD:-}"                              # empty => no password
+# Extensions
+CODESERVER_EXTENSION_DIR=/usr/local/share/code-server/extensions
+
+# Overridable PASSWORD
+PASSWORD="${PASSWORD:-}"  # empty => no password
 
 
 echo "[1/9] Install code-server…"
@@ -36,42 +35,19 @@ fi
 command -v code-server >/dev/null
 
 
-echo "[2/9] Pre-seed Jupyter into ${VENV_DIR} (build-time)…"
-
-# Ensure venv exists and seed Jupyter so jupyter_client is available before runtime
-if [[ ! -x "$VENV_DIR/bin/python" ]]; then
-  mkdir -p "${VENV_DIR%/*}"
-  "${PY_STABLE}/bin/python" -m venv "$VENV_DIR"
-fi
-
-VENV_PY="$VENV_DIR/bin/python"
-VENV_PIP="$VENV_DIR/bin/pip"
-
+echo "[2/9] Pre-seed Jupyter into ${WS_VENV_DIR} (build-time)…"
 # Upgrade basics
-env PIP_CACHE_DIR="${PIP_CACHE_DIR:-/opt/pip-cache}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
-  "$VENV_PY" -m pip install -U pip setuptools wheel
+env PIP_CACHE_DIR="${PIP_CACHE_DIR}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
+  python -m pip install -U pip setuptools wheel
 
 # Install Jupyter + ipykernel into the venv
-env PIP_CACHE_DIR="${PIP_CACHE_DIR:-/opt/pip-cache}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
-  "$VENV_PY" -m pip install -U jupyter ipykernel
+env PIP_CACHE_DIR="${PIP_CACHE_DIR}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
+  python -m pip install -U jupyter ipykernel
 
 # Kernelspec (use actual patch version for display)
-ACTUAL_VER="$("$VENV_PY" -c 'import sys;print(".".join(map(str,sys.version_info[:3])))')"
-"$VENV_PY" -m ipykernel install --sys-prefix --name=python3 --display-name="Python ${ACTUAL_VER} (venv)"
+ACTUAL_VER="$(python -c 'import sys;print(".".join(map(str,sys.version_info[:3])))')"
+python -m ipykernel install --sys-prefix --name=python3 --display-name="Python ${ACTUAL_VER} (venv)"
 
-
-echo "[3/9] Install Bash kernel via external script…"
-if [ -x "${FEATURE_DIR}/bash-nb-kernel-setup.sh" ]; then
-  VENV_DIR="${VENV_DIR}" "${FEATURE_DIR}/bash-nb-kernel-setup.sh"
-else
-  echo "⚠️  ${FEATURE_DIR}/bash-nb-kernel-setup.sh not found or not executable; skipping Bash kernel install." >&2
-fi
-
-# Export VENV_DIR and prepend to PATH for interactive shells
-{
-  echo "export VENV_DIR=\"${VENV_DIR}\""
-  echo 'if [ -d "$VENV_DIR/bin" ] && [[ ":$PATH:" != *":$VENV_DIR/bin:"* ]]; then export PATH="$VENV_DIR/bin:$PATH"; fi'
-} >> "$PROFILE_FILE"
 
 cat >> "$PROFILE_FILE" <<'SH'
 # codeserver setup inspector
@@ -151,39 +127,33 @@ codeserver_setup_info() {
 }
 alias codeserver-setup-info='codeserver_setup_info'
 SH
-
 chmod 0644 "$PROFILE_FILE"
+
 # Make it available in THIS shell immediately:
-. "$PROFILE_FILE" || true
+source "$PROFILE_FILE" || true
 
 
 # Make it usable right away in THIS shell
-source "$VENV_DIR/bin/activate"
+source "${WS_VENV_DIR}/bin/activate"
 
-CODESERVER_EXTENSION_DIR=/usr/local/share/code-server/extensions
 
 # 1) Create a shared directory
-mkdir -p "$CODESERVER_EXTENSION_DIR"
+mkdir -p        "$CODESERVER_EXTENSION_DIR"
 chown root:root "$CODESERVER_EXTENSION_DIR"
-chmod 1777 -Rf "$CODESERVER_EXTENSION_DIR"     # root-writable, others read/exec (matches your comment)
+chmod 1777 -Rf  "$CODESERVER_EXTENSION_DIR"     # root-writable, others read/exec (matches your comment)
 
 # 2) Move what you already installed as root and link it back
-if [ -d /root/.local/share/code-server/extensions ]; then
-  ROOT_CODESERVER_EXTENSION_DIR=/root/.local/share/code-server/extensions
-
-  # Copy out existing extensions (rsync if available, else cp -a)
-  if command -v rsync >/dev/null 2>&1; then
-    rsync -a "$ROOT_CODESERVER_EXTENSION_DIR"/ "$CODESERVER_EXTENSION_DIR"/
-  else
-    cp -a "$ROOT_CODESERVER_EXTENSION_DIR"/. "$CODESERVER_EXTENSION_DIR"/
-  fi
-
+ROOT_CODESERVER_EXTENSION_DIR=/root/.local/share/code-server/extensions
+if [ -d "$ROOT_CODESERVER_EXTENSION_DIR" ]; then
+  mkdir -p "$CODESERVER_EXTENSION_DIR"
+  cp -a "$ROOT_CODESERVER_EXTENSION_DIR"/. "$CODESERVER_EXTENSION_DIR"/
   rm -Rf "$ROOT_CODESERVER_EXTENSION_DIR"
-  mkdir -p /root/.local/share/code-server
-
-  # Make the link exact (no trailing slashes; -T to treat LINKNAME as a file)
-  ln -sfnT "$CODESERVER_EXTENSION_DIR" "$ROOT_CODESERVER_EXTENSION_DIR"
 fi
+
+# Make the link exact (no trailing slashes; -T to treat LINKNAME as a file)
+mkdir -p    "$ROOT_CODESERVER_EXTENSION_DIR"
+rm    -Rf   "$ROOT_CODESERVER_EXTENSION_DIR"
+ln    -sfnT "$CODESERVER_EXTENSION_DIR" "$ROOT_CODESERVER_EXTENSION_DIR"
 
 if [ -f /usr/local/share/code-server/extensions/extensions.json ]; then
   chmod 777 /usr/local/share/code-server/extensions/extensions.json
@@ -202,38 +172,30 @@ code-server --extensions-dir "$CODESERVER_EXTENSION_DIR" --list-extensions || tr
 
 
 echo "[4/9] Create launcher: /usr/local/bin/codeserver"
-VENV_DIR_BAKED="$VENV_DIR" PY_VERSION_BAKED="$PY_VERSION" \
-envsubst '$VENV_DIR_BAKED $PY_VERSION_BAKED' > /usr/local/bin/codeserver <<'LAUNCH'
+export CODESERVER_EXTENSION_DIR
+envsubst '$PASSWORD $CODESERVER_EXTENSION_DIR' > /usr/local/bin/codeserver <<'LAUNCH'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
 PORT=${1:-10000}
 
-# ==== Baked-in values from build time ====
-export VENV_DIR="${VENV_DIR_BAKED}"
-export PY_VERSION="${PY_VERSION_BAKED}"
+# Ensure PATH and /opt/python are active in non-login shells
+source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
 
 # ==== Runtime tunables ====
-PASSWORD="${PASSWORD:-}"                 # empty => no password
-FEATURE_DIR=${FEATURE_DIR:-.}
-PATH="${VENV_DIR}/bin:${PATH}"
-
 # Make venv kernels visible to any Jupyter process
-export JUPYTER_PATH="${VENV_DIR}/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter${JUPYTER_PATH:+:$JUPYTER_PATH}"
-
-# Use the shared extensions dir at runtime so preinstalled extensions are available on first run
-CODESERVER_EXTENSION_DIR="${CODESERVER_EXTENSION_DIR:-/usr/local/share/code-server/extensions}"
+export JUPYTER_PATH="${WS_VENV_DIR}/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter${JUPYTER_PATH:+:$JUPYTER_PATH}"
 
 CSUSER=coder
-CSHOME=/home/$CSUSER
+CSHOME=/home/${CSUSER}
 
 # Pre-create config dirs for CSUSER and ensure ownership
 mkdir -p "$CSHOME/.config" "$CSHOME/.local/share/code-server" "$CSHOME/.local/share/code-server/User"
 
 # Write code-server config for coder (auth decided at runtime)
-mkdir -p "$CSHOME/.config/code-server"
-CONFIG_FILE="$CSHOME/.config/code-server/config.yaml"
+mkdir -p "${CSHOME}/.config/code-server"
+CONFIG_FILE="${CSHOME}/.config/code-server/config.yaml"
 
 AUTH=$( [ -z "$PASSWORD" ] && echo none || echo password )
 PASS_LINE=$( [ "$AUTH" = "password" ] && echo "password: $PASSWORD" || echo "" )
@@ -252,7 +214,7 @@ mkdir -p "$SETTING_DIR"
 
 cat > "$SETTINGS_JSON" <<JSON
 {
-  "python.defaultInterpreterPath": "${VENV_DIR_BAKED}/bin/python",
+  "python.defaultInterpreterPath": "${WS_VENV_DIR}/bin/python",
   "jupyter.jupyterServerType": "local",
 
   "terminal.integrated.profiles.linux": {
@@ -267,23 +229,19 @@ JSON
 
 sudo chown -R "coder:coder" "$CSHOME/.config"
 sudo chown -R "coder:coder" "$CSHOME/.local"
-sudo chown -R "coder:coder" "$VENV_DIR" || true
 
 # -------- default shell for everything code-server launches (incl. Jupyter ext) --------
 DEFAULT_SHELL="/bin/bash"
-if ! command -v bash >/dev/null 2>&1; then
-  DEFAULT_SHELL="/bin/sh"
-fi
 
 echo "Starting code-server. This may take sometime ..."
 exec sudo --preserve-env=DOCKER_HOST,DOCKER_TLS_VERIFY,DOCKER_CERT_PATH \
-  -u "$CSUSER"                 \
-  -H env                       \
-  SHELL="$DEFAULT_SHELL"       \
-  PATH="$VENV_DIR/bin:$PATH"   \
-  PASSWORD="$PASSWORD"         \
-  JUPYTER_PATH="$JUPYTER_PATH" \
-  code-server \
+  -u "$CSUSER"                  \
+  -H env                        \
+  SHELL="$DEFAULT_SHELL"        \
+  PATH="$PATH"                  \
+  PASSWORD="$PASSWORD"          \
+  JUPYTER_PATH="$JUPYTER_PATH"  \
+  code-server                   \
       --extensions-dir "$CODESERVER_EXTENSION_DIR" \
       --bind-addr      "0.0.0.0:$PORT"             \
       --auth           "$AUTH"                     \
