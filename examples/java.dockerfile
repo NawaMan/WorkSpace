@@ -26,4 +26,12 @@ RUN "$FEATURE_DIR/variant-setup.sh" "${PY_VERSION}"
 
 RUN "$FEATURE_DIR/jdk-setup.sh" "${JDK_VERSION}" "${JDK_VENDOR}"
 RUN "$FEATURE_DIR/mvn-setup.sh" "${MVN_VERSION}" 
+
+# Only allow failure for the plain "container" variant
+# RUN if [[ "$VARIANT_TAG" == "container" ]]; then \
+#       "$FEATURE_DIR/java-nb-kernel-setup.sh" || true; \
+#     else \
+#       "$FEATURE_DIR/java-nb-kernel-setup.sh"; \
+#     fi
+
 RUN "$FEATURE_DIR/java-nb-kernel-setup.sh"

@@ -1,0 +1,8 @@
+#!/bin/bash
+set -euo pipefail
+
+WS_PATH=$(readlink -f "${1:-$PWD}")
+PROJECT="$(basename "${WS_PATH}")"
+PROJECT="$(printf '%s' "$PROJECT" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
+[[ -z "$PROJECT" ]] && PROJECT="workspace"
+echo "${PROJECT}"

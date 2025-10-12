@@ -14,7 +14,6 @@ ENV FEATURE_DIR=/opt/workspace/setups
 ENV VARIANT_TAG="${VARIANT_TAG}"
 ENV WS_VARIANT_TAG="${VARIANT_TAG}"
 ENV PY_VERSION="${PY_VERSION}"
-ENV BASH_ENV=/etc/profile.d/99-custom.sh
 
 # For python, we need to reinstall variant specific script.
 RUN "$FEATURE_DIR/python-setup.sh"  "${PY_VERSION}"

@@ -52,10 +52,17 @@ build_variant() {
   log "Context:    ${CONTEXT_DIR}"
   log "Dockerfile: ${DOCKER_FILE}"
   log "Tags:       ${TAGS_STR}"
+  log "No cache:   ${NO_CACHE}"
 
   # --- Sanity checks ---
   [[ -d "${CONTEXT_DIR}" ]] || die "Context dir not found: ${CONTEXT_DIR}"
   [[ -f "${DOCKER_FILE}" ]] || die "Dockerfile not found: ${DOCKER_FILE}"
+
+  # Optional args
+  NO_CACHE_ARG=()
+  if [[ "${NO_CACHE}" == "true" ]]; then
+    NO_CACHE_ARG+=( --no-cache )
+  fi
 
   if [[ "${PUSH}" == "true" ]]; then
     # Multi-arch + push using buildx docker-container driver
@@ -65,7 +72,7 @@ build_variant() {
 
     log "Building with buildx (push)"
     docker buildx build \
-      --no-cache \
+      "${NO_CACHE_ARG[@]}" \
       --platform "${PLATFORMS}" \
       -f "${DOCKER_FILE}" \
       "${TAGS_ARG[@]}" \
@@ -75,6 +82,7 @@ build_variant() {
     # Local dev/test: plain docker build (so FROM sees locally built base)
     log "Local build (plain 'docker build')"
     docker build \
+      "${NO_CACHE_ARG[@]}" \
       -f "${DOCKER_FILE}" \
       "${TAGS_ARG[@]}" \
       "${CONTEXT_DIR}"
@@ -86,20 +94,24 @@ build_variant() {
 
 usage() {
   cat <<EOF
-Usage: ./build.sh [--push]
+Usage: ./build.sh [--push] [--no-cache]
 Examples
-  ./build.sh          # local build (plain docker build)
-  ./build.sh --push   # multi-arch buildx build and push
+  ./build.sh                   # local build (plain docker build)
+  ./build.sh --push            # multi-arch buildx build and push
+  ./build.sh --no-cache        # local build without cache
+  ./build.sh --push --no-cache # buildx build+push without cache
 EOF
 }
 
 # --- Parse parameters ---
 PUSH="false"
+NO_CACHE="false"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --push)    PUSH="true";                      shift  ;;
-    -h|--help) usage;                            exit 0 ;;
-    *)         echo "Unknown option: $1"; usage; exit 2 ;;
+    --push)      PUSH="true";                       shift  ;;
+    --no-cache)  NO_CACHE="true";                   shift  ;;
+    -h|--help)   usage;                             exit 0 ;;
+    *)           echo "Unknown option: $1"; usage;  exit 2 ;;
   esac
 done
 

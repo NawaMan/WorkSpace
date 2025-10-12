@@ -1,18 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
+trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
 # ---------------------------------------------
 # jdk-setup.sh — Install JBang + chosen JDK
 #
-# Vendor selection:
+# Vendor selection order:
 #   1) CLI arg #2 (e.g., "graalvm") → sets JBANG_JDK_VENDOR
 #   2) Existing JBANG_JDK_VENDOR env
 #   3) Fallback default: temurin
 #
+# Also supports:
+#   --alternative <PRIORITY>  # update-alternatives priority (default: 20000)
+#
 # Usage:
-#   sudo ./jdk-setup.sh                 # version=21, vendor=$JBANG_JDK_VENDOR or temurin
-#   sudo ./jdk-setup.sh 25              # version=25, vendor from env/default
-#   sudo ./jdk-setup.sh 25 graalvm      # version=25, vendor=graalvm (sets env for this run)
+#   sudo ./jdk-setup.sh
+#   sudo ./jdk-setup.sh 25
+#   sudo ./jdk-setup.sh 25 graalvm
+#   sudo ./jdk-setup.sh --alternative 30000 25 temurin
 # ---------------------------------------------
 
 log() { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
@@ -21,13 +26,50 @@ die() { echo "❌ $*" >&2; exit 1; }
 # --- Root check ---
 [[ "${EUID}" -eq 0 ]] || die "This script must be run as root (use sudo)."
 
-# --- Inputs & vendor policy ---
-JDK_VERSION="${1:-25}"
-CLI_VENDOR="${2:-}"  # optional: temurin | graalvm | (any vendor JBang supports)
+# --- Defaults ---
+JDK_VERSION="21"
+CLI_VENDOR=""
+ALT_PRIO="20000"
+
+# --- Parse args (flags first, then positionals: version vendor) ---
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --alternative)
+      ALT_PRIO="${2:-}"
+      [[ -n "$ALT_PRIO" && "$ALT_PRIO" =~ ^[0-9]+$ ]] || die "--alternative requires a numeric priority"
+      shift 2
+      ;;
+    --help|-h)
+      cat <<'USAGE'
+Usage: jdk-setup.sh [--alternative PRIORITY] [JDK_VERSION] [VENDOR]
+
+Examples:
+  sudo ./jdk-setup.sh
+  sudo ./jdk-setup.sh 25
+  sudo ./jdk-setup.sh 25 graalvm
+  sudo ./jdk-setup.sh --alternative 30000 25 temurin
+USAGE
+      exit 0
+      ;;
+    --*) die "Unknown option: $1" ;;
+    *)
+      if [[ "$JDK_VERSION" == "21" && "$1" =~ ^[0-9]+$ ]]; then
+        JDK_VERSION="$1"
+      elif [[ -z "$CLI_VENDOR" ]]; then
+        CLI_VENDOR="$1"
+      else
+        die "Unexpected extra argument: $1"
+      fi
+      shift
+      ;;
+  esac
+done
+
+# --- Vendor policy ---
 if [[ -n "$CLI_VENDOR" ]]; then
   export JBANG_JDK_VENDOR="$CLI_VENDOR"
 fi
-: "${JBANG_JDK_VENDOR:=temurin}"   # default if env not set
+: "${JBANG_JDK_VENDOR:=temurin}"
 ACTIVE_VENDOR="$JBANG_JDK_VENDOR"
 
 # --- Base tools ---
@@ -43,19 +85,17 @@ export JBANG_CACHE_DIR=/opt/jbang-cache
 mkdir -p "$JBANG_DIR" "$JBANG_CACHE_DIR"
 chmod -R 0777 "$JBANG_DIR" "$JBANG_CACHE_DIR"
 
-# --- Install JBang (binary) ---
+# --- Install JBang ---
 log "Installing JBang..."
 curl -Ls https://sh.jbang.dev | bash -s - app setup
 install -Dm755 "${JBANG_DIR}/bin/jbang" /usr/local/bin/jbang
 
-# --- Install JDK (vendor controlled by JBANG_JDK_VENDOR) ---
+# --- Install JDK (via JBang) ---
 log "Installing JDK ${JDK_VERSION} (vendor: ${ACTIVE_VENDOR}) via JBang..."
 jbang jdk install "${JDK_VERSION}"
-
-# Try to make it default (ok if multiple vendors exist)
 jbang jdk default "${JDK_VERSION}" >/dev/null 2>&1 || true
 
-# --- Resolve JAVA_HOME for this version (per active vendor selection) ---
+# --- Resolve JAVA_HOME ---
 JDK_HOME="$(jbang jdk home "${JDK_VERSION}")"
 [[ -n "$JDK_HOME" && -d "$JDK_HOME" ]] || die "Could not resolve JDK home for ${JDK_VERSION} (${ACTIVE_VENDOR})."
 
@@ -66,12 +106,12 @@ log "Creating symlinks: ${GENERIC_LINK} and ${VENDOR_LINK}"
 ln -snf "$JDK_HOME" "$GENERIC_LINK"
 ln -snf "$JDK_HOME" "$VENDOR_LINK"
 
-# --- Export for current shell (this root shell) ---
+# --- Export for current shell ---
 export JAVA_HOME="$GENERIC_LINK"
 export "JAVA_${JDK_VERSION}_HOME=$GENERIC_LINK"
 export PATH="$JAVA_HOME/bin:$PATH"
 
-# --- Optional extras for GraalVM ---
+# --- Optional GraalVM extras ---
 if [[ "${ACTIVE_VENDOR}" == "graalvm" ]]; then
   log "GraalVM selected; attempting to install native-image (optional)..."
   if command -v gu >/dev/null 2>&1; then
@@ -83,15 +123,15 @@ if [[ "${ACTIVE_VENDOR}" == "graalvm" ]]; then
   fi
 fi
 
-# --- Register with update-alternatives (immediate availability for all shells) ---
-log "Registering JDK ${JDK_VERSION} with update-alternatives..."
-update-alternatives --install /usr/bin/java   java   "${GENERIC_LINK}/bin/java"   20000
-update-alternatives --install /usr/bin/javac  javac  "${GENERIC_LINK}/bin/javac"  20000
-update-alternatives --install /usr/bin/jar    jar    "${GENERIC_LINK}/bin/jar"    20000
-update-alternatives --install /usr/bin/jcmd   jcmd   "${GENERIC_LINK}/bin/jcmd"   20000
-update-alternatives --install /usr/bin/jps    jps    "${GENERIC_LINK}/bin/jps"    20000
-update-alternatives --install /usr/bin/jstack jstack "${GENERIC_LINK}/bin/jstack" 20000
-# Set them explicitly to our freshly installed JDK
+# --- Register with update-alternatives (system-wide) ---
+log "Registering JDK ${JDK_VERSION} with update-alternatives (priority ${ALT_PRIO})..."
+update-alternatives --install /usr/bin/java   java   "${GENERIC_LINK}/bin/java"   "${ALT_PRIO}"
+update-alternatives --install /usr/bin/javac  javac  "${GENERIC_LINK}/bin/javac"  "${ALT_PRIO}"
+update-alternatives --install /usr/bin/jar    jar    "${GENERIC_LINK}/bin/jar"    "${ALT_PRIO}"
+update-alternatives --install /usr/bin/jcmd   jcmd   "${GENERIC_LINK}/bin/jcmd"   "${ALT_PRIO}"
+update-alternatives --install /usr/bin/jps    jps    "${GENERIC_LINK}/bin/jps"    "${ALT_PRIO}"
+update-alternatives --install /usr/bin/jstack jstack "${GENERIC_LINK}/bin/jstack" "${ALT_PRIO}"
+# Force-select our entries
 update-alternatives --set java   "${GENERIC_LINK}/bin/java"
 update-alternatives --set javac  "${GENERIC_LINK}/bin/javac"  || true
 update-alternatives --set jar    "${GENERIC_LINK}/bin/jar"    || true
@@ -99,30 +139,64 @@ update-alternatives --set jcmd   "${GENERIC_LINK}/bin/jcmd"   || true
 update-alternatives --set jps    "${GENERIC_LINK}/bin/jps"    || true
 update-alternatives --set jstack "${GENERIC_LINK}/bin/jstack" || true
 
-# --- System-wide profile for future shells (nice env vars) ---
-log "Writing /etc/profile.d/99-custom.sh ..."
-cat >/etc/profile.d/99-custom.sh <<EOF
-# ---- container defaults (safe to source multiple times) ----
+# --- System-wide profile for future shells ---
+PROFILE_FILE="/etc/profile.d/60-ws-jdk.sh"
+log "Writing ${PROFILE_FILE} ..."
+cat >"$PROFILE_FILE" <<EOF
+# JDK (${JDK_VERSION}) setup — managed by jdk-setup.sh
 export JAVA_HOME=${GENERIC_LINK}
 export PATH="\$JAVA_HOME/bin:\$PATH"
-
-# version-specific JAVA_<ver>_HOME
 export JAVA_${JDK_VERSION}_HOME=${GENERIC_LINK}
-
-# vendor-specific symlink for convenience
 export JAVA_HOME_${JDK_VERSION}_VENDOR=${VENDOR_LINK}
-# ---- end defaults ----
+
+# Inspector: jdk-setup-info
+jdk_setup_info() {
+  set -o pipefail
+  _hdr() { printf "\n\033[1m%s\033[0m\n" "\$*"; }
+  _ok()  { printf "✅ %s\n" "\$*"; }
+  _warn(){ printf "⚠️  %s\n" "\$*"; }
+  _err() { printf "❌ %s\n" "\$*"; }
+
+  _hdr "Java (system)"
+  if command -v java >/dev/null 2>&1; then
+    _ok "which java: \$(command -v java)"
+    _ok "real java:  \$(readlink -f \$(command -v java))"
+    java -version 2>&1 | sed 's/^/  /'
+  else
+    _err "java not found on PATH"
+  fi
+
+  _hdr "Environment"
+  printf "JAVA_HOME=%s\n" "\${JAVA_HOME:-}"
+  printf "JAVA_${JDK_VERSION}_HOME=%s\n" "\${JAVA_${JDK_VERSION}_HOME:-}"
+  printf "Vendor link=%s\n" "\${JAVA_HOME_${JDK_VERSION}_VENDOR:-}"
+
+  _hdr "JBang"
+  if command -v jbang >/dev/null 2>&1; then
+    _ok "jbang: \$(jbang --version 2>/dev/null | head -n1)"
+    _ok "jdk home: \$(jbang jdk home ${JDK_VERSION} 2>/dev/null || echo n/a)"
+    _ok "installed jdks:"
+    jbang jdk list 2>/dev/null | sed 's/^/  /' || true
+  else
+    _warn "jbang not found on PATH"
+  fi
+
+  _hdr "Alternatives"
+  update-alternatives --display java   2>/dev/null | sed 's/^/  /' || true
+}
+alias jdk-setup-info='jdk_setup_info'
 EOF
-chmod 0644 /etc/profile.d/99-custom.sh
+chmod 0644 "$PROFILE_FILE"
 
 # --- Summary ---
 echo "✅ JDK ${JDK_VERSION} (${ACTIVE_VENDOR}) installed."
 echo "   JAVA_HOME = ${GENERIC_LINK}"
 echo "   JAVA_${JDK_VERSION}_HOME = ${GENERIC_LINK}"
 echo "   Vendor link = ${VENDOR_LINK}"
+echo "   Alternatives priority = ${ALT_PRIO}"
 echo "   JBang launcher = /usr/local/bin/jbang"
-echo "   Profile script = /etc/profile.d/99-custom.sh"
+echo "   Profile script = ${PROFILE_FILE}"
 echo "   Alternatives:   $(command -v java) -> $(readlink -f "$(command -v java)")"
 echo
-echo "Tip: List available JDKs/vendors:"
-echo "  jbang jdk list --available --show-details"
+echo "Use it now in this shell (without reopening):"
+echo "  . ${PROFILE_FILE} && jdk-setup-info"

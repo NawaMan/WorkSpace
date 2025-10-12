@@ -48,7 +48,7 @@ exec /usr/bin/google-chrome-stable \
   --user-data-dir="${HOME}/.chrome-data" \
   "$@"
 EOF
-chmod 0755 /usr/local/bin/google-chrome
+chmod 755 /usr/local/bin/google-chrome
 
 # point desktop launcher (if present) to wrapper
 if [[ -f /usr/share/applications/google-chrome.desktop ]]; then
@@ -58,6 +58,6 @@ fi
 # --- make Chrome the default x-www-browser (preferred) ---
 # Register Chrome with higher priority and set it as the default alternative.
 update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/google-chrome 300
-update-alternatives --set x-www-browser /usr/local/bin/google-chrome || true
+update-alternatives --set                            x-www-browser /usr/local/bin/google-chrome || true
 
 echo "✅ Google Chrome set as the default Web Browser (x-www-browser)"

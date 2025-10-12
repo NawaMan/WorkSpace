@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# python-code-extension-setup.sh
+# bash-code-extension-setup.sh
 # Root-only installer for a login-time VS Code bootstrap in /etc/profile.d/.
 set -Eeuo pipefail
 
@@ -13,4 +13,4 @@ SETUP_LIBS_DIR=${SETUP_LIBS_DIR:-/opt/workspace/setups/libs}
 CODE_EXTENSION_LIB=${CODE_EXTENSION_LIB:-code-extension-source.sh}
 source "${SETUP_LIBS_DIR}/${CODE_EXTENSION_LIB}"
 
-install_extensions ms-python.python
+install_extensions mads-hartmann.bash-ide-vscode

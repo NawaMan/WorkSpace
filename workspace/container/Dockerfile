@@ -23,6 +23,7 @@ RUN set -euo pipefail         \
       direnv                  \
       gettext-base            \
       git                     \
+      gnupg                   \
       jq                      \
       less                    \
       locales                 \
@@ -49,7 +50,7 @@ ENV USER_NAME=coder  \
     WORKSPACE=/home/coder/workspace
 
 # Make the venv default and set pip knobs AFTER the upgrade above
-ENV PATH=/opt/workspace/setups:/opt/venv/bin:/home/coder/.local/bin:$PATH \
+ENV PATH=/opt/workspace/setups:/opt/python/bin:/home/coder/.local/bin:$PATH \
     TERM=xterm-256color \
     EDITOR=tilde
 
@@ -66,25 +67,25 @@ RUN set -eux; \
     uid="$(free_uid)"; \
     # Do NOT create the home at build time: avoids skel dotfiles with old GID
     useradd -M -u "$uid" -g coder -s /bin/bash coder; \
-  fi; \
-  # Create the workspace path (home may not exist yet; parent will be created as root)
-  mkdir -p /home/coder/workspace
+  fi;
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
 COPY --chmod=0755 workspace-user-setup /usr/local/bin/workspace-user-setup
 
-# Seed dirs (already created above; harmless if repeated)
+# Seed dirs
 RUN mkdir -p /home/coder/workspace
 
+
+
 # --- Shared shell config: create the file ---
-RUN cat >/etc/profile.d/99-custom.sh <<'EOF'
+RUN cat >/etc/profile.d/50-ws-workspace-base.sh <<'EOF'
 # ---- container defaults (safe to source multiple times) ----
 alias cp='cp -p'
 alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 alias tree='tree -C'
 
-# Environment
+# Environment Defaults
 export EDITOR=${EDITOR:-tilde}
 export TERM=${TERM:-xterm-256color}
 
@@ -93,35 +94,33 @@ umask 0002
 # ---- end defaults ----
 EOF
 
-# --- Make bash and zsh source it ---
-RUN set -euo pipefail                                                                                         \
- && mkdir -p /etc/zsh                                                                                         \
- && touch /etc/bash.bashrc /etc/zsh/zshrc                                                                     \
- && grep -Fq '/etc/profile.d/99-custom.sh' /etc/bash.bashrc                                                   \
-      || printf "\n[ -f /etc/profile.d/99-custom.sh ] && . /etc/profile.d/99-custom.sh\n" >> /etc/bash.bashrc \
- && grep -Fq '/etc/profile.d/99-custom.sh' /etc/zsh/zshrc                                                     \
-      || printf "\n[ -f /etc/profile.d/99-custom.sh ] && . /etc/profile.d/99-custom.sh\n" >> /etc/zsh/zshrc
-
-# Make sudo see feature scripts (extend secure_path)
+# --- Make bash and zsh source ALL /etc/profile.d/*.sh for interactive shells ---
 RUN set -euo pipefail \
- && printf 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/workspace/setups"\n' \
-      > /etc/sudoers.d/99-workspace-secure-path \
- && chmod 0440 /etc/sudoers.d/99-workspace-secure-path \
- && visudo -cf /etc/sudoers.d/99-workspace-secure-path
+ && mkdir -p /etc/zsh \
+ && touch /etc/bash.bashrc /etc/zsh/zshrc
+
+RUN grep -Fq 'profile.d/*.sh' /etc/bash.bashrc || true \
+    grep -Fq 'profile.d/*.sh' /etc/zsh/zshrc   || true
+
+
+# Make sudo see setup scripts (extend secure_path)
+RUN set -euo pipefail \
+ && printf 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/workspace/setups:/usr/local/uv/bin"\n' \
+              > /etc/sudoers.d/50-workspace-base-secure-path \
+ && chmod  0440 /etc/sudoers.d/50-workspace-base-secure-path \
+ && visudo -cf  /etc/sudoers.d/50-workspace-base-secure-path
 
 # --- Install the tidy terminal 
 RUN apt-get update && apt-get install -y ttyd \
     && rm -rf /var/lib/apt/lists/*
 
-
 # Entry that aligns coder’s uid/gid to host, then drops privileges
 COPY --chmod=0755 ./setups/ /opt/workspace/setups/
-
 
 # Always start as root so workspace-user-setup can realign ids
 USER root
 
-# Workdir (created earlier; ownership finalized by workspace-user-setup at runtime)
+# Workdir
 WORKDIR /home/coder/workspace
 
 # tini as PID 1, then run the aligner which execs as 'coder'
@@ -129,4 +128,3 @@ ENTRYPOINT ["tini","-g","--","/usr/local/bin/workspace-user-setup"]
 
 # CMD ["bash","-lc","exec python3 -m http.server 10000 --bind 0.0.0.0 --directory /home/coder/workspace"]
 CMD ["bash","-lc","exec ttyd -W -i 0.0.0.0 -p 10000 --writable bash -l"]
-
