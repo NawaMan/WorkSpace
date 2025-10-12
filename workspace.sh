@@ -26,7 +26,7 @@ function docker_build() {
   fi
   # Actually run unless dry-run
   if [[ "${DRYRUN:-false}" != true ]]; then
-    command docker build "$@"
+    command docker build --progress=plain --no-cache "$@"
     return $?   # propagate exit code
   fi
 }

@@ -74,7 +74,8 @@ chmod -R a+rX "${KDIR}" || true
 
 
 # ---- Create startup script (ensures terminals inherit the venv) ----
-cat > /usr/local/bin/notebook <<'EOF'
+STARTER_FILE=/usr/local/bin/notebook
+cat > ${STARTER_FILE} <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -97,7 +98,7 @@ EOF
 # Bake in the venv path
 _safe() { printf '%s' "$1" | sed -e 's/[&]/\\&/g'; }
 sed -i "s#__VENV_DIR_PLACEHOLDER__#$(_safe "${WS_VENV_DIR}")#g" /usr/local/bin/notebook
-chmod +x /usr/local/bin/notebook
+chmod +x ${STARTER_FILE}
 
 # ---- friendly summary ----
 python --version || true

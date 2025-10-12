@@ -72,9 +72,12 @@ build_variant() {
       "${CONTEXT_DIR}" \
       --push
   else
+    # TODO: Gotta think about how to let user control "--no-cache"
+
     # Local dev/test: plain docker build (so FROM sees locally built base)
     log "Local build (plain 'docker build')"
     docker build \
+      --no-cache \
       -f "${DOCKER_FILE}" \
       "${TAGS_ARG[@]}" \
       "${CONTEXT_DIR}"

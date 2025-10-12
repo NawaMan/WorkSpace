@@ -173,7 +173,8 @@ code-server --extensions-dir "$CODESERVER_EXTENSION_DIR" --list-extensions || tr
 
 echo "[4/9] Create launcher: /usr/local/bin/codeserver"
 export CODESERVER_EXTENSION_DIR
-envsubst '$PASSWORD $CODESERVER_EXTENSION_DIR' > /usr/local/bin/codeserver <<'LAUNCH'
+STARTER_FILE=/usr/local/bin/codeserver
+envsubst '$PASSWORD $CODESERVER_EXTENSION_DIR' > ${STARTER_FILE} <<'LAUNCH'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
@@ -248,14 +249,14 @@ exec sudo --preserve-env=DOCKER_HOST,DOCKER_TLS_VERIFY,DOCKER_CERT_PATH \
       "$CSHOME/workspace"
 
 LAUNCH
-chmod 755 /usr/local/bin/codeserver
+chmod 755 ${STARTER_FILE}
 
 cat <<EOF
 
 ✅ Setup complete.
 
 Start:
-  /usr/local/bin/codeserver
+  ${STARTER_FILE}
 
 Auth mode:
   $( [[ -z "$PASSWORD" ]] && echo "No password (auth: none)" || echo "Password set (auth: password)" )
