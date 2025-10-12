@@ -20,16 +20,13 @@ FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/setups}
 "${FEATURE_DIR}/python-setup.sh" "${PY_VERSION}"
 
 # Load python env exported by the base setup
-source /etc/profile.d/53-python.sh         2>/dev/null || true
-source /etc/profile.d/54-python-version.sh 2>/dev/null || true
+source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
 
 # Profile snippet this script will write to (used later)
-PROFILE_FILE="/etc/profile.d/56-codeserver.sh"
+PROFILE_FILE="/etc/profile.d/55-ws-codeserver.sh"
 
 ### ---- Tunables (override with env) ----
 PASSWORD="${PASSWORD:-}"                              # empty => no password
-# Prefer the series symlink if python-setup created it; fall back to the requested version
-VENV_DIR="${VENV_DIR:-${VENV_SERIES_DIR:-/opt/venvs/py${PY_VERSION}}}"
 
 
 echo "[1/9] Install code-server…"
@@ -71,7 +68,6 @@ else
 fi
 
 # Export VENV_DIR and prepend to PATH for interactive shells
-PROFILE_FILE="${PROFILE_FILE:-/etc/profile.d/56-codeserver.sh}"
 {
   echo "export VENV_DIR=\"${VENV_DIR}\""
   echo 'if [ -d "$VENV_DIR/bin" ] && [[ ":$PATH:" != *":$VENV_DIR/bin:"* ]]; then export PATH="$VENV_DIR/bin:$PATH"; fi'
@@ -169,12 +165,31 @@ CODESERVER_EXTENSION_DIR=/usr/local/share/code-server/extensions
 # 1) Create a shared directory
 mkdir -p "$CODESERVER_EXTENSION_DIR"
 chown root:root "$CODESERVER_EXTENSION_DIR"
-chmod 0755 "$CODESERVER_EXTENSION_DIR"     # root-writable, others read/exec
+chmod 1777 -Rf "$CODESERVER_EXTENSION_DIR"     # root-writable, others read/exec (matches your comment)
 
-# 2) (Optional) Move what you already installed as root
+# 2) Move what you already installed as root and link it back
 if [ -d /root/.local/share/code-server/extensions ]; then
-  rsync -a /root/.local/share/code-server/extensions/ "$CODESERVER_EXTENSION_DIR"/
-  chmod -R a+rX "$CODESERVER_EXTENSION_DIR"
+  ROOT_CODESERVER_EXTENSION_DIR=/root/.local/share/code-server/extensions
+
+  # Copy out existing extensions (rsync if available, else cp -a)
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a "$ROOT_CODESERVER_EXTENSION_DIR"/ "$CODESERVER_EXTENSION_DIR"/
+  else
+    cp -a "$ROOT_CODESERVER_EXTENSION_DIR"/. "$CODESERVER_EXTENSION_DIR"/
+  fi
+
+  rm -Rf "$ROOT_CODESERVER_EXTENSION_DIR"
+  mkdir -p /root/.local/share/code-server
+
+  # Make the link exact (no trailing slashes; -T to treat LINKNAME as a file)
+  ln -sfnT "$CODESERVER_EXTENSION_DIR" "$ROOT_CODESERVER_EXTENSION_DIR"
+fi
+
+if [ -f /usr/local/share/code-server/extensions/extensions.json ]; then
+  chmod 777 /usr/local/share/code-server/extensions/extensions.json
+else
+  echo "[]" > /usr/local/share/code-server/extensions/extensions.json
+  chmod 777 /usr/local/share/code-server/extensions/extensions.json
 fi
 
 # 3) Install future extensions into the shared dir
@@ -244,7 +259,9 @@ cat > "$SETTINGS_JSON" <<JSON
     "bash-login": { "path": "/bin/bash", "args": ["-l"] }
   },
   "terminal.integrated.defaultProfile.linux": "bash-login",
-  "python.terminal.activateEnvironment": true
+  "python.terminal.activateEnvironment": true,
+  "workbench.colorTheme": "Default Dark+",
+  "editor.fontSize": 14
 }
 JSON
 
@@ -260,13 +277,17 @@ fi
 
 echo "Starting code-server. This may take sometime ..."
 exec sudo --preserve-env=DOCKER_HOST,DOCKER_TLS_VERIFY,DOCKER_CERT_PATH \
-  -u "$CSUSER" -H env \
-  SHELL="$DEFAULT_SHELL" \
-  PATH="$VENV_DIR/bin:$PATH" \
-  PASSWORD="$PASSWORD" \
+  -u "$CSUSER"                 \
+  -H env                       \
+  SHELL="$DEFAULT_SHELL"       \
+  PATH="$VENV_DIR/bin:$PATH"   \
+  PASSWORD="$PASSWORD"         \
   JUPYTER_PATH="$JUPYTER_PATH" \
-  code-server --extensions-dir "$CODESERVER_EXTENSION_DIR" \
-              --bind-addr "0.0.0.0:$PORT" --auth "$AUTH" "$CSHOME/workspace"
+  code-server \
+      --extensions-dir "$CODESERVER_EXTENSION_DIR" \
+      --bind-addr      "0.0.0.0:$PORT"             \
+      --auth           "$AUTH"                     \
+      "$CSHOME/workspace"
 
 LAUNCH
 chmod 755 /usr/local/bin/codeserver

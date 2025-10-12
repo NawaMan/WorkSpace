@@ -23,6 +23,7 @@ RUN set -euo pipefail         \
       direnv                  \
       gettext-base            \
       git                     \
+      gnupg                   \
       jq                      \
       less                    \
       locales                 \
@@ -74,8 +75,10 @@ COPY --chmod=0755 workspace-user-setup /usr/local/bin/workspace-user-setup
 # Seed dirs
 RUN mkdir -p /home/coder/workspace
 
+
+
 # --- Shared shell config: create the file ---
-RUN cat >/etc/profile.d/50-workspace-base.sh <<'EOF'
+RUN cat >/etc/profile.d/50-ws-workspace-base.sh <<'EOF'
 # ---- container defaults (safe to source multiple times) ----
 alias cp='cp -p'
 alias ls='ls --color=auto'
@@ -94,29 +97,10 @@ EOF
 # --- Make bash and zsh source ALL /etc/profile.d/*.sh for interactive shells ---
 RUN set -euo pipefail \
  && mkdir -p /etc/zsh \
- && touch /etc/bash.bashrc /etc/zsh/zshrc \
- && grep -Fq 'profile.d/*.sh' /etc/bash.bashrc || true
+ && touch /etc/bash.bashrc /etc/zsh/zshrc
 
-RUN cat <<'BRC' >> /etc/bash.bashrc
-# Load system profile snippets for interactive shells, too
-if [ -d /etc/profile.d ]; then
-  for f in /etc/profile.d/*.sh; do
-    [ -r "$f" ] && . "$f"
-  done
-fi
-BRC
-
-RUN grep -Fq 'profile.d/*.sh' /etc/zsh/zshrc || true
-
-RUN cat <<'ZRC' >> /etc/zsh/zshrc
-# Load system profile snippets for interactive shells, too
-if [ -d /etc/profile.d ]; then
-  for f in /etc/profile.d/*.sh; do
-    [ -r "$f" ] && . "$f"
-  done
-fi
-ZRC
-
+RUN grep -Fq 'profile.d/*.sh' /etc/bash.bashrc || true \
+    grep -Fq 'profile.d/*.sh' /etc/zsh/zshrc   || true
 
 
 # Make sudo see setup scripts (extend secure_path)

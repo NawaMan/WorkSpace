@@ -5,6 +5,13 @@
 # - Installs IJava system-wide and (if possible) into the venv's sys-prefix
 set -Eeuo pipefail
 
+if [[ ${EUID} -ne 0 ]]; then
+  echo "This installer must be run as root." >&2
+  exit 1
+fi
+
+CODESERVER_EXTENSION_DIR="${CODESERVER_EXTENSION_DIR:-/usr/local/share/code-server/extensions}"
+
 IJAVA_VERSION="${IJAVA_VERSION:-1.3.0}"
 PREFIX="${PREFIX:-/usr/local}"          # where system-wide kernelspec goes
 WORKDIR="${WORKDIR:-/opt/ijava}"
