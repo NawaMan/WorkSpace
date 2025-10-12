@@ -70,7 +70,7 @@ cat >/usr/share/novnc/index.html <<'HTML'
     host,
     port,
     path: 'websockify',
-    resize: 'scale'
+    resize: 'remote'
   });
   location.replace('vnc.html?' + params.toString());
 </script>
