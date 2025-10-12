@@ -30,9 +30,6 @@ PY
   return 1
 }
 
-VENV_DIR="${VENV_DIR:-$(find_venv_with_jupyter_client || true)}"
-[[ -n "$VENV_DIR" && -x "$VENV_DIR/bin/python" ]] || { echo "❌ No Jupyter-capable venv found under /opt/venvs"; exit 1; }
-VENV_PY="$VENV_DIR/bin/python"
 
 # ---- detect JAVA_HOME (prefer env, else java on PATH) ----
 detect_java_home() {
@@ -78,12 +75,11 @@ chmod -R a+rX "${WORKDIR}"
 export JAVA_HOME PATH="$JAVA_HOME/bin:$PATH"
 
 echo "🧩 Registering IJava system-wide → $PREFIX"
-python3 "${WORKDIR}/install.py" --prefix "$PREFIX"
+python "${WORKDIR}/install.py" --prefix "$PREFIX"
 
-if [[ -x "$VENV_PY" ]]; then
-  echo "🧩 Also registering IJava into venv (sys-prefix) → $VENV_DIR"
-  "$VENV_PY" "${WORKDIR}/install.py" --sys-prefix || true
-fi
+echo "🧩 Also registering IJava into venv (sys-prefix) → $WS_VENV_DIR"
+python "${WORKDIR}/install.py" --sys-prefix || true
+
 
 KDIR="${PREFIX}/share/jupyter/kernels/${KERNEL_NAME}"
 [[ -d "$KDIR" ]] || { echo "❌ Expected kernelspec dir not found at $KDIR"; exit 1; }

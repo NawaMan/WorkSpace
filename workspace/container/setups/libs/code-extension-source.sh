@@ -1,9 +1,12 @@
 
 # ---- Extension dirs (overridable) ----
+# Due to the root (build time) and non-root (coder in this case) (at start time) separation,
+#   it is bested to centerize this to the system folder.
+
 # For VS Code desktop (code)
 VSCODE_EXTENSION_DIR="${VSCODE_EXTENSION_DIR:-/usr/local/share/code/extensions}"
 # For code-server
-CODESERVER_EXTENSION_DIR="${CODESERVER_EXTENSION_DIR:-$HOME/.local/share/code-server/extensions}"
+CODESERVER_EXTENSION_DIR="${CODESERVER_EXTENSION_DIR:-/usr/local/share/code-server/extensions}"
 
 # ---- Helper: pick correct dir for a given CLI ----
 ext_dir_for_cli() {
