@@ -10,6 +10,11 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# ---------------- Load environment from profile.d ----------------
+# These set: PY_STABLE, PY_STABLE_VERSION, PY_SERIES, VENV_SERIES_DIR, PATH tweaks, etc.
+source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+
+
 export DEBIAN_FRONTEND=noninteractive
 
 echo "🔧 Installing Visual Studio Code (no snap)…"
@@ -45,19 +50,12 @@ echo "✅ VS Code installed"
 # ---- Jupyter + Bash kernel setup ----
 echo "🔧 Installing Jupyter + Bash kernel…"
 
-VENV_ROOT="${VENV_ROOT:-${VENV_SERIES_DIR:-/opt/venvs/py${PY_VERSION}}}"
-mkdir -p "$(dirname "$VENV_ROOT")"
-
-if [[ ! -d "$VENV_ROOT" ]]; then
-  python -m venv "$VENV_ROOT"
-fi
-
-"$VENV_ROOT/bin/pip" install --upgrade pip setuptools wheel
-"$VENV_ROOT/bin/pip" install jupyter ipykernel bash_kernel
+pip install --upgrade pip setuptools wheel
+pip install jupyter ipykernel bash_kernel
 
 # Register both kernels system-wide
-"$VENV_ROOT/bin/python" -m ipykernel install   --sys-prefix --name=python3 --display-name="Python 3 (${PY_VERSION})"
-"$VENV_ROOT/bin/python" -m bash_kernel.install --sys-prefix
+python -m ipykernel install   --sys-prefix --name=python3 --display-name="Python 3 (${WS_PY_VERSION})"
+python -m bash_kernel.install --sys-prefix
 
 # Make Jupyter path globally visible for VS Code
 PROFILE_FILE="/etc/profile.d/70-ws-vscode-jupyter.sh"
@@ -69,6 +67,7 @@ chmod 644 "$PROFILE_FILE"
 
 echo "✅ Jupyter + Bash kernel ready for VS Code"
 
+# TODO: centralize this some how
 VSCODE_EXTENSION_DIR="${VSCODE_EXTENSION_DIR:-/usr/local/share/code/extensions}"
 mkdir -p   "${VSCODE_EXTENSION_DIR}"
 chmod 0777 "${VSCODE_EXTENSION_DIR}"
@@ -90,7 +89,7 @@ exec /usr/bin/code                           \
   --no-sandbox                               \
   --disable-gpu                              \
   --password-store=basic                     \
-  --user-data-dir="${DATA_DIR}               \
+  --user-data-dir="${DATA_DIR}"              \
   --extensions-dir="${VSCODE_EXTENSION_DIR}" \
   "$@"
 EOF
