@@ -91,6 +91,8 @@ exec /usr/bin/code                           \
   --password-store=basic                     \
   --user-data-dir="${DATA_DIR}"              \
   --extensions-dir="${VSCODE_EXTENSION_DIR}" \
+  --disable-workspace-trust                  \
+  "$HOME/workspace"                          \
   "$@"
 EOF
 chmod 755 "$STARTER_FILE"
