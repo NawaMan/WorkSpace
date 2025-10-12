@@ -140,7 +140,7 @@ update-alternatives --set jps    "${GENERIC_LINK}/bin/jps"    || true
 update-alternatives --set jstack "${GENERIC_LINK}/bin/jstack" || true
 
 # --- System-wide profile for future shells ---
-PROFILE_FILE="/etc/profile.d/60-jdk.sh"
+PROFILE_FILE="/etc/profile.d/60-ws-jdk.sh"
 log "Writing ${PROFILE_FILE} ..."
 cat >"$PROFILE_FILE" <<EOF
 # JDK (${JDK_VERSION}) setup — managed by jdk-setup.sh

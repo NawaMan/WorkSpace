@@ -14,10 +14,6 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "🔧 Installing Visual Studio Code (no snap)…"
 
-# prereqs
-apt-get update
-apt-get install -y curl ca-certificates gnupg python3 python3-venv python3-pip
-
 # add Microsoft’s key
 install -d -m 0755 /etc/apt/keyrings
 curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
@@ -25,7 +21,7 @@ curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
 chmod 0644 /etc/apt/keyrings/packages.microsoft.gpg
 
 # clean old repo entries
-for f in /etc/apt/sources.list \
+for f in /etc/apt/sources.list          \
          /etc/apt/sources.list.d/*.list \
          /etc/apt/sources.list.d/*.sources; do
   [[ -f "$f" ]] && sed -i '/packages\.microsoft\.com\/repos\/code/d' "$f" || true
@@ -49,46 +45,58 @@ echo "✅ VS Code installed"
 # ---- Jupyter + Bash kernel setup ----
 echo "🔧 Installing Jupyter + Bash kernel…"
 
-VENV_DIR="/opt/venvs/py3"
-mkdir -p "$(dirname "$VENV_DIR")"
+VENV_ROOT="${VENV_ROOT:-${VENV_SERIES_DIR:-/opt/venvs/py${PY_VERSION}}}"
+mkdir -p "$(dirname "$VENV_ROOT")"
 
-if [[ ! -d "$VENV_DIR" ]]; then
-  python3 -m venv "$VENV_DIR"
+if [[ ! -d "$VENV_ROOT" ]]; then
+  python -m venv "$VENV_ROOT"
 fi
 
-"$VENV_DIR/bin/pip" install --upgrade pip setuptools wheel
-"$VENV_DIR/bin/pip" install jupyter ipykernel bash_kernel
+"$VENV_ROOT/bin/pip" install --upgrade pip setuptools wheel
+"$VENV_ROOT/bin/pip" install jupyter ipykernel bash_kernel
 
 # Register both kernels system-wide
-"$VENV_DIR/bin/python" -m ipykernel install --sys-prefix --name=python3 --display-name="Python 3 (venv)"
-"$VENV_DIR/bin/python" -m bash_kernel.install --sys-prefix
+"$VENV_ROOT/bin/python" -m ipykernel install   --sys-prefix --name=python3 --display-name="Python 3 (${PY_VERSION})"
+"$VENV_ROOT/bin/python" -m bash_kernel.install --sys-prefix
 
 # Make Jupyter path globally visible for VS Code
-PROFILE_FILE="/etc/profile.d/99-vscode-jupyter.sh"
-cat > "$PROFILE_FILE" <<EOF
+PROFILE_FILE="/etc/profile.d/70-ws-vscode-jupyter.sh"
+cat > "$PROFILE_FILE" <<'EOF'
 # Added by vscode-setup.sh
-export VENV_DIR="$VENV_DIR"
-export PATH="\$VENV_DIR/bin:\$PATH"
-export JUPYTER_PATH="\$VENV_DIR/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter:\${JUPYTER_PATH:-}"
+export JUPYTER_PATH="${VENV_ROOT}/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter:\${JUPYTER_PATH:-}"
 EOF
+chmod 644 "$PROFILE_FILE"
 
 echo "✅ Jupyter + Bash kernel ready for VS Code"
 
-# wrapper (always no-sandbox in container)
-cat >/usr/local/bin/code <<'EOF'
+VSCODE_EXTENSION_DIR="${VSCODE_EXTENSION_DIR:-/usr/local/share/code/extensions}"
+mkdir -p   "${VSCODE_EXTENSION_DIR}"
+chmod 0777 "${VSCODE_EXTENSION_DIR}"
+
+STARTER_FILE=/usr/local/bin/code
+cat > "$STARTER_FILE" <<'EOF'
 #!/usr/bin/env bash
-exec /usr/bin/code \
-  --no-sandbox \
-  --disable-gpu \
-  --no-first-run \
-  --no-default-browser-check \
-  --password-store=basic \
-  --user-data-dir="${HOME}/.vscode-data" \
+
+# Default X server settings.
+export DISPLAY=:1
+export XAUTHORITY="$HOME/.Xauthority"
+
+VSCODE_EXTENSION_DIR="${VSCODE_EXTENSION_DIR:-/usr/local/share/code/extensions}"
+
+DATA_DIR="${HOME}/.vscode-data"
+mkdir -p "${DATA_DIR}"
+
+exec /usr/bin/code                           \
+  --no-sandbox                               \
+  --disable-gpu                              \
+  --password-store=basic                     \
+  --user-data-dir="${DATA_DIR}               \
+  --extensions-dir="${VSCODE_EXTENSION_DIR}" \
   "$@"
 EOF
-chmod 0755 /usr/local/bin/code
+chmod 755 "$STARTER_FILE"
 
-# fix desktop launcher if exists
+# Froce the desktop launcher to use the executor we create.
 if [[ -f /usr/share/applications/code.desktop ]]; then
   sed -i 's#^Exec=.*#Exec=/usr/local/bin/code %F#' /usr/share/applications/code.desktop || true
 fi

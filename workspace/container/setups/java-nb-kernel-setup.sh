@@ -33,11 +33,8 @@ WORKDIR="${WORKDIR:-/opt/ijava}"
 TMPDIR="$(mktemp -d)"
 
 # ---------------- Source helpful profiles (if present) ----------------
-# Python env from your base setup
-[ -r /etc/profile.d/53-python.sh ]         && source /etc/profile.d/53-python.sh
-[ -r /etc/profile.d/54-python-version.sh ] && source /etc/profile.d/54-python-version.sh
-# JDK env from your JDK setup (you chose 60)
-[ -r /etc/profile.d/60-jdk.sh ] && source /etc/profile.d/60-jdk.sh
+[ -r /etc/profile.d/53-ws-python.sh ] && source /etc/profile.d/53-ws-python.sh
+[ -r /etc/profile.d/60-ws-jdk.sh    ] && source /etc/profile.d/60-ws-jdk.sh
 
 # ---------------- Helpers ----------------
 infer_python_series_from_cmd() {
@@ -138,7 +135,7 @@ fi
 # ---------------- Resolve JAVA_HOME (+ jshell) ----------------
 if [ -z "${JAVA_HOME:-}" ]; then
   # try profile again in case user's env didn't include it
-  [ -r /etc/profile.d/60-jdk.sh ] && source /etc/profile.d/60-jdk.sh
+  [ -r /etc/profile.d/60-ws-jdk.sh ] && source /etc/profile.d/60-ws-jdk.sh
 fi
 if [ -z "${JAVA_HOME:-}" ]; then
   # last resort: derive from update-alternatives

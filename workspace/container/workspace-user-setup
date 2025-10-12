@@ -132,36 +132,42 @@ cd "$WORKSPACE_DIR" 2>/dev/null || true
 if [ ! -f "$HOME_DIR/.bashrc" ]; then
   if [ -f /etc/skel/.bashrc ]; then
     cp /etc/skel/.bashrc "$HOME_DIR/.bashrc"
-  else
-    cat >"$HOME_DIR/.bashrc" <<'RC'
-# Minimal bashrc
-[ -f /etc/bash.bashrc ] && . /etc/bash.bashrc
-if [ -d /etc/profile.d ]; then
-  for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done
-fi
-RC
   fi
 fi
-
+if [ ! -f "$HOME_DIR/.zshrc" ]; then
+  if [ -f /etc/skel/.zshrc ]; then
+    cp /etc/skel/.zshrc "$HOME_DIR/.zshrc"
+  fi
+fi
 if [ ! -f "$HOME_DIR/.profile" ]; then
   if [ -f /etc/skel/.profile ]; then
     cp /etc/skel/.profile "$HOME_DIR/.profile"
-  else
-    cat >"$HOME_DIR/.profile" <<'RC'
-# Minimal profile for login shells
-[ -f /etc/profile ] && . /etc/profile
-RC
   fi
 fi
 
-if [ ! -f "$HOME_DIR/.zshrc" ]; then
-  cat >"$HOME_DIR/.zshrc" <<'ZRC'
-# Minimal zshrc
-if [ -d /etc/profile.d ]; then
-  for f in /etc/profile.d/*.sh; do [ -r "$f" ] && . "$f"; done
+if [ -f "$HOME_DIR/.bashrc" ]; then
+  cat >>"$HOME_DIR/.bashrc" <<'RC'
+  for f in /etc/profile.d/*-ws-*.sh; do
+    [ -r "$f" ] && source "$f"
+  done
+RC
 fi
-ZRC
+
+if [ -f "$HOME_DIR/.zshrc" ]; then
+  cat >>"$HOME_DIR/.zshrc" <<'RC'
+  for f in /etc/profile.d/*-ws-*.sh; do
+    [ -r "$f" ] && source "$f"
+  done
+RC
 fi
+
+if [ ! -f "$HOME_DIR/.profile" ]; then
+  cat >>"$HOME_DIR/.profile" <<'RC'
+# Minimal profile for login shells
+[ -f /etc/profile ] && . /etc/profile
+RC
+fi
+
 
 chown "$HOST_UID:$HOST_GID" "$HOME_DIR/.bashrc" "$HOME_DIR/.profile" "$HOME_DIR/.zshrc" 2>/dev/null || true
 
