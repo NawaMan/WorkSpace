@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+printf ''
+for a in "$@"; do
+    if [[ "$a" =~ ^[A-Za-z0-9_./:-]+$ ]]; then
+        printf '%s ' "$a"
+    else
+        q=${a//\'/\'\\\'\'}
+        printf "'%s' " "$q"
+    fi
+done
+printf '\n'
