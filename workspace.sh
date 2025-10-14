@@ -1,6 +1,7 @@
 #!/bin/bash
 # VERSION: 0.2.0--rc
 set -euo pipefail
+trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
 #== CONSTANTS ==================================================================
 
@@ -26,7 +27,8 @@ function docker_build() {
   fi
   # Actually run unless dry-run
   if [[ "${DRYRUN:-false}" != true ]]; then
-    command docker build --progress=plain --no-cache "$@"
+    # TODO -- find a good way to let user control : --progress=plain --no-cache
+    command docker build "$@"
     return $?   # propagate exit code
   fi
 }
@@ -85,8 +87,22 @@ for (( i=0; i<${#ARGS[@]}; i++ )); do
   case "${ARGS[i]}" in
     --verbose)    VERBOSE=true ;;
     --config)     lib require_arg "--config"     "${ARGS[i+1]:-}" ; CONFIG_FILE="${ARGS[i+1]}"    ; SET_CONFIG_FILE=true ; ((++i)) ;;
-    --workspace)  lib require_arg "--workspace"  "${ARGS[i+1]:-}" ; WORKSPACE_PATH="${ARGS[i+1]}" ;                        ((++i)) ;;
-    --dockerfile) lib require_arg "--dockerfile" "${ARGS[i+1]:-}" ; DOCKER_FILE="${ARGS[i+1]}" ;                           ((++i)) ;;
+  esac
+done
+
+
+# Load configure form the CONFIG_FILE
+set -a
+source "${CONFIG_FILE}"
+set +a
+
+
+ARGS=("$@")
+for (( i=0; i<${#ARGS[@]}; i++ )); do
+  case "${ARGS[i]}" in
+    --verbose)    VERBOSE=true ;;
+    --workspace)  lib require_arg "--workspace"  "${ARGS[i+1]:-}" ; WORKSPACE_PATH="${ARGS[i+1]}" ; ((++i)) ;;
+    --dockerfile) lib require_arg "--dockerfile" "${ARGS[i+1]:-}" ; DOCKER_FILE="${ARGS[i+1]}"    ; ((++i)) ;;
   esac
 done
 
@@ -176,8 +192,10 @@ while IFS= read -r line; do eval "RUN_ARGS+=($line)";   done < <(lib parse_args_
 #     - ${WORKSPACE_PATH}/Dockerfile is a file (assume to be Dockerfile)
 #   - Pre-built: use VARIANT and VERSION to select the pre-built
 
+echo IMAGE_NAME: $IMAGE_NAME
 if [[ -z "${IMAGE_NAME}" ]] ; then
   # -- Local --
+  echo IMAGE_NAME: $LOCAL_BUILD
   if [[ "${LOCAL_BUILD}" == "true" ]] ; then
     IMAGE_NAME="workspace-local:${PROJECT_NAME}"
     if $VERBOSE ; then
@@ -194,7 +212,7 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
   else
     # -- Prebuild --
     case "${VARIANT}" in
-      container|notebook|codeserver|desktop-xfce|desktop-kde) ;;
+      container|notebook|codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
       *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
     esac
 

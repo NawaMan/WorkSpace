@@ -102,9 +102,21 @@ JDK_HOME="$(jbang jdk home "${JDK_VERSION}")"
 # --- Stable symlinks ---
 GENERIC_LINK="/opt/jdk${JDK_VERSION}"
 VENDOR_LINK="/opt/jdk-${JDK_VERSION}-${ACTIVE_VENDOR}"
-log "Creating symlinks: ${GENERIC_LINK} and ${VENDOR_LINK}"
+STATIC_LINK="/opt/jdk"
+
+log "Creating symlinks: ${GENERIC_LINK}, ${VENDOR_LINK}, and ${STATIC_LINK}"
+
 ln -snf "$JDK_HOME" "$GENERIC_LINK"
 ln -snf "$JDK_HOME" "$VENDOR_LINK"
+
+# Ensure STATIC_LINK does not exist before recreating
+if [ -e "$STATIC_LINK" ] || [ -L "$STATIC_LINK" ]; then
+    log "Removing existing static link or directory: ${STATIC_LINK}"
+    rm -rf "$STATIC_LINK"
+fi
+
+ln -s "$JDK_HOME" "$STATIC_LINK"
+
 
 # --- Export for current shell ---
 export JAVA_HOME="$GENERIC_LINK"
@@ -148,6 +160,9 @@ export JAVA_HOME=${GENERIC_LINK}
 export PATH="\$JAVA_HOME/bin:\$PATH"
 export JAVA_${JDK_VERSION}_HOME=${GENERIC_LINK}
 export JAVA_HOME_${JDK_VERSION}_VENDOR=${VENDOR_LINK}
+
+export WS_JDK_VERSION=${JDK_VERSION}
+export WS_JAVA_HOME=${JAVA_HOME}
 
 # Inspector: jdk-setup-info
 jdk_setup_info() {
@@ -200,3 +215,13 @@ echo "   Alternatives:   $(command -v java) -> $(readlink -f "$(command -v java)
 echo
 echo "Use it now in this shell (without reopening):"
 echo "  . ${PROFILE_FILE} && jdk-setup-info"
+
+
+
+
+
+
+
+
+export WS_JDK_VERSION=${JDK_VERSION}
+export WS_JAVA_HOME=${JAVA_HOME}

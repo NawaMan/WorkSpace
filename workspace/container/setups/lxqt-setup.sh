@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# xfce-setup.sh — root-only installer for XFCE + VNC + noVNC
-# Installs deps, creates /usr/local/bin/start-xfce
+# lxqt-setup.sh — root-only installer for LXQt + VNC + noVNC
+# Installs deps, configures defaults, creates /usr/local/bin/start-lxqt
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
@@ -16,6 +16,7 @@ DEFAULT_GEOMETRY="${DEFAULT_GEOMETRY:-1280x800}"
 DEFAULT_NOVNC_PORT="${DEFAULT_NOVNC_PORT:-10000}"
 DEFAULT_VNC_PORT="${DEFAULT_VNC_PORT:-5901}"
 DEFAULT_VNC_PASSWORD="${DEFAULT_VNC_PASSWORD:-}"
+LXQT_WM="${LXQT_WM:-openbox}"    # can be xfwm4 if installed
 
 # Use python-setup.sh exactly like setup-code-server-jupyter.sh
 PY_VERSION=${1:-3.12}                    # accepts X.Y or X.Y.Z
@@ -25,17 +26,18 @@ FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/setups}
 # Load python env exported by the base setup
 source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
 
-# Profile snippet this script will write to (used later)
-PROFILE_FILE="/etc/profile.d/55-ws-desktop-xfce.sh"
-
+# Profile snippet this script will write to
+PROFILE_FILE="/etc/profile.d/55-ws-desktop-lxqt.sh"
 
 # ---- install base packages ----
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 
 apt-get install -y \
-  xfce4            \
-  xfce4-terminal
+  lxqt-core        \
+  lxqt-session     \
+  openbox          \
+  qterminal
 
 apt-get install  -y          \
   tigervnc-standalone-server \
@@ -76,46 +78,43 @@ cat >/usr/share/novnc/index.html <<'HTML'
 </script>
 HTML
 
+# ---- Preseed LXQt window manager (system-wide) ----
+mkdir -p /etc/xdg/lxqt
+cat > /etc/xdg/lxqt/session.conf <<EOF
+[General]
+window_manager=${LXQT_WM}
+EOF
+
 # ---- profile snippet ----
 cat > "${PROFILE_FILE}" <<'EOF'
-# XFCE over VNC/noVNC defaults
-export DISPLAY="${DISPLAY:-:1}"
-export XAUTHORITY="${DISPLAY:-$HOME/.Xauthority}"
-export GEOMETRY=${GEOMETRY:-1280x800}
-export NOVNC_PORT=${NOVNC_PORT:-10000}
-export VNC_PORT=${VNC_PORT:-5901}
+# LXQt over VNC/noVNC defaults
+export DISPLAY=${DEFAULT_DISPLAY}
+export GEOMETRY=${GEOMETRY:-${DEFAULT_GEOMETRY}}
+export NOVNC_PORT=${NOVNC_PORT:-${DEFAULT_NOVNC_PORT}}
+export VNC_PORT=${VNC_PORT:-${DEFAULT_VNC_PORT}}
 # export VNC_PASSWORD=change-me   # to require password
 # export VNC_PASSWORD=            # leave empty (or "none") to disable password
 
-alias desktop-start='start-xfce'
+alias desktop-start='start-lxqt'
 
-# ---- xfce_setup_info function ----
-xfce_setup_info() {
+lxqt_setup_info() {
   local DISPLAY_DEF="\${DEFAULT_DISPLAY:-:1}"
   local GEOMETRY_DEF="\${DEFAULT_GEOMETRY:-1280x800}"
   local NOVNC_PORT_DEF="\${DEFAULT_NOVNC_PORT:-10000}"
   local VNC_PORT_DEF="\${DEFAULT_VNC_PORT:-5901}"
   local VNC_PASSWORD_DEF="\${DEFAULT_VNC_PASSWORD:-}"
   local KEYRING_DEF="\${KEYRING_MODE:-basic}"
-
-  local DESKTOP_PACKAGES_DEF="\${DESKTOP_PACKAGES:-xfce4 xfce4-terminal}"
-  local VNC_STACK_PACKAGES_DEF="\${VNC_STACK_PACKAGES:-tigervnc-standalone-server novnc websockify dbus-x11}"
-  local EXTRA_PACKAGES_DEF="\${EXTRA_PACKAGES:-x11-xserver-utils curl locales software-properties-common}"
+  local PROFILE_FILE_DEF="${PROFILE_FILE}"
 
   cat <<INFO
 ───────────────────────────────────────────────────────────────
- XFCE Setup Script — Summary
+ LXQt Setup Script — Summary
 ───────────────────────────────────────────────────────────────
 
 📦 Purpose
-    Installs and configures a lightweight XFCE desktop environment
+    Installs and configures a lightweight LXQt desktop environment
     with VNC and noVNC access inside a container. Creates launcher:
-    /usr/local/bin/start-xfce
-
-🚀 What it installs
-    - Desktop: \${DESKTOP_PACKAGES_DEF}
-    - VNC stack: \${VNC_STACK_PACKAGES_DEF}
-    - Extras: \${EXTRA_PACKAGES_DEF}
+    /usr/local/bin/start-lxqt
 
 🧰 Environment defaults
     DISPLAY        = \${DISPLAY_DEF}
@@ -125,35 +124,23 @@ xfce_setup_info() {
     VNC_PASSWORD   = \${VNC_PASSWORD_DEF}
     KEYRING_MODE   = \${KEYRING_DEF}
 
-🔐 Keyring modes
-    basic    — disables GNOME keyring, avoids prompts (default)
-    disable  — removes keyring packages entirely
-    keep     — keeps keyring active (may show "Default keyring" prompt)
-
-🌐 Access (when start-xfce is running)
+🌐 Access (when start-lxqt is running)
     - VNC:      localhost:\${VNC_PORT_DEF}
     - Browser:  http://localhost:\${NOVNC_PORT_DEF}/  (auto-connect)
 
 💡 Usage (as non-root user)
-    source \${PROFILE_FILE_DEF}   # usually auto-sourced at login
-    start-xfce                   # foreground; Ctrl+C to stop
-
-📁 Generated files
-    - \${PROFILE_FILE_DEF}
-    - /usr/local/bin/start-xfce
-    - ~/.vnc/xstartup (auto-created if missing)
-    - ~/.config/autostart/gnome-keyring-*.desktop (per keyring mode)
-
+    source \${PROFILE_FILE_DEF}
+    start-lxqt                    # foreground; Ctrl+C to stop
 ───────────────────────────────────────────────────────────────
 INFO
 }
 EOF
 chmod 0644 "${PROFILE_FILE}"
 
-# ---- start-xfce (foreground only) ----
-cat > /usr/local/bin/start-xfce <<'EOF'
+# ---- start-lxqt ----
+cat > /usr/local/bin/start-lxqt <<'EOF'
 #!/usr/bin/env bash
-# start-xfce — foreground-only; Ctrl+C to stop
+# start-lxqt — foreground-only; Ctrl+C to stop
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
@@ -161,10 +148,11 @@ trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 : "${GEOMETRY:=1280x800}"
 : "${NOVNC_PORT:=10000}"
 : "${VNC_PASSWORD:=}"
-: "${KEYRING_MODE:=basic}"   # basic | disable | keep
+: "${KEYRING_MODE:=basic}"
+: "${LXQT_WM:=openbox}"
 : "${HOME:?HOME must be set and writable}"
 
-# infer VNC port from DISPLAY if unset
+# infer VNC port
 if [[ -z "${VNC_PORT:-}" ]]; then
   if [[ "$DISPLAY" =~ ^:([0-9]+)$ ]]; then
     VNC_PORT="$((5900 + ${BASH_REMATCH[1]}))"
@@ -177,14 +165,11 @@ fi
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/xdg-$(id -u)}"
 mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
 
-# --- keyring behavior (per-session) -----------------------------------------
+# keyring behavior
 case "${KEYRING_MODE}" in
   basic|disable)
-    # Stop apps (VS Code/Chrome/etc.) from talking to gnome-keyring/libsecret
     export GNOME_KEYRING_CONTROL=/nonexistent
     unset GNOME_KEYRING_PID SSH_AUTH_SOCK
-
-    # Also hide the per-user autostarts (so daemon won't launch under XFCE)
     mkdir -p "${HOME}/.config/autostart"
     for comp in pkcs11 secrets ssh; do
       cat > "${HOME}/.config/autostart/gnome-keyring-${comp}.desktop" <<AUTOSTART
@@ -198,24 +183,28 @@ AUTOSTART
     done
     ;;
   keep)
-    :
     ;;
   *)
-    echo "⚠️ Unknown KEYRING_MODE='${KEYRING_MODE}', defaulting to 'basic'"
     export GNOME_KEYRING_CONTROL=/nonexistent
     unset GNOME_KEYRING_PID SSH_AUTH_SOCK
     ;;
 esac
-# ---------------------------------------------------------------------------
 
-# pick vnc binary
+# Pre-seed LXQt config so no WM dialog appears
+mkdir -p "${HOME}/.config/lxqt"
+SESSION_CONF="${HOME}/.config/lxqt/session.conf"
+if ! grep -q '^window_manager=' "$SESSION_CONF" 2>/dev/null; then
+  echo "[General]" > "$SESSION_CONF"
+  echo "window_manager=${LXQT_WM}" >> "$SESSION_CONF"
+fi
+
+# VNC auth
 VNCBIN="$(command -v tigervncserver || command -v vncserver || true)"
 if [[ -z "$VNCBIN" ]]; then
   echo "❌ tigervncserver not found" >&2
   exit 3
 fi
 
-# auth
 mkdir -p "${HOME}/.vnc"
 VNCAUTH_OPTS=()
 if [[ -n "${VNC_PASSWORD}" && "${VNC_PASSWORD,,}" != "none" ]]; then
@@ -236,12 +225,12 @@ if [[ ! -x "$XSTART" ]]; then
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 xsetroot -solid grey
-exec dbus-launch --exit-with-session startxfce4
+exec dbus-launch --exit-with-session startlxqt
 XEOF
   chmod +x "$XSTART"
 fi
 
-# start vnc
+# start VNC
 if "$VNCBIN" -list 2>/dev/null | grep -qE "^[[:space:]]*${DISPLAY}[[:space:]]"; then
   echo "ℹ️  VNC already running on ${DISPLAY}"
 else
@@ -253,39 +242,29 @@ echo "🌐 noVNC: http://localhost:${NOVNC_PORT}/vnc.html?autoconnect=1&host=loc
 trap 'echo; echo "🛑 stopping…"; "$VNCBIN" -kill "$DISPLAY" || true; exit 0' INT TERM
 exec websockify --web=/usr/share/novnc "0.0.0.0:${NOVNC_PORT}" "localhost:${VNC_PORT}"
 EOF
-chmod 0755 /usr/local/bin/start-xfce
+chmod 0755 /usr/local/bin/start-lxqt
 
-# ---- keyring behavior (disable | basic | keep) ----
+# ---- keyring behavior ----
 : "${KEYRING_MODE:=basic}"
 echo "🔒 Configuring GNOME keyring mode: ${KEYRING_MODE}"
 
 case "${KEYRING_MODE}" in
   disable)
-    echo "  → Disabling keyring packages and autostarts"
     apt-get remove -y gnome-keyring seahorse || true
-
     mkdir -p /etc/xdg/autostart
     for f in /etc/xdg/autostart/gnome-keyring*.desktop; do
-      [[ -f "$f" ]] && sed -i \
-        -e 's/^Hidden=.*/Hidden=true/' \
-        -e '$aHidden=true' "$f" || true
+      [[ -f "$f" ]] && sed -i -e 's/^Hidden=.*/Hidden=true/' -e '$aHidden=true' "$f" || true
     done
     ;;
-
   basic)
-    echo "  → Forcing basic password storage (no prompts)"
     cat >> "${PROFILE_FILE}" <<'EOF'
 export GNOME_KEYRING_CONTROL=/nonexistent
 unset GNOME_KEYRING_PID SSH_AUTH_SOCK
 EOF
     ;;
-
   keep)
-    echo "  → Keeping GNOME keyring (you may see the 'Default keyring' prompt)"
     ;;
-
   *)
-    echo "⚠️ Unknown KEYRING_MODE='${KEYRING_MODE}', defaulting to 'basic'"
     cat >> "${PROFILE_FILE}" <<'EOF'
 export GNOME_KEYRING_CONTROL=/nonexistent
 unset GNOME_KEYRING_PID SSH_AUTH_SOCK
@@ -298,7 +277,7 @@ cat <<EOF
 
 ✅ Files:
   • Profile: ${PROFILE_FILE}
-  • Binary:  /usr/local/bin/start-xfce
+  • Binary:  /usr/local/bin/start-lxqt
 
 ✅ Defaults:
   DISPLAY=${DEFAULT_DISPLAY}
@@ -306,8 +285,9 @@ cat <<EOF
   NOVNC_PORT=${DEFAULT_NOVNC_PORT}
   VNC_PORT=${DEFAULT_VNC_PORT}
   VNC_PASSWORD=${DEFAULT_VNC_PASSWORD}
+  LXQT_WM=${LXQT_WM}
 
 💡 Usage (as non-root user):
-  source ${PROFILE_FILE}   # usually auto-sourced at login
-  start-xfce               # runs in foreground; Ctrl+C to stop
+  source ${PROFILE_FILE}
+  start-lxqt
 EOF

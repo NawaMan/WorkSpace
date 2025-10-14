@@ -68,6 +68,7 @@ export NOVNC_PORT=\${NOVNC_PORT:-${DEFAULT_NOVNC_PORT}}
 export VNC_PORT=\${VNC_PORT:-${DEFAULT_VNC_PORT}}
 # export VNC_PASSWORD=change-me   # to require password
 # export VNC_PASSWORD=            # leave empty (or "none") to disable password
+export SHELL=/bin/bash
 
 alias desktop-start='start-kde'
 EOF
@@ -100,6 +101,23 @@ fi
 # runtime dir
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/xdg-$(id -u)}"
 mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+
+# ---- ensure Konsole default profile points to /bin/bash (fixes 'Could not find ''' warning) ----
+KONSOLE_DIR="${HOME}/.local/share/konsole"
+mkdir -p "$KONSOLE_DIR" "${HOME}/.config"
+PROFILE_FILE="${KONSOLE_DIR}/Shell.profile"
+if [[ ! -s "$PROFILE_FILE" ]]; then
+  cat > "$PROFILE_FILE" <<'PROF'
+[General]
+Command=/bin/bash
+Name=Shell
+Parent=FALLBACK/
+PROF
+fi
+KONSOLERC="${HOME}/.config/konsolerc"
+if ! grep -q '^DefaultProfile=Shell.profile' "$KONSOLERC" 2>/dev/null; then
+  printf "[Desktop Entry]\nDefaultProfile=Shell.profile\n" > "$KONSOLERC"
+fi
 
 # --- KWallet suppression (per-session) ---
 case "${KEYRING_MODE}" in

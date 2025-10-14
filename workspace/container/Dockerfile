@@ -29,6 +29,7 @@ RUN set -euo pipefail         \
       locales                 \
       nano                    \
       ranger                  \
+      rsync                   \
       sudo                    \
       tig                     \
       tilde                   \

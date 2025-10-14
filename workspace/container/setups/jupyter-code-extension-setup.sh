@@ -8,6 +8,8 @@ if [[ ${EUID} -ne 0 ]]; then
   exit 1
 fi
 
+trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
+
 
 SETUP_LIBS_DIR=${SETUP_LIBS_DIR:-/opt/workspace/setups/libs}
 CODE_EXTENSION_LIB=${CODE_EXTENSION_LIB:-code-extension-source.sh}
