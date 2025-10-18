@@ -80,7 +80,7 @@ HTML
 cat > "${PROFILE_FILE}" <<'EOF'
 # XFCE over VNC/noVNC defaults
 export DISPLAY="${DISPLAY:-:1}"
-export XAUTHORITY="${DISPLAY:-$HOME/.Xauthority}"
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 export GEOMETRY=${GEOMETRY:-1280x800}
 export NOVNC_PORT=${NOVNC_PORT:-10000}
 export VNC_PORT=${VNC_PORT:-5901}

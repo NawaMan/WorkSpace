@@ -14,7 +14,7 @@ public class Person {
     
     public static void main(String[] args) {
         var person = new Person("Peter Parker", 18);
-        IO.println("Hello, %s (%d)!".formatted(person.name, person.age));
+        System.out.println("Hello, %s (%d)!".formatted(person.name, person.age));
     }
 }
 

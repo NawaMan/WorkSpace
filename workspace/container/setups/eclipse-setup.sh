@@ -191,27 +191,6 @@ chmod 0644 "${DESKTOP_FILE}"
 command -v update-desktop-database >/dev/null 2>&1 && \
   update-desktop-database /usr/share/applications || true
 
-# ====================== Update to known latest (release train) ==========================
-# Use the composite release repo for the specified train. Detect the actual p2 profile id.
-REPO_MAIN="https://download.eclipse.org/releases/${REL}"
-PROF_DIR="/opt/eclipse/p2/org.eclipse.equinox.p2.engine/profileRegistry"
-PROFILE_ID="$(basename "${PROF_DIR}/"*.profile .profile 2>/dev/null || echo SDKProfile)"
-
-echo "• Updating from: ${REPO_MAIN}"
-echo "• Using profile: ${PROFILE_ID}"
-
-# Make this step non-fatal in Docker builds; it will be a no-op when fully up-to-date.
-"/opt/eclipse/eclipse" \
-  -nosplash \
-  -application org.eclipse.equinox.p2.director \
-  -repository  "${REPO_MAIN}" \
-  -installIUs  org.eclipse.jdt.feature.group \
-  -destination /opt/eclipse \
-  -profile     "${PROFILE_ID}" \
-  -bundlepool  /opt/eclipse/pool \
-  -roaming \
-  -clean || echo "⚠️  Optional update step did not apply (likely already current or IU not needed). Continuing."
-
 echo
 echo "✅ Eclipse installed at: ${INSTALL_DIR}"
 echo "▶ Canonical starter:     ${STARTER_FILE}"

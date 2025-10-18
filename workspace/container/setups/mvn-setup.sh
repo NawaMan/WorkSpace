@@ -1,5 +1,6 @@
 #!/bin/bash
 set -Eeuo pipefail
+trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
 # Ensure script is run as root
 if [ "$EUID" -ne 0 ]; then
@@ -54,10 +55,10 @@ fi
 rm -f /tmp/maven.tar.gz.sha512 || true
 
 # --- Install into /opt/maven/maven-<version> ---
-rm -rf "$TARGET_DIR"
-mkdir -p "$TARGET_DIR"
-tar -xzf /tmp/maven.tar.gz -C "$TARGET_DIR" --strip-components=1
-rm -f /tmp/maven.tar.gz
+rm    -rf  "$TARGET_DIR"
+mkdir -p   "$TARGET_DIR"
+tar   -xzf /tmp/maven.tar.gz -C "$TARGET_DIR" --strip-components=1
+rm    -f   /tmp/maven.tar.gz
 
 # --- Stable symlink directory for Maven ---
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
@@ -67,14 +68,14 @@ install -d /usr/local/bin
 ln -sfn "$LINK_DIR/bin/mvn"      /usr/local/bin/mvn
 ln -sfn "$LINK_DIR/bin/mvnDebug" /usr/local/bin/mvnDebug || true
 
-# --- Optional environment for login shells ---
-cat >/etc/profile.d/99-ws-maven.sh <<'EOF'
+# --- environment for login shells ---
+cat >/etc/profile.d/62-ws-maven.sh <<'EOF'
 # ---- container defaults (safe to source multiple times) ----
 export MAVEN_HOME=/opt/maven-stable
 export PATH="$MAVEN_HOME/bin:$PATH"
 # ---- end defaults ----
 EOF
-chmod 0644 /etc/profile.d/99-ws-maven.sh
+chmod 0644 /etc/profile.d/62-ws-maven.sh
 
 echo "✅ Maven ${MAVEN_VERSION} installed to ${TARGET_DIR} and linked at ${LINK_DIR}."
 echo "   Try: mvn --version"

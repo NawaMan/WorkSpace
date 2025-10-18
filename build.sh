@@ -134,3 +134,4 @@ build_variant notebook
 build_variant codeserver
 build_variant desktop-xfce
 build_variant desktop-kde
+build_variant desktop-lxqt

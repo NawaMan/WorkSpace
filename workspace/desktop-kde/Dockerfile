@@ -26,8 +26,11 @@ RUN "$FEATURE_DIR/bash-nb-kernel-setup.sh"
 # This is so that some basic GTK would work.
 RUN apt-get update && apt-get install -y \
         breeze-gtk-theme \
+        gnome-themes-extra \
         libgtk-3-0 \
         libcanberra-gtk3-module \
+        lxappearance \
         kde-config-gtk-style
+
 
 CMD ["start-kde"]
