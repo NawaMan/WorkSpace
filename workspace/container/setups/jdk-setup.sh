@@ -72,13 +72,6 @@ fi
 : "${JBANG_JDK_VENDOR:=temurin}"
 ACTIVE_VENDOR="$JBANG_JDK_VENDOR"
 
-# --- Base tools ---
-export DEBIAN_FRONTEND=noninteractive
-log "Installing base packages..."
-apt-get update
-apt-get install -y --no-install-recommends curl unzip zip ca-certificates
-rm -rf /var/lib/apt/lists/*
-
 # --- JBang dirs ---
 export JBANG_DIR=/opt/jbang-home
 export JBANG_CACHE_DIR=/opt/jbang-cache
@@ -92,12 +85,14 @@ install -Dm755 "${JBANG_DIR}/bin/jbang" /usr/local/bin/jbang
 
 # --- Install JDK (via JBang) ---
 log "Installing JDK ${JDK_VERSION} (vendor: ${ACTIVE_VENDOR}) via JBang..."
-jbang jdk install "${JDK_VERSION}"
-jbang jdk default "${JDK_VERSION}" >/dev/null 2>&1 || true
+jbang jdk install "${JDK_VERSION}" || die "JBang failed to install JDK ${JDK_VERSION}"
 
-# --- Resolve JAVA_HOME ---
-JDK_HOME="$(jbang jdk home "${JDK_VERSION}")"
-[[ -n "$JDK_HOME" && -d "$JDK_HOME" ]] || die "Could not resolve JDK home for ${JDK_VERSION} (${ACTIVE_VENDOR})."
+# --- Resolve JAVA_HOME (canonical path) ---
+# IMPORTANT: canonicalize to avoid pointing at .../jbang-home/currentjdk
+JDK_HOME_RAW="$(jbang jdk home "${JDK_VERSION}")"
+[[ -n "$JDK_HOME_RAW" && -e "$JDK_HOME_RAW" ]] || die "Could not resolve JDK home for ${JDK_VERSION} (${ACTIVE_VENDOR})."
+JDK_HOME="$(readlink -f -- "$JDK_HOME_RAW")"
+[[ -d "$JDK_HOME" ]] || die "Resolved JDK_HOME is not a directory: $JDK_HOME"
 
 # --- Stable symlinks ---
 GENERIC_LINK="/opt/jdk${JDK_VERSION}"
@@ -114,14 +109,16 @@ if [ -e "$STATIC_LINK" ] || [ -L "$STATIC_LINK" ]; then
     log "Removing existing static link or directory: ${STATIC_LINK}"
     rm -rf "$STATIC_LINK"
 fi
-
 ln -s "$JDK_HOME" "$STATIC_LINK"
-
 
 # --- Export for current shell ---
 export JAVA_HOME="$GENERIC_LINK"
 export "JAVA_${JDK_VERSION}_HOME=$GENERIC_LINK"
-export PATH="$JAVA_HOME/bin:$PATH"
+# PATH: append JAVA_HOME/bin (never prepend), guard against duplicates
+case ":$PATH:" in
+  *":$JAVA_HOME/bin:"*) : ;;
+  *) export PATH="$PATH:$JAVA_HOME/bin" ;;
+esac
 
 # --- Optional GraalVM extras ---
 if [[ "${ACTIVE_VENDOR}" == "graalvm" ]]; then
@@ -143,7 +140,7 @@ update-alternatives --install /usr/bin/jar    jar    "${GENERIC_LINK}/bin/jar"  
 update-alternatives --install /usr/bin/jcmd   jcmd   "${GENERIC_LINK}/bin/jcmd"   "${ALT_PRIO}"
 update-alternatives --install /usr/bin/jps    jps    "${GENERIC_LINK}/bin/jps"    "${ALT_PRIO}"
 update-alternatives --install /usr/bin/jstack jstack "${GENERIC_LINK}/bin/jstack" "${ALT_PRIO}"
-# Force-select our entries
+# Force-select our entries (best-effort for non-JDK tools)
 update-alternatives --set java   "${GENERIC_LINK}/bin/java"
 update-alternatives --set javac  "${GENERIC_LINK}/bin/javac"  || true
 update-alternatives --set jar    "${GENERIC_LINK}/bin/jar"    || true
@@ -157,9 +154,14 @@ log "Writing ${PROFILE_FILE} ..."
 cat >"$PROFILE_FILE" <<EOF
 # JDK (${JDK_VERSION}) setup — managed by jdk-setup.sh
 export JAVA_HOME=${GENERIC_LINK}
-export PATH="\$JAVA_HOME/bin:\$PATH"
 export JAVA_${JDK_VERSION}_HOME=${GENERIC_LINK}
 export JAVA_HOME_${JDK_VERSION}_VENDOR=${VENDOR_LINK}
+
+# Keep JAVA_HOME/bin at the end so version managers (e.g., jenv shims) can take precedence.
+case ":\$PATH:" in
+  *":\$JAVA_HOME/bin:"*) : ;;
+  *) export PATH="\$PATH:\$JAVA_HOME/bin" ;;
+esac
 
 export WS_JDK_VERSION=${JDK_VERSION}
 export WS_JAVA_HOME=${JAVA_HOME}
@@ -189,7 +191,7 @@ jdk_setup_info() {
   _hdr "JBang"
   if command -v jbang >/dev/null 2>&1; then
     _ok "jbang: \$(jbang --version 2>/dev/null | head -n1)"
-    _ok "jdk home: \$(jbang jdk home ${JDK_VERSION} 2>/dev/null || echo n/a)"
+    _ok "jdk home (raw): \$(jbang jdk home ${JDK_VERSION} 2>/dev/null || echo n/a)"
     _ok "installed jdks:"
     jbang jdk list 2>/dev/null | sed 's/^/  /' || true
   else
@@ -211,17 +213,10 @@ echo "   Vendor link = ${VENDOR_LINK}"
 echo "   Alternatives priority = ${ALT_PRIO}"
 echo "   JBang launcher = /usr/local/bin/jbang"
 echo "   Profile script = ${PROFILE_FILE}"
-echo "   Alternatives:   $(command -v java) -> $(readlink -f "$(command -v java)")"
+echo "   Alternatives:   \$(command -v java) -> \$(readlink -f \"\$(command -v java)\")"
 echo
 echo "Use it now in this shell (without reopening):"
 echo "  . ${PROFILE_FILE} && jdk-setup-info"
-
-
-
-
-
-
-
 
 export WS_JDK_VERSION=${JDK_VERSION}
 export WS_JAVA_HOME=${JAVA_HOME}

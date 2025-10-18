@@ -10,7 +10,7 @@
   <name>example-java-with-lombok</name>
 
   <properties>
-    <java.version>25</java.version>
+    <java.version>24</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
   </properties>
@@ -44,9 +44,19 @@
             <path>
               <groupId>org.projectlombok</groupId>
               <artifactId>lombok</artifactId>
-              <version>1.18.34</version>
+              <version>1.18.42</version>
+              <scope>provided</scope>
             </path>
           </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.0</version>
+        <configuration>
+          <mainClass>com.example.Person</mainClass>
+          <fork>true</fork>
         </configuration>
       </plugin>
     </plugins>

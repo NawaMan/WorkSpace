@@ -90,11 +90,12 @@ for (( i=0; i<${#ARGS[@]}; i++ )); do
   esac
 done
 
-
 # Load configure form the CONFIG_FILE
-set -a
-source "${CONFIG_FILE}"
-set +a
+if [[ -f "${CONFIG_FILE}" ]]; then
+  set -a
+  source "${CONFIG_FILE}"
+  set +a
+fi
 
 
 ARGS=("$@")
@@ -174,6 +175,16 @@ while [[ $# -gt 0 ]]; do
   fi
 done
 
+#== Handle variant ==
+
+case "${VARIANT}" in
+  container|notebook|codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
+  xfce|kde|lxqt) VARIANT="desktop-${VARIANT}" ;;
+  *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
+esac
+echo "VARIANT: $VARIANT"
+
+
 #== ARGUMENT FILES LOADING (moved after CLI parse) =============================
 
 DOCKER_BUILD_ARGS_FILE="$(lib default_file_if_exists "${DOCKER_BUILD_ARGS_FILE}" "${WORKSPACE_PATH:-.}/ws-docker-build.args")"
@@ -210,12 +221,6 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
       "${BUILD_ARGS[@]}" \
       "${WORKSPACE_PATH}"
   else
-    # -- Prebuild --
-    case "${VARIANT}" in
-      container|notebook|codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
-      *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
-    esac
-
     # Construct the full image name.
     IMAGE_NAME="${PREBUILD_REPO}:${VARIANT}-${VERSION}"
 

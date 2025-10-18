@@ -60,7 +60,7 @@ fi
 
 # Recompute actual version/display in case we fell back and recreated the venv
 ACTUAL_VER="$(python -c 'import sys;print(".".join(map(str,sys.version_info[:3])))')"
-JUPYTER_KERNEL_DISPLAY="${JUPYTER_KERNEL_DISPLAY:-Python ${ACTUAL_VER} (venv)}"
+JUPYTER_KERNEL_DISPLAY="${JUPYTER_KERNEL_DISPLAY:-Python (${ACTUAL_VER} (venv))}"
 
 # ---- Register venv Python as a Jupyter kernel (primary: python3) ----
 KDIR_BASE="${JUPYTER_KERNEL_PREFIX}/share/jupyter/kernels"
