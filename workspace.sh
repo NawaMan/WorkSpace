@@ -98,6 +98,7 @@ if [[ -f "${CONFIG_FILE}" ]]; then
 fi
 
 
+# Reprocess verbose just include it was in the CONFIG_FILE
 ARGS=("$@")
 for (( i=0; i<${#ARGS[@]}; i++ )); do
   case "${ARGS[i]}" in
@@ -109,7 +110,7 @@ done
 
 #== IMAGE NAME RESOLUTION ======================================================
 
-LOCAL_BUILD=false
+
 IMAGE_MODE=PRE-BUILD
 if [[ -z "${IMAGE_NAME}" ]] ; then
   # Normalize the path to file .... 
@@ -126,12 +127,14 @@ if [[ -z "${IMAGE_NAME}" ]] ; then
       echo "DOCKER_FILE (${DOCKER_FILE}) is not a file." >&2
       exit 1
     fi
-    LOCAL_BUILD=true
     IMAGE_MODE=LOCAL-BUILD
   fi
 else
   IMAGE_MODE=CUSTOM-BUILD
 fi
+
+[[ "${IMAGE_MODE}" == "LOCAL-BUILD" ]] \
+&& LOCAL_BUILD=true || LOCAL_BUILD=false
 
 #== PARAMETER PARSING ==========================================================
 

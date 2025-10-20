@@ -11,6 +11,5 @@ USER root
 
 ENV SETUPS_DIR=/opt/workspace/setups
 ENV NODEJS_VERSION="${NODEJS_VERSION}"
-ENV PORT="${PORT}"
 
 RUN "$SETUPS_DIR/nodejs-setup.sh" "${NODEJS_VERSION}" 
