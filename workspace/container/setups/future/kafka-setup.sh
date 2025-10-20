@@ -55,7 +55,7 @@ done
 # --- install deps ---
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends curl ca-certificates openjdk-17-jre-headless procps netcat-openbsd
+apt-get install -y --no-install-recommends openjdk-17-jre-headless procps netcat-openbsd
 rm -rf /var/lib/apt/lists/*
 
 # --- install kafka (idempotent) ---

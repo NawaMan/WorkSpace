@@ -18,11 +18,6 @@ INSTALL_PARENT=/opt/maven
 TARGET_DIR="${INSTALL_PARENT}/maven-${MAVEN_VERSION}"
 LINK_DIR=/opt/maven-stable
 
-# --- Base tools ---
-apt-get update
-apt-get install -y --no-install-recommends curl tar ca-certificates
-rm -rf /var/lib/apt/lists/*
-
 tarball="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
 primary_url="${PRIMARY_BASE}/${MAVEN_VERSION}/binaries/${tarball}"
 archive_url="${ARCHIVE_BASE}/${MAVEN_VERSION}/binaries/${tarball}"

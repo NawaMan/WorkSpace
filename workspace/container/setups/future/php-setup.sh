@@ -53,7 +53,7 @@ fi
 # ---- base deps ----
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl gnupg lsb-release software-properties-common
+apt-get install -y --no-install-recommends lsb-release software-properties-common
 rm -rf /var/lib/apt/lists/*
 
 # ---- enable ondrej/php PPA when the requested version isn't in main repos ----

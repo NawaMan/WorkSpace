@@ -9,13 +9,15 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+arch="$(dpkg --print-architecture)"   # arm64
+if [[ "$arch" == "arm64" ]]; then
+  echo "Chrom installation is not supported."
+  exit 0
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 
 echo "🔧 Installing Google Chrome (DEB repo, no snap)…"
-
-# prerequisites
-apt-get update
-apt-get install -y curl ca-certificates gnupg
 
 # add Google’s key + repo (idempotent)
 install -d -m 0755 /etc/apt/keyrings

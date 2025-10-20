@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.7
+ARG VARIANT_TAG=container
+ARG VERSION_TAG=latest
+FROM nawaman/workspace:${VARIANT_TAG}-${VERSION_TAG}
+
+# The default value is the latest LTS
+ARG PY_VERSION=3.12
+ARG VARIANT_TAG=container
+ARG JDK_VERSION=24
+ARG JDK_VENDOR=temurin
+ARG MVN_VERSION=3.9.11
+
+SHELL ["/bin/bash","-o","pipefail","-lc"]
+USER root
+
+ENV SETUPS_DIR=/opt/workspace/setups
+ENV VARIANT_TAG="${VARIANT_TAG}"
+ENV WS_VARIANT_TAG="${VARIANT_TAG}"
+ENV PY_VERSION="${PY_VERSION}"
+ENV JDK_VERSION="${JDK_VERSION}"
+ENV JDK_VENDOR="${JDK_VENDOR}"
+
+RUN "$SETUPS_DIR/jdk-setup.sh" 25
+# RUN "$SETUPS_DIR/pycharm-setup.sh"
+
+# COPY --chmod=0755 ./setups/ /tmp/setups/
+RUN "$SETUPS_DIR/jetbrains-setup.sh" idea
+RUN "$SETUPS_DIR/jetbrains-setup.sh" pycharm
+RUN "$SETUPS_DIR/jetbrains-setup.sh" goland
+RUN "$SETUPS_DIR/jetbrains-setup.sh" webstorm
+RUN "$SETUPS_DIR/jetbrains-setup.sh" phpstorm
+RUN "$SETUPS_DIR/jetbrains-setup.sh" clion
+RUN "$SETUPS_DIR/jetbrains-setup.sh" rider
+RUN "$SETUPS_DIR/jetbrains-setup.sh" rubymine
+RUN "$SETUPS_DIR/jetbrains-setup.sh" datagrip

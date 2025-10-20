@@ -43,7 +43,7 @@ done
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
-  curl ca-certificates git build-essential m4 pkg-config unzip bubblewrap \
+  git build-essential m4 pkg-config bubblewrap \
   opam  # distro opam (Ubuntu 22.04+/Debian 12+)
 rm -rf /var/lib/apt/lists/*
 
