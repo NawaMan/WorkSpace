@@ -171,6 +171,19 @@ fi
 
 chown "$HOST_UID:$HOST_GID" "$HOME_DIR/.bashrc" "$HOME_DIR/.profile" "$HOME_DIR/.zshrc" 2>/dev/null || true
 
+# --- One-time workspace startup hooks (run as $USER_NAME) ---
+RUN_ONCE_FLAG="/var/run/ws-startup.once"
+if [ -d "/etc/startup.d" ] && [ ! -f "$RUN_ONCE_FLAG" ]; then
+  runuser -u "$USER_NAME" -- bash -lc '
+    set -euo pipefail
+    shopt -s nullglob
+    for f in /etc/startup.d/*-ws-*.sh; do
+      [ -r "$f" ] && . "$f"
+    done
+  '
+  touch "$RUN_ONCE_FLAG"
+fi
+
 # Exec the requested command as coder (default to login shell if none provided)
 if [ "$#" -eq 0 ]; then
   exec runuser -u "$USER_NAME" --login
