@@ -20,8 +20,8 @@ LXQT_WM="${LXQT_WM:-openbox}"    # can be xfwm4 if installed
 
 # Use python-setup.sh exactly like setup-code-server-jupyter.sh
 PY_VERSION=${1:-3.12}                    # accepts X.Y or X.Y.Z
-FEATURE_DIR=${FEATURE_DIR:-/opt/workspace/setups}
-"${FEATURE_DIR}/python-setup.sh" "${PY_VERSION}"
+SETUPS_DIR=${SETUPS_DIR:-/opt/workspace/setups}
+"${SETUPS_DIR}/python-setup.sh" "${PY_VERSION}"
 
 # Load python env exported by the base setup
 source /etc/profile.d/53-ws-python.sh 2>/dev/null || true

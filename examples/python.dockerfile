@@ -10,11 +10,11 @@ ARG VARIANT_TAG=container
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 USER root
 
-ENV FEATURE_DIR=/opt/workspace/setups
+ENV SETUPS_DIR=/opt/workspace/setups
 ENV VARIANT_TAG="${VARIANT_TAG}"
 ENV WS_VARIANT_TAG="${VARIANT_TAG}"
 ENV PY_VERSION="${PY_VERSION}"
 
 # For python, we need to reinstall variant specific script.
-RUN "$FEATURE_DIR/python-setup.sh"  "${PY_VERSION}"
-RUN "$FEATURE_DIR/variant-setup.sh" "${PY_VERSION}"
+RUN "$SETUPS_DIR/python-setup.sh"  "${PY_VERSION}"
+RUN "$SETUPS_DIR/variant-setup.sh" "${PY_VERSION}"

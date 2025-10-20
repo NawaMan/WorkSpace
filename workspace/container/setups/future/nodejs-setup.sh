@@ -74,7 +74,7 @@ esac
 
 # --- Base tools ---
 apt-get update
-apt-get install -y --no-install-recommends curl ca-certificates tar xz-utils coreutils
+apt-get install -y --no-install-recommends xz-utils coreutils
 rm -rf /var/lib/apt/lists/*
 
 # --- Download tarball + checksums (canonical filename) ---

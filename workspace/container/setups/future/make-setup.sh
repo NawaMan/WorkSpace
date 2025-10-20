@@ -53,7 +53,7 @@ export DEBIAN_FRONTEND=noninteractive
 if [[ $FROM_APT -eq 1 ]]; then
   # ---------- APT MODE ----------
   apt-get update
-  apt-get install -y --no-install-recommends make ca-certificates
+  apt-get install -y --no-install-recommends make
   rm -rf /var/lib/apt/lists/*
 
   # Point /opt/make-stable at the system make prefix (wrap just the binary)

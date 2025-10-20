@@ -60,7 +60,7 @@ log "Installing base dependencies"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
-  ca-certificates curl gnupg lsb-release apt-transport-https git bash-completion
+  lsb-release apt-transport-https git bash-completion
 rm -rf /var/lib/apt/lists/*
 
 # ---------- kubectl (apt repo) ----------

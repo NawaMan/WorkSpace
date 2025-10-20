@@ -7,11 +7,11 @@ ARG PY_VERSION=3.12
 USER root
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 
-ENV FEATURE_DIR=/opt/workspace/setups
+ENV SETUPS_DIR=/opt/workspace/setups
 ENV PY_VERSION="${PY_VERSION}"
 
-RUN "$FEATURE_DIR/python-setup.sh"   "${PY_VERSION}" 
-RUN "$FEATURE_DIR/notebook-setup.sh"
-RUN "$FEATURE_DIR/bash-nb-kernel-setup.sh"
+RUN "$SETUPS_DIR/python-setup.sh"   "${PY_VERSION}" 
+RUN "$SETUPS_DIR/notebook-setup.sh"
+RUN "$SETUPS_DIR/bash-nb-kernel-setup.sh"
 
 CMD ["notebook"]

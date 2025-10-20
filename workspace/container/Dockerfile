@@ -20,6 +20,7 @@ RUN set -euo pipefail         \
       bash                    \
       ca-certificates         \
       curl                    \
+      debian-archive-keyring  \
       direnv                  \
       gettext-base            \
       git                     \
@@ -31,6 +32,7 @@ RUN set -euo pipefail         \
       ranger                  \
       rsync                   \
       sudo                    \
+      tar                     \
       tig                     \
       tilde                   \
       tini                    \
@@ -125,6 +127,8 @@ USER root
 WORKDIR /home/coder/workspace
 
 # tini as PID 1, then run the aligner which execs as 'coder'
+# This is needed as the workspace-user-setup will ended up running the CMD which is a chile process
+#   so we need tini to handle that properly.
 ENTRYPOINT ["tini","-g","--","/usr/local/bin/workspace-user-setup"]
 
 # CMD ["bash","-lc","exec python3 -m http.server 10000 --bind 0.0.0.0 --directory /home/coder/workspace"]

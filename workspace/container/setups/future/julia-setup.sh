@@ -70,7 +70,7 @@ BIN_DIR=/usr/local/bin
 # ---- base tools ----
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y --no-install-recommends curl ca-certificates tar xz-utils gzip coreutils
+apt-get install -y --no-install-recommends xz-utils coreutils
 rm -rf /var/lib/apt/lists/*
 
 # ---- download & install ----
