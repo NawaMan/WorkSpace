@@ -64,3 +64,11 @@ build/
 # --- Misc caches ---
 coverage/
 .nyc_output/
+
+examples/java-example/.classpath
+
+examples/java-example/.project
+
+examples/java-example/.settings/org.eclipse.jdt.core.prefs
+
+examples/java-example/.settings/org.eclipse.m2e.core.prefs
