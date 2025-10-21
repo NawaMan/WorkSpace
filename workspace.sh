@@ -185,7 +185,6 @@ case "${VARIANT}" in
   xfce|kde|lxqt) VARIANT="desktop-${VARIANT}" ;;
   *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
 esac
-echo "VARIANT: $VARIANT"
 
 
 #== ARGUMENT FILES LOADING (moved after CLI parse) =============================
@@ -206,10 +205,8 @@ while IFS= read -r line; do eval "RUN_ARGS+=($line)";   done < <(lib parse_args_
 #     - ${WORKSPACE_PATH}/Dockerfile is a file (assume to be Dockerfile)
 #   - Pre-built: use VARIANT and VERSION to select the pre-built
 
-echo IMAGE_NAME: $IMAGE_NAME
 if [[ -z "${IMAGE_NAME}" ]] ; then
   # -- Local --
-  echo IMAGE_NAME: $LOCAL_BUILD
   if [[ "${LOCAL_BUILD}" == "true" ]] ; then
     IMAGE_NAME="workspace-local:${PROJECT_NAME}"
     if $VERBOSE ; then

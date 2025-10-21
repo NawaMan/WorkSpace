@@ -80,15 +80,15 @@ RUN mkdir -p /home/coder/workspace
 
 
 # Start up - to be run one time at the start of the docker.
-RUN mkdir -p /etc/startup.d
-RUN cat >/etc/startup.d/50-ws-workspace-base.sh <<'EOF'
+RUN mkdir -p /usr/share/startup.d
+RUN cat >/usr/share/startup.d/50-ws-workspace-base.sh <<'EOF'
 rm -Rf ~/.local/share/keyrings/default.keyring
 rm -Rf ~/.local/share/keyrings/login.keyring
 
 mkdir -p ~/.local/share/keyrings
 echo -n '{"display-name":"Default keyring","lock-on-idle":false,"lock-after":0}' > ~/.local/share/keyrings/default.keyring
 EOF
-RUN chmod 755 /etc/startup.d/50-ws-workspace-base.sh
+RUN chmod 755 /usr/share/startup.d/50-ws-workspace-base.sh
 
 
 # --- Shared shell config: create the file ---

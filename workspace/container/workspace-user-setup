@@ -177,7 +177,7 @@ if [ -d "/etc/startup.d" ] && [ ! -f "$RUN_ONCE_FLAG" ]; then
   runuser -u "$USER_NAME" -- bash -lc '
     set -euo pipefail
     shopt -s nullglob
-    for f in /etc/startup.d/*-ws-*.sh; do
+    for f in /usr/share/startup.d/*-ws-*.sh; do
       [ -r "$f" ] && . "$f"
     done
   '
