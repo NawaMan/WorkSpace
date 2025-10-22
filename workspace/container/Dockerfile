@@ -24,11 +24,9 @@ RUN set -euo pipefail         \
       direnv                  \
       gettext-base            \
       git                     \
-      gnome-keyring           \
       gnupg                   \
       jq                      \
       less                    \
-      libpam-gnome-keyring    \
       locales                 \
       nano                    \
       ranger                  \
