@@ -117,7 +117,7 @@ if [[ "$DOCKER_HOST_VALUE" =~ ^unix://(.+) ]]; then
 fi
 
 # ---- profile: persist DOCKER_HOST for login shells (esp. when --docker-host is given) ----
-cat >/etc/profile.d/99-docker.sh <<EOF
+cat >/etc/profile.d/99-docker--profile.sh <<EOF
 # Docker CLI defaults inside container
 if [ -z "\${DOCKER_HOST:-}" ]; then
   ${CUSTOM_DOCKER_HOST:+export DOCKER_HOST=${CUSTOM_DOCKER_HOST}}
@@ -130,7 +130,7 @@ if [ -z "\${DOCKER_HOST:-}" ]; then
   fi
 fi
 EOF
-chmod 0644 /etc/profile.d/99-docker.sh
+chmod 0644 /etc/profile.d/99-docker--profile.sh
 
 # ---- non-login wrapper: ensure DOCKER_HOST for non-login shells ----
 install -d /usr/local/bin

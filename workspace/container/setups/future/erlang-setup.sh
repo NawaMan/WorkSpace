@@ -138,12 +138,12 @@ fi
 ln -sfn "${TARGET_DIR}" "${LINK_DIR}"
 
 # --- Login-shell env (POSIX) ---
-cat >/etc/profile.d/99-erlang.sh <<'EOF'
+cat >/etc/profile.d/99-erlang--profile.sh <<'EOF'
 # Erlang/OTP under /opt
 export ERLANG_HOME=/opt/erlang-stable
 export PATH="$ERLANG_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-erlang.sh
+chmod 0644 /etc/profile.d/99-erlang--profile.sh
 
 # --- fish & nushell autoloads ---
 install -d /etc/fish/conf.d

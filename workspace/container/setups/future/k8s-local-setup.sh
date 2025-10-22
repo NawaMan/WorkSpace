@@ -135,7 +135,7 @@ KCFG="/opt/kube/config"
 touch "$KCFG" && chmod 0666 "$KCFG"
 
 # ---------- profile for login shells ----------
-cat >/etc/profile.d/99-k8s.sh <<'EOF'
+cat >/etc/profile.d/99-k8s--profile.sh <<'EOF'
 # Kubernetes CLI defaults inside container
 export KUBECONFIG=/opt/kube/config
 # Docker socket autodetect (only set if empty)
@@ -147,7 +147,7 @@ if [ -z "${DOCKER_HOST:-}" ]; then
   fi
 fi
 EOF
-chmod 0644 /etc/profile.d/99-k8s.sh
+chmod 0644 /etc/profile.d/99-k8s--profile.sh
 
 # ---------- non-login wrappers (no recursion) ----------
 log "Creating KUBECONFIG-preserving shims"

@@ -97,21 +97,21 @@ ln -sfn "$LLVM_PREFIX" "${TARGET_DIR}/llvm-prefix"
 ln -sfn "${TARGET_DIR}/llvm-prefix" "$LINK_DIR"
 
 # --- login-shell env (PATH) ---
-cat >/etc/profile.d/99-clang.sh <<'EOF'
+cat >/etc/profile.d/99-clang--profile.sh <<'EOF'
 # LLVM/clang under /opt
 export CLANG_HOME=/opt/clang-stable
 export PATH="$CLANG_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-clang.sh
+chmod 0644 /etc/profile.d/99-clang--profile.sh
 
 # --- export CC/CXX by default (opt-out with --no-export-cc) ---
 if [[ $EXPORT_CC -eq 1 ]]; then
-  cat >/etc/profile.d/99-clang-cc.sh <<'EOF'
+  cat >/etc/profile.d/99-clang-cc--profile.sh <<'EOF'
 # Make clang the default C/C++ compiler for login shells
 export CC=clang
 export CXX=clang++
 EOF
-  chmod 0644 /etc/profile.d/99-clang-cc.sh
+  chmod 0644 /etc/profile.d/99-clang-cc--profile.sh
 fi
 
 # --- system-wide cc/c++ via update-alternatives (default; opt-out with --no-as-default) ---

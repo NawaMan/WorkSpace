@@ -10,18 +10,20 @@ IDE="$1"              # e.g., pycharm, idea, goland, webstorm
 PLUGIN="$2"           # e.g., "Lombook Plugin"
 
 # --- Constant ---
-STARTUP_FILE="/usr/share/startup.d/75-ws-${IDE}-plugin.sh"
+STARTUP_FILE="/usr/share/startup.d/75-ws-${IDE}-plugin--startup.sh"
 
 if ! command -v "${IDE}" >/dev/null 2>&1; then
     echo "$IDE not found."
     exit 1
 fi
 
-if [[ -f "/etc/profile.d/70-ws-${IDE}.sh" ]]; then
-    source "/etc/profile.d/70-ws-${IDE}.sh"
-fi
-
 # --- Create startup script ---
-cat > "$STARTUP_FILE" <<EOF
+cat > "${STARTUP_FILE}" <<EOF
 "${IDE}" installPlugins "${PLUGIN}"
 EOF
+chmod 755 "${STARTUP_FILE}"
+
+PROFILE_FILE="/etc/profile.d/70-ws-${IDE}--profile.sh"
+if [[ -f "${PROFILE_FILE}" ]]; then
+    source "${PROFILE_FILE}"
+fi

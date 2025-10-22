@@ -100,14 +100,14 @@ ln -sfn "${LINK_DIR}/bin/go"    /usr/local/bin/go
 ln -sfn "${LINK_DIR}/bin/gofmt" /usr/local/bin/gofmt
 
 # Optional environment for login shells
-cat >/etc/profile.d/99-go.sh <<'EOF'
+cat >/etc/profile.d/99-go--profile.sh <<'EOF'
 # ---- container defaults (safe to source multiple times) ----
 export GOROOT=/opt/go-stable
 export PATH="$GOROOT/bin:$PATH"
 export GOPATH="$(go env GOPATH)"
 # ---- end defaults ----
 EOF
-chmod 0644 /etc/profile.d/99-go.sh
+chmod 0644 /etc/profile.d/99-go--profile.sh
 
 echo "✅ Go ${GO_VERSION} installed at ${TARGET_DIR}"
 echo "   Symlink: ${LINK_DIR}"

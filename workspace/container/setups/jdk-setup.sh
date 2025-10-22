@@ -26,6 +26,8 @@ die() { echo "❌ $*" >&2; exit 1; }
 # --- Root check ---
 [[ "${EUID}" -eq 0 ]] || die "This script must be run as root (use sudo)."
 
+PROFILE_FILE="/etc/profile.d/60-ws-jdk--profile.sh"
+
 # --- Defaults ---
 JDK_VERSION="21"
 CLI_VENDOR=""
@@ -149,7 +151,6 @@ update-alternatives --set jps    "${GENERIC_LINK}/bin/jps"    || true
 update-alternatives --set jstack "${GENERIC_LINK}/bin/jstack" || true
 
 # --- System-wide profile for future shells ---
-PROFILE_FILE="/etc/profile.d/60-ws-jdk.sh"
 log "Writing ${PROFILE_FILE} ..."
 cat >"$PROFILE_FILE" <<EOF
 # JDK (${JDK_VERSION}) setup — managed by jdk-setup.sh

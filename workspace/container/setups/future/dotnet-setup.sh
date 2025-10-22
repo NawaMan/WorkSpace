@@ -104,14 +104,14 @@ fi
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-dotnet.sh <<EOF
+cat >/etc/profile.d/99-dotnet--profile.sh <<EOF
 # .NET under /opt
 export DOTNET_ROOT=$LINK_DIR
 export PATH="\$DOTNET_ROOT:\$PATH"
 # Shared NuGet cache (CI/dev friendly)
 export NUGET_PACKAGES=${NUGET_DIR}
 EOF
-chmod 0644 /etc/profile.d/99-dotnet.sh
+chmod 0644 /etc/profile.d/99-dotnet--profile.sh
 
 # ---- non-login wrapper ----
 install -d "$BIN_DIR"

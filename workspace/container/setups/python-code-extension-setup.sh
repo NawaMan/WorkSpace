@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # python-code-extension-setup.sh
-# Root-only installer for a login-time VS Code bootstrap in /etc/profile.d/.
 set -Eeuo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then

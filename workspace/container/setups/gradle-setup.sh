@@ -8,6 +8,8 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+PROFILE_FILE="/etc/profile.d/62-ws-gradle--profile.sh"
+
 GRADLE_VERSION=${1:-9.1.0}
 
 # Optional override (e.g., corporate mirror): export GRADLE_MIRROR_BASE="https://my-mirror.example.com/gradle"
@@ -71,13 +73,13 @@ install -d /usr/local/bin
 ln -sfn "$LINK_DIR/bin/gradle" /usr/local/bin/gradle
 
 # --- environment for login shells ---
-cat >/etc/profile.d/62-ws-gradle.sh <<'EOF'
+cat >"${PROFILE_FILE}" <<'EOF'
 # ---- container defaults (safe to source multiple times) ----
 export GRADLE_HOME=/opt/gradle-stable
 export PATH="$GRADLE_HOME/bin:$PATH"
 # ---- end defaults ----
 EOF
-chmod 0644 /etc/profile.d/62-ws-gradle.sh
+chmod 0644 "${PROFILE_FILE}"
 
 echo "✅ Gradle ${GRADLE_VERSION} installed to ${TARGET_DIR} and linked at ${LINK_DIR}."
 echo "   Try: gradle --version"

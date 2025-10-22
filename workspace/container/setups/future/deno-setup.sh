@@ -79,12 +79,12 @@ unzip -q "$TMP/$TARBALL" -d "$TARGET_DIR/bin"
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-deno.sh <<'EOF'
+cat >/etc/profile.d/99-deno--profile.sh <<'EOF'
 # Deno under /opt
 export DENO_HOME=/opt/deno-stable
 export PATH="$DENO_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-deno.sh
+chmod 0644 /etc/profile.d/99-deno--profile.sh
 
 # ---- non-login wrapper ----
 cat >"${BIN_DIR}/denowrap" <<'EOF'

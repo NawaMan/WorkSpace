@@ -119,12 +119,12 @@ else
 fi
 
 # ---- login-shell env (just PATH) ----
-cat >/etc/profile.d/99-make.sh <<'EOF'
+cat >/etc/profile.d/99-make--profile.sh <<'EOF'
 # GNU Make under /opt
 export MAKE_HOME=/opt/make-stable
 export PATH="$MAKE_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-make.sh
+chmod 0644 /etc/profile.d/99-make--profile.sh
 
 # ---- non-login wrapper ----
 cat >"${BIN_DIR}/makewrap" <<'EOF'

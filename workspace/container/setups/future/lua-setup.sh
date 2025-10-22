@@ -123,12 +123,12 @@ LR_SRC_DIR="$(find "$tmpdir" -maxdepth 1 -type d -name "luarocks-*")"
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # --- env for login shells ---
-cat >/etc/profile.d/99-lua.sh <<'EOF'
+cat >/etc/profile.d/99-lua--profile.sh <<'EOF'
 # Lua defaults under /opt
 export LUA_HOME=/opt/lua-stable
 export PATH="$LUA_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-lua.sh
+chmod 0644 /etc/profile.d/99-lua--profile.sh
 
 # --- multi-call wrapper for non-login shells ---
 install -d /usr/local/bin

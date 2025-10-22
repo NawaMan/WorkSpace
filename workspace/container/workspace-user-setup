@@ -173,12 +173,13 @@ chown "$HOST_UID:$HOST_GID" "$HOME_DIR/.bashrc" "$HOME_DIR/.profile" "$HOME_DIR/
 
 # --- One-time workspace startup hooks (run as $USER_NAME) ---
 RUN_ONCE_FLAG="/var/run/ws-startup.once"
-if [ -d "/etc/startup.d" ] && [ ! -f "$RUN_ONCE_FLAG" ]; then
+if [ -d "/usr/share/startup.d" ] && [ ! -f "$RUN_ONCE_FLAG" ]; then
   runuser -u "$USER_NAME" -- bash -lc '
     set -euo pipefail
     shopt -s nullglob
     for f in /usr/share/startup.d/*-ws-*.sh; do
-      [ -r "$f" ] && . "$f"
+      echo "$f" >> /tmp/startups.txt
+      [ -r "$f" ] && "$f"
     done
   '
   touch "$RUN_ONCE_FLAG"

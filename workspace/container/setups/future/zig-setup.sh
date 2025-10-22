@@ -112,7 +112,7 @@ install -d /usr/local/bin
 ln -sfn "$LINK_DIR/zig" /usr/local/bin/zig
 
 # --- login-shell env (opt-in to use zig as cc/c++) ---
-cat >/etc/profile.d/99-zig.sh <<'EOF'
+cat >/etc/profile.d/99-zig--profile.sh <<'EOF'
 # Zig defaults
 export ZIG_HOME=/opt/zig-stable
 export PATH="$ZIG_HOME:$PATH"
@@ -123,7 +123,7 @@ if [ "${ZIG_AS_CC:-0}" = "1" ]; then
   export CXX="zig c++"
 fi
 EOF
-chmod 0644 /etc/profile.d/99-zig.sh
+chmod 0644 /etc/profile.d/99-zig--profile.sh
 
 # --- tiny shims so update-alternatives can point cc/c++ at zig ---
 cat >/usr/local/bin/zig-cc <<'EOF'

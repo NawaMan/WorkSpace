@@ -70,14 +70,14 @@ ln -sfn "$(command -v g++-${GCC_VER})" "$TARGET_DIR/bin/g++"
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # ---- login shell env ----
-cat >/etc/profile.d/99-gcc.sh <<EOF
+cat >/etc/profile.d/99-gcc--profile.sh <<EOF
 # GCC defaults
 export GCC_HOME=$LINK_DIR
 export PATH="\$GCC_HOME/bin:\$PATH"
 export CC=gcc
 export CXX=g++
 EOF
-chmod 0644 /etc/profile.d/99-gcc.sh
+chmod 0644 /etc/profile.d/99-gcc--profile.sh
 
 # ---- wrapper for non-login shells ----
 cat >"$BIN_DIR/gccwrap" <<'EOF'

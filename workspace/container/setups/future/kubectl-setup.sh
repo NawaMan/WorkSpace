@@ -79,10 +79,10 @@ KCFG="/opt/kube/config"
 touch "$KCFG" && chmod 0666 "$KCFG"
 
 # Login shells: set KUBECONFIG
-cat >/etc/profile.d/99-kubectl.sh <<'EOF'
+cat >/etc/profile.d/99-kubectl--profile.sh <<'EOF'
 export KUBECONFIG=/opt/kube/config
 EOF
-chmod 0644 /etc/profile.d/99-kubectl.sh
+chmod 0644 /etc/profile.d/99-kubectl--profile.sh
 
 # Non-login shells: tiny wrapper so kubectl sees the shared config
 install -d /usr/local/bin

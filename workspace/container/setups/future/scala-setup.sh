@@ -114,12 +114,12 @@ if [[ -x "$COURSIER_BIN_DIR/amm" ]]; then
 fi
 
 # --- login-shell env (PATH) ---
-cat >/etc/profile.d/99-scala.sh <<'EOF'
+cat >/etc/profile.d/99-scala--profile.sh <<'EOF'
 # Scala defaults under /opt
 export SCALA_HOME=/opt/scala-stable
 export PATH="$SCALA_HOME/bin:/opt/scala/tools/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-scala.sh
+chmod 0644 /etc/profile.d/99-scala--profile.sh
 
 # --- fish / nushell convenience (optional but nice) ---
 install -d /etc/fish/conf.d

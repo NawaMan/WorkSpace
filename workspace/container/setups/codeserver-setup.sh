@@ -15,11 +15,12 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 
-# Load python env exported by the base setup
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+PROFILE_FILE="/etc/profile.d/55-ws-codeserver--profile.sh"
+STARTER_FILE=/usr/local/bin/codeserver
 
-# Profile snippet this script will write to (used later)
-PROFILE_FILE="/etc/profile.d/55-ws-codeserver.sh"
+
+# Load python env exported by the base setup
+source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
 # Extensions
 CODESERVER_EXTENSION_DIR=/usr/local/share/code-server/extensions
@@ -173,7 +174,6 @@ code-server --extensions-dir "$CODESERVER_EXTENSION_DIR" --list-extensions || tr
 
 echo "[4/9] Create launcher: /usr/local/bin/codeserver"
 export CODESERVER_EXTENSION_DIR
-STARTER_FILE=/usr/local/bin/codeserver
 envsubst '$PASSWORD $CODESERVER_EXTENSION_DIR' > ${STARTER_FILE} <<'LAUNCH'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -182,7 +182,7 @@ trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 PORT=${1:-10000}
 
 # Ensure PATH and /opt/python are active in non-login shells
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
 # ==== Runtime tunables ====
 # Make venv kernels visible to any Jupyter process

@@ -51,11 +51,11 @@ rm -rf /var/lib/apt/lists/*
 install -d -m 0777 /opt/gcloud/config
 
 # login-shell env
-cat >/etc/profile.d/99-gcloud.sh <<'EOF'
+cat >/etc/profile.d/99-gcloud--profile.sh <<'EOF'
 # Google Cloud SDK config location
 export CLOUDSDK_CONFIG=/opt/gcloud/config
 EOF
-chmod 0644 /etc/profile.d/99-gcloud.sh
+chmod 0644 /etc/profile.d/99-gcloud--profile.sh
 
 # non-login wrapper (so CLOUDSDK_CONFIG is respected in Docker RUN)
 install -d /usr/local/bin

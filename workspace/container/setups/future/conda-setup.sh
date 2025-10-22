@@ -17,7 +17,7 @@ CONDA_PKGS_DIR="/opt/conda-pkgs" # shared conda package cache
 PIP_CACHE_DIR="/opt/pip-cache"   # shared pip cache
 ENV_PATH="${CONDA_ENVS_DIR}/${ENV_NAME}"
 STABLE_PY_LINK="/opt/python"     # stable, version-agnostic symlink
-PROFILE_FILE="/etc/profile.d/99-custom.sh"
+PROFILE_FILE="/etc/profile.d/99-custom--profile.sh"   # THIS HAS TO CHANGE
 
 # Make sure conda & caches see these directories even during this script
 export CONDA_PKGS_DIRS="$CONDA_PKGS_DIR"
@@ -109,8 +109,8 @@ if [ -d "${CONDA_PREFIX}/bin" ]; then
 fi
 
 # Expose 'conda' in interactive shells
-if [ -f "${CONDA_PREFIX}/etc/profile.d/conda.sh" ]; then
-  . "${CONDA_PREFIX}/etc/profile.d/conda.sh"
+if [ -f "${CONDA_PREFIX}/etc/profile.d/conda--profile.sh"" ]; then
+  . "${CONDA_PREFIX}/etc/profile.d/conda--profile.sh""
 fi
 
 # Shared caches/dirs
@@ -146,5 +146,5 @@ echo "✅ ${PROFILE_FILE} adds /opt/conda/bin to PATH and exposes conda in new s
 
 echo
 echo "Use it now in this shell:"
-echo "  export PATH=\"/opt/conda/bin:\$PATH\" && . /opt/conda/etc/profile.d/conda.sh"
+echo "  export PATH=\"/opt/conda/bin:\$PATH\" && . /opt/conda/etc/profile.d/conda--profile.sh"
 echo

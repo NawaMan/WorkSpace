@@ -93,7 +93,7 @@ mkdir -p "$MIX_HOME" "$HEX_HOME"
 chmod -R 0777 "$MIX_HOME" "$HEX_HOME" || true
 
 # --- profile env (login shells) ---
-cat >/etc/profile.d/99-elixir.sh <<EOF
+cat >/etc/profile.d/99-elixir--profile.sh <<EOF
 # Elixir under /opt
 export ELIXIR_HOME=$LINK_DIR
 export PATH="\$ELIXIR_HOME/bin:\$PATH"
@@ -101,7 +101,7 @@ export PATH="\$ELIXIR_HOME/bin:\$PATH"
 export MIX_HOME=${MIX_HOME}
 export HEX_HOME=${HEX_HOME}
 EOF
-chmod 0644 /etc/profile.d/99-elixir.sh
+chmod 0644 /etc/profile.d/99-elixir--profile.sh
 
 # --- non-login wrappers (so it works in Docker RUN etc.) ---
 install -d "$BIN_DIR"

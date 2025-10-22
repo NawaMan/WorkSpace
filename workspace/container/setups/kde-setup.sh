@@ -12,11 +12,15 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+
+PROFILE_FILE="/etc/profile.d/55-ws-kde--profile.sh"
+STARTER_FILE="/usr/local/bin/start-kde"
+
 # ---- configurable args ----
 KDE_PACKAGES="${KDE_PACKAGES:-plasma-desktop konsole dolphin kio-extras ffmpegthumbs kde-cli-tools}"
 VNC_STACK_PACKAGES="${VNC_STACK_PACKAGES:-tigervnc-standalone-server novnc websockify dbus-x11}"
 EXTRA_PACKAGES="${EXTRA_PACKAGES:-x11-xserver-utils curl locales software-properties-common}"
-PROFILE_FILE="${PROFILE_FILE:-/etc/profile.d/55-ws-kde.sh}"
+
 
 DEFAULT_DISPLAY="${DEFAULT_DISPLAY:-:1}"
 DEFAULT_GEOMETRY="${DEFAULT_GEOMETRY:-1280x800}"
@@ -75,7 +79,7 @@ EOF
 chmod 0644 "${PROFILE_FILE}"
 
 # ---- start-kde (foreground only) ----
-cat > /usr/local/bin/start-kde <<'EOF'
+cat > ${STARTER_FILE} <<'EOF'
 #!/usr/bin/env bash
 # start-kde — foreground-only; Ctrl+C to stop
 set -Eeuo pipefail
@@ -184,7 +188,7 @@ echo "🌐 noVNC: http://localhost:${NOVNC_PORT}/vnc.html?autoconnect=1&host=loc
 trap 'echo; echo "🛑 stopping…"; "$VNCBIN" -kill "$DISPLAY" || true; exit 0' INT TERM
 exec websockify --web=/usr/share/novnc "0.0.0.0:${NOVNC_PORT}" "localhost:${VNC_PORT}"
 EOF
-chmod 0755 /usr/local/bin/start-kde
+chmod 0755 "${STARTER_FILE}"
 
 # ---- KWallet behavior (disable | basic | keep) ----
 : "${KEYRING_MODE:=basic}"

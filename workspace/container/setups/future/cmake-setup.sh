@@ -133,12 +133,12 @@ else
 fi
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-cmake.sh <<'EOF'
+cat >/etc/profile.d/99-cmake--profile.sh <<'EOF'
 # CMake under /opt
 export CMAKE_HOME=/opt/cmake-stable
 export PATH="$CMAKE_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-cmake.sh
+chmod 0644 /etc/profile.d/99-cmake--profile.sh
 
 # ---- non-login wrapper ----
 cat >"${BIN_DIR}/cmakewrap" <<'EOF'
