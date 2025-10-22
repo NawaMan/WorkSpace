@@ -8,8 +8,8 @@ public class Person {
     private final int    age;
     
     public Person(String name, int age) {
-    	this.name = name;
-    	this.age  = age;
+        this.name = name;
+        this.age  = age;
     }
     
     public static void main(String[] args) {
