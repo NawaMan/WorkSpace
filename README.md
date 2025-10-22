@@ -209,7 +209,8 @@ Guideline to profile ordering `/etc/profile.d/##-XXXXXX.sh`.
 - &lt;thing&gt;-setup-info .. might be created.
 - `WS_XXXXX` variables may created
 - Setup does things on as root. For user space.
-- Use `/etc/profile.d/...` to do things on the user -- one per bash session.  
+- Use `/usr/share/startup.d/*-ws-*.sh` to do things on the user only once at the start of the container.
+- Use `/etc/profile.d/*-ws-*.sh` to do things on the user -- one per bash session.  
 - Create a starter and put in `/ust/local/share/bin/` for the per run action.
 
 

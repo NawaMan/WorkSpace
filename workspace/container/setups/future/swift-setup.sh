@@ -100,12 +100,12 @@ mv "$SRC_DIR"/* "$TARGET_DIR"
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-swift.sh <<'EOF'
+cat >/etc/profile.d/99-swift--profile.sh <<'EOF'
 # Swift under /opt
 export SWIFT_HOME=/opt/swift-stable
 export PATH="$SWIFT_HOME/usr/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-swift.sh
+chmod 0644 /etc/profile.d/99-swift--profile.sh
 
 # ---- non-login wrapper ----
 install -d "$BIN_DIR"

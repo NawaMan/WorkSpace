@@ -82,11 +82,11 @@ for t in ruby irb gem bundle bundler rake rdoc erb; do
 done
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-ruby.sh <<'EOF'
+cat >/etc/profile.d/99-ruby--profile.sh <<'EOF'
 export RUBY_HOME=/opt/ruby-stable
 export PATH="$RUBY_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-ruby.sh
+chmod 0644 /etc/profile.d/99-ruby--profile.sh
 
 # ---- summary ----
 echo "✅ Ruby '${RUBY_VERSION_INPUT}' installed at ${TARGET_DIR} (linked at ${LINK_DIR})."

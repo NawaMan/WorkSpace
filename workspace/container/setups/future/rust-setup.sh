@@ -124,7 +124,7 @@ echo "$ACTIVE_TC" > "$TOOLCHAIN_FILE"
 chmod 0666 "$TOOLCHAIN_FILE" || true
 
 # ---- login-shell env (POSIX) ----
-cat >/etc/profile.d/99-rust.sh <<'EOF'
+cat >/etc/profile.d/99-rust--profile.sh <<'EOF'
 # ---- Rust/Cargo defaults (safe to source multiple times) ----
 export RUSTUP_HOME=/opt/rust-stable/rustup
 export CARGO_HOME=/opt/rust-stable/cargo
@@ -135,7 +135,7 @@ if [ -z "${RUSTUP_TOOLCHAIN:-}" ] && [ -r /opt/rust-stable/toolchain.txt ]; then
 fi
 # ---- end defaults ----
 EOF
-chmod 0644 /etc/profile.d/99-rust.sh
+chmod 0644 /etc/profile.d/99-rust--profile.sh
 
 # ---- fish shell autoload ----
 install -d /etc/fish/conf.d

@@ -133,12 +133,12 @@ fi
 ln -sfn "${TARGET_DIR}" "${LINK_DIR}"
 
 # --- env for login shells (POSIX) ---
-cat >/etc/profile.d/99-haskell.sh <<'EOF'
+cat >/etc/profile.d/99-haskell--profile.sh <<'EOF'
 # Haskell toolchain (ghcup-managed) under /opt
 export HASKELL_HOME=/opt/haskell-stable
 export PATH="$HASKELL_HOME/.ghcup/bin:$HASKELL_HOME/.cabal/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-haskell.sh
+chmod 0644 /etc/profile.d/99-haskell--profile.sh
 
 # --- fish & nushell autoloads ---
 install -d /etc/fish/conf.d

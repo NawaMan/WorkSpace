@@ -24,9 +24,11 @@ RUN set -euo pipefail         \
       direnv                  \
       gettext-base            \
       git                     \
+      gnome-keyring           \
       gnupg                   \
       jq                      \
       less                    \
+      libpam-gnome-keyring    \
       locales                 \
       nano                    \
       ranger                  \
@@ -81,18 +83,10 @@ RUN mkdir -p /home/coder/workspace
 
 # Start up - to be run one time at the start of the docker.
 RUN mkdir -p /usr/share/startup.d
-RUN cat >/usr/share/startup.d/50-ws-workspace-base.sh <<'EOF'
-rm -Rf ~/.local/share/keyrings/default.keyring
-rm -Rf ~/.local/share/keyrings/login.keyring
-
-mkdir -p ~/.local/share/keyrings
-echo -n '{"display-name":"Default keyring","lock-on-idle":false,"lock-after":0}' > ~/.local/share/keyrings/default.keyring
-EOF
-RUN chmod 755 /usr/share/startup.d/50-ws-workspace-base.sh
 
 
 # --- Shared shell config: create the file ---
-RUN cat >/etc/profile.d/50-ws-workspace-base.sh <<'EOF'
+RUN cat >/etc/profile.d/50-ws-workspace-base--profile.sh <<'EOF'
 # ---- container defaults (safe to source multiple times) ----
 alias cp='cp -p'
 alias ls='ls --color=auto'

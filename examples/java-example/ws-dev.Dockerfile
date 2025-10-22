@@ -60,7 +60,7 @@ RUN "$SETUPS_DIR"/mvn-setup.sh
 RUN "$SETUPS_DIR"/gradle-setup.sh
 RUN "$SETUPS_DIR"/jenv-setup.sh
 RUN "$SETUPS_DIR"/eclipse-setup.sh
-RUN "$SETUPS_DIR"/jetbrains-setup.sh idea
+RUN "$SETUPS_DIR"/idea-setup.sh
 RUN "$SETUPS_DIR"/java-code-extension-setup.sh
 RUN "$SETUPS_DIR"/lombok-eclipse-setup.sh
 

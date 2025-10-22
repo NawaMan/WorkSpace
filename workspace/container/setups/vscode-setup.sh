@@ -12,8 +12,9 @@ fi
 
 # ---------------- Load environment from profile.d ----------------
 # These set: PY_STABLE, PY_STABLE_VERSION, PY_SERIES, VENV_SERIES_DIR, PATH tweaks, etc.
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
+PROFILE_FILE="/etc/profile.d/70-ws-vscode-jupyter--profile.sh"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -58,7 +59,6 @@ python -m ipykernel install   --sys-prefix --name=python3 --display-name="Python
 python -m bash_kernel.install --sys-prefix
 
 # Make Jupyter path globally visible for VS Code
-PROFILE_FILE="/etc/profile.d/70-ws-vscode-jupyter.sh"
 cat > "$PROFILE_FILE" <<'EOF'
 # Added by vscode-setup.sh
 export JUPYTER_PATH="${VENV_ROOT}/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter:\${JUPYTER_PATH:-}"

@@ -126,13 +126,13 @@ if [ -n "${NPM_VERSION:-}" ] && [ "${NPM_VERSION}" != "bundled" ]; then
 fi
 
 # --- Optional environment for login shells ---
-cat >/etc/profile.d/99-node.sh <<'EOF'
+cat >/etc/profile.d/99-node--profile.sh <<'EOF'
 # ---- container defaults (safe to source multiple times) ----
 export NODE_HOME=/opt/nodejs-stable
 export PATH="$NODE_HOME/bin:$PATH"
 # ---- end defaults ----
 EOF
-chmod 0644 /etc/profile.d/99-node.sh
+chmod 0644 /etc/profile.d/99-node--profile.sh
 
 echo "✅ Node.js ${NODE_VERSION} installed at ${TARGET_DIR} (linked at ${LINK_DIR})."
 echo -n "   node: "; /usr/local/bin/node -v

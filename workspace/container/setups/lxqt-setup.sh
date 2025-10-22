@@ -24,10 +24,10 @@ SETUPS_DIR=${SETUPS_DIR:-/opt/workspace/setups}
 "${SETUPS_DIR}/python-setup.sh" "${PY_VERSION}"
 
 # Load python env exported by the base setup
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
 # Profile snippet this script will write to
-PROFILE_FILE="/etc/profile.d/55-ws-desktop-lxqt.sh"
+PROFILE_FILE="/etc/profile.d/55-ws-desktop-lxqt--profile.sh"
 
 # ---- install base packages ----
 export DEBIAN_FRONTEND=noninteractive

@@ -43,9 +43,9 @@ fi
 
 
 
-# ---------------- Source helpful profiles (if present) ----------------
-[ -r /etc/profile.d/53-ws-python.sh ] && source /etc/profile.d/53-ws-python.sh
-[ -r /etc/profile.d/60-ws-jdk.sh    ] && source /etc/profile.d/60-ws-jdk.sh
+# ---------------- Source helpful profiles ----------------
+source /etc/profile.d/53-ws-python--profile.sh
+source /etc/profile.d/60-ws-jdk--profile.sh
 
 # ---------------- Defaults / Tunables ----------------
 IJAVA_VERSION="${IJAVA_VERSION:-1.3.0}"                         # default IJava tag

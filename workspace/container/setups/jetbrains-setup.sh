@@ -77,8 +77,8 @@ fi
 [[ "${EUID:-$(id -u)}" -eq 0 ]] || { echo "Must be root"; exit 1; }
 
 # --- Load workspace JDK/Python env if available ---
-source /etc/profile.d/60-ws-jdk.sh 2>/dev/null || true
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+source /etc/profile.d/60-ws-jdk--profile.sh    2>/dev/null || true
+source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
 ARCH_RAW="$(uname -m)"
 case "$ARCH_RAW" in
@@ -149,9 +149,12 @@ case "$IDE" in
     ;;
 esac
 
+
+PROFILE_FILE="/etc/profile.d/70-ws-${IDE}--profile.sh"
+STARTER_FILE="${INSTALL_DIR}/${IDE}-starter"
+
+
 LINK_DIR="/opt/${IDE}"
-STARTER_FILE="${INSTALL_DIR}/${IDE}-starter.sh"
-PROFILE_FILE="/etc/profile.d/70-ws-${IDE}.sh"
 SHIM_BIN="/usr/local/bin/${IDE}"
 DESKTOP_FILE="/usr/share/applications/${IDE}-${VER}.desktop"
 
@@ -230,17 +233,17 @@ rm -rf "${INSTALL_DIR}.bak" 2>/dev/null || true
 
 
 # --- Create starter shim ---
-cat > "$STARTER_FILE" <<EOF
+cat > "${STARTER_FILE}" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
 BASE_DIR="\$(cd "\$(dirname "\$0")" && pwd)"
-source /etc/profile.d/60-ws-jdk.sh 2>/dev/null || true
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+source /etc/profile.d/60-ws-jdk--profile.sh"    2>/dev/null || true
+source /etc/profile.d/53-ws-python--profile.sh" 2>/dev/null || true
 exec "\${BASE_DIR}/bin/${IDE}" "\$@"
 EOF
-chmod 0755 "$STARTER_FILE"
+chmod 0755 "${STARTER_FILE}"
 
-cat > "$SHIM_BIN" <<EOF
+cat > "${SHIM_BIN}" <<EOF
 #!/usr/bin/env bash
 exec "$STARTER_FILE" "\$@"
 EOF

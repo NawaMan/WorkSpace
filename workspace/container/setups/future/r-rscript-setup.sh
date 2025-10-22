@@ -106,7 +106,7 @@ ln -sfn "$RS_BIN" "$TARGET_DIR/bin/Rscript"
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # ---- Profile (login shells): PATH + shared site library + default repo ----
-cat >/etc/profile.d/99-r.sh <<EOF
+cat >/etc/profile.d/99-r--profile.sh <<EOF
 # R under /opt
 export R_HOME=$LINK_DIR
 export PATH="\$R_HOME/bin:\$PATH"
@@ -115,7 +115,7 @@ export R_LIBS_SITE=${SITE_LIB}
 # Default CRAN repo (can be overridden in user ~/.Rprofile)
 export R_DEFAULT_CRAN_MIRROR=${CRAN_URL}
 EOF
-chmod 0644 /etc/profile.d/99-r.sh
+chmod 0644 /etc/profile.d/99-r--profile.sh
 
 # Also configure system-wide R settings:
 install -d /etc/R

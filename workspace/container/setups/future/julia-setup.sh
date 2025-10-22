@@ -107,14 +107,14 @@ mkdir -p "$DEPOT"
 chmod -R 0777 "$DEPOT" || true
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-julia.sh <<EOF
+cat >/etc/profile.d/99-julia--profile.sh <<EOF
 # Julia under /opt
 export JULIA_HOME=$LINK_DIR
 export PATH="\$JULIA_HOME/bin:\$PATH"
 # Shared depot so packages are reused across users/CI
 export JULIA_DEPOT_PATH=${DEPOT}
 EOF
-chmod 0644 /etc/profile.d/99-julia.sh
+chmod 0644 /etc/profile.d/99-julia--profile.sh
 
 # ---- non-login wrapper ----
 install -d "$BIN_DIR"

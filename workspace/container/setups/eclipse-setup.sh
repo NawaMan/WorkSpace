@@ -8,8 +8,11 @@ if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
   exit 1
 fi
 
+
+PROFILE_FILE="/etc/profile.d/70-ws-eclipse-gtk--profile.sh"
+
 # Load JDK env exported by the base setup
-source /etc/profile.d/60-ws-jdk.sh 2>/dev/null || true
+source /etc/profile.d/60-ws-jdk--profile.sh 2>/dev/null || true
 
 # ===================== Check Java =====================
 if ! command -v java >/dev/null 2>&1; then
@@ -31,7 +34,6 @@ INSTALL_DIR="/opt/eclipse-${KIND}-${REL}"
 STARTER_FILE="${INSTALL_DIR}/eclipse-starter.sh"   # canonical starter
 SHIM_BIN="/usr/local/bin/eclipse"                  # CLI shim -> STARTER_FILE
 DESKTOP_FILE="/usr/share/applications/eclipse-${KIND}-${REL}.desktop"  # system app menu
-PROFILE_FILE="/etc/profile.d/70-ws-eclipse-gtk.sh"                     # GTK env & info
 
 # Desktop shortcut options
 CREATE_USER_DESKTOP_ICONS="${CREATE_USER_DESKTOP_ICONS:-1}"  # 1=create, 0=skip

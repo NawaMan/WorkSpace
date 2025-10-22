@@ -23,10 +23,11 @@ SETUPS_DIR=${SETUPS_DIR:-/opt/workspace/setups}
 "${SETUPS_DIR}/python-setup.sh" "${PY_VERSION}"
 
 # Load python env exported by the base setup
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
 # Profile snippet this script will write to (used later)
-PROFILE_FILE="/etc/profile.d/55-ws-desktop-xfce.sh"
+PROFILE_FILE="/etc/profile.d/55-ws-desktop-xfce--profile.sh"
+STARTER_FILE="/usr/local/bin/start-xfce"
 
 
 # ---- install base packages ----
@@ -151,7 +152,7 @@ EOF
 chmod 0644 "${PROFILE_FILE}"
 
 # ---- start-xfce (foreground only) ----
-cat > /usr/local/bin/start-xfce <<'EOF'
+cat > "${STARTER_FILE}" <<'EOF'
 #!/usr/bin/env bash
 # start-xfce — foreground-only; Ctrl+C to stop
 set -Eeuo pipefail
@@ -253,7 +254,7 @@ echo "🌐 noVNC: http://localhost:${NOVNC_PORT}/vnc.html?autoconnect=1&host=loc
 trap 'echo; echo "🛑 stopping…"; "$VNCBIN" -kill "$DISPLAY" || true; exit 0' INT TERM
 exec websockify --web=/usr/share/novnc "0.0.0.0:${NOVNC_PORT}" "localhost:${VNC_PORT}"
 EOF
-chmod 0755 /usr/local/bin/start-xfce
+chmod 0755 ${STARTER_FILE}
 
 # ---- keyring behavior (disable | basic | keep) ----
 : "${KEYRING_MODE:=basic}"

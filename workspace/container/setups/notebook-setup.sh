@@ -15,7 +15,7 @@ fi
 
 
 # Load python env exported by the base setup
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
 
 # ---- Jupyter kernel registration tunables (match code-server) ----
@@ -82,7 +82,7 @@ set -euo pipefail
 PORT=${1:-10000}
 
 # Ensure PATH and /opt/python are active in non-login shells
-source /etc/profile.d/53-ws-python.sh 2>/dev/null || true
+source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
 # Make sure non-Python kernels in the venv are visible if present
 export JUPYTER_PATH="${WS_VENV_DIR}/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter${JUPYTER_PATH:+:$JUPYTER_PATH}"
@@ -113,8 +113,7 @@ echo "✅ Jupyter kernel '${JUPYTER_KERNEL_NAME}' registered at ${KDIR} with dis
 echo 
 echo "To start using notebook, start a new shell session, OR"
 echo "Load the Notebook helpers into THIS shell (no restart):"
-echo "     source /etc/profile.d/53-ws-python.sh         \\"
-echo "  && source /etc/profile.d/55-ws-notebook-info.sh"
+echo "     source /etc/profile.d/53-ws-python--profile.sh"
 echo
 echo "Then you can run:"
 echo "  notebook-setup-info"

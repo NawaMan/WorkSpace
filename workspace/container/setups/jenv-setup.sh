@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
-PROFILE_FILE="/etc/profile.d/57-ws-jenv.sh"
+PROFILE_FILE="/etc/profile.d/57-ws-jenv--profile.sh"
 
 # ----- idempotent/atomic write of PROFILE_FILE -----
 mkdir -p "$(dirname "$PROFILE_FILE")"

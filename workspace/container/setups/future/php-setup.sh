@@ -129,12 +129,12 @@ fi
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # ---- login-shell env (PATH only) ----
-cat >/etc/profile.d/99-php.sh <<'EOF'
+cat >/etc/profile.d/99-php--profile.sh <<'EOF'
 # PHP under /opt
 export PHP_HOME=/opt/php-stable
 export PATH="$PHP_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-php.sh
+chmod 0644 /etc/profile.d/99-php--profile.sh
 
 # ---- non-login wrapper (so php works in Docker RUN etc.) ----
 install -d "$BIN_DIR"

@@ -85,12 +85,12 @@ install -Dm755 "$TMP/$BUN_BIN_PATH" "$TARGET_DIR/bin/bun"
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-bun.sh <<'EOF'
+cat >/etc/profile.d/99-bun--profile.sh <<'EOF'
 # Bun under /opt
 export BUN_HOME=/opt/bun-stable
 export PATH="$BUN_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-bun.sh
+chmod 0644 /etc/profile.d/99-bun--profile.sh
 
 # ---- non-login wrapper + shims ----
 install -d "$BIN_DIR"

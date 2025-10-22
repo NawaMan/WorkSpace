@@ -52,11 +52,11 @@ rm -rf /var/lib/apt/lists/*
 install -d -m 0777 /opt/az/config
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-az.sh <<'EOF'
+cat >/etc/profile.d/99-az--profile.sh <<'EOF'
 # Azure CLI shared configuration
 export AZURE_CONFIG_DIR=/opt/az/config
 EOF
-chmod 0644 /etc/profile.d/99-az.sh
+chmod 0644 /etc/profile.d/99-az--profile.sh
 
 # ---- non-login wrapper ----
 install -d /usr/local/bin

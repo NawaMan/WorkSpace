@@ -99,12 +99,12 @@ install -Dm755 "$ROC_BIN_PATH" "$TARGET_DIR/bin/roc"
 ln -sfn "$TARGET_DIR" "$LINK_DIR"
 
 # ---- login-shell env ----
-cat >/etc/profile.d/99-roc.sh <<'EOF'
+cat >/etc/profile.d/99-roc--profile.sh <<'EOF'
 # Roc under /opt
 export ROC_HOME=/opt/roc-stable
 export PATH="$ROC_HOME/bin:$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-roc.sh
+chmod 0644 /etc/profile.d/99-roc--profile.sh
 
 # ---- non-login wrapper ----
 install -d "$BIN_DIR"

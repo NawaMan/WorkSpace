@@ -102,7 +102,7 @@ if [[ -n "$PACKS" ]]; then
 fi
 
 # ---- profile env (login shells) ----
-cat >/etc/profile.d/99-ocaml.sh <<EOF
+cat >/etc/profile.d/99-ocaml--profile.sh <<EOF
 # OCaml via opam (system-wide)
 export OPAMROOT=$OPAMROOT
 # Activate the chosen switch in login shells
@@ -111,7 +111,7 @@ eval "\$(opam env --switch $SWITCH_NAME --root $OPAMROOT --set-switch --shell=sh
 export OCAML_HOME=$LINK_DIR
 export PATH="\$OCAML_HOME/bin:\$PATH"
 EOF
-chmod 0644 /etc/profile.d/99-ocaml.sh
+chmod 0644 /etc/profile.d/99-ocaml--profile.sh
 
 # ---- wrapper for non-login shells ----
 install -d "$BIN_DIR"

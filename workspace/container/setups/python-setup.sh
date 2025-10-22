@@ -8,6 +8,8 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+PROFILE_FILE="/etc/profile.d/53-ws-python--profile.sh"  # profile to be run when login
+
 # ---- validate python version format ----
 # accepts X.Y or X.Y.Z (exact patch recommended)
 PY_VERSION=${1:-3.12}
@@ -26,9 +28,8 @@ WS_PYENV_ROOT="/opt/pyenv"                        # system-wide pyenv
 WS_VENV_ROOT="/opt/venvs"                         # shared venvs root
 WS_VENV_DIR="${WS_VENV_ROOT}/py${WS_PY_VERSION}"  # venv directory
 
-STABLE_PY_LINK="/opt/python"                   # stable, version-agnostic symlink
-PIP_CACHE_DIR="/opt/pip-cache"                 # shared pip cache
-PROFILE_FILE="/etc/profile.d/53-ws-python.sh"  # profile to be run when login
+STABLE_PY_LINK="/opt/python"    # stable, version-agnostic symlink
+PIP_CACHE_DIR="/opt/pip-cache"  # shared pip cache
 
 
 # System-wide location to host UV-installed pythons (mirrored out of /root, etc.)
@@ -291,6 +292,6 @@ echo "✅ ${PROFILE_FILE} ensures /opt/python/bin to auto-activates /opt/venvs/p
 echo "✅ ACTIVE_VER detected now: ${ACTIVE_VER}"
 echo
 echo "Open a NEW shell and verify:"
-echo "  source /etc/profile.d/53-ws-python.sh"
+echo "  source /etc/profile.d/53-ws-python--profile.sh"
 echo "  which python && python -V"
 echo "  echo \"PY_STABLE_VERSION=\$PY_STABLE_VERSION  PY_SERIES=\$PY_SERIES  VENV_SERIES_DIR=\$VENV_SERIES_DIR\""
