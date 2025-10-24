@@ -1,9 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-opt="$1"
-val="$2"
-if [[ -z "$val" || "$val" == --* ]]; then
-    echo "Error: $opt requires a value" >&2
-    exit 1
-fi
