@@ -81,15 +81,20 @@ function args_to_string() {
 }
 
 function default_file_if_exists() {
-  current="${1:-}"; candidate="${2:-}"; not_used="${3:-}"
+  local current="${1:-}"
+  local candidate="${2:-}"
+  local not_used="${3:-}"
 
   # If current is empty (or equals the special "not used" token), and candidate exists → pick candidate
-  if [[ -z "$current" || ( -n "$not_used" && "$current" == "$not_used" ) ]] && [[ -n "$candidate" && -f "$candidate" ]]; then
-    echo "$candidate"; exit 0
+  if [[ -z "$current" || ( -n "$not_used" && "$current" == "$not_used" ) ]] && \
+     [[ -n "$candidate" && -f "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
   fi
 
   # Otherwise keep current (even if nonexistent — caller decides what to do)
-  echo "${current}"
+  printf '%s\n' "${current}"
+  return 0
 }
 
 function is_port_free() {
@@ -104,16 +109,25 @@ function is_port_free() {
 }
 
 function parse_args_file() {
-  f="${1:-}"
-  [[ -z "$f" || "$f" == "none" ]] && exit 0
-  [[ ! -f "$f" ]] && { echo "Error: '$f' is not a file" >&2; exit 1; }
+  local f="${1:-}"
+
+  # No file specified → no-op
+  if [[ -z "$f" || "$f" == "none" ]]; then
+    return 0
+  fi
+
+  # File must exist
+  if [[ ! -f "$f" ]]; then
+    echo "Error: '$f' is not a file" >&2
+    return 1
+  fi
 
   # Normalize CRLF and skip blanks/comments; echo each line as-is
-  # so the caller can do: eval 'ARRAY+=('<line>')'
+  # so the caller can do: while read -r line; do ...; done < <(parse_args_file "$f")
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" =~ ^[[:space:]]*$ ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    echo "$line"
+    printf '%s\n' "$line"
   done < <(sed $'s/\r$//' "$f")
 }
 
