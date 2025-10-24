@@ -298,11 +298,11 @@ ParseArgs() {
       shift
     else
       case $1 in
-        --dryrun)   DRYRUN=true  ; shift ;;
-        --verbose)  VERBOSE=true ; shift ;;
-        --pull)     DO_PULL=true ; shift ;;
-        --daemon)   DAEMON=true  ; shift ;;
-        --help)     show_help    ; exit 0 ;;
+        --dryrun)   DRYRUN=true  ; shift  ;;
+        --verbose)  VERBOSE=true ; shift  ;;
+        --pull)     DO_PULL=true ; shift  ;;
+        --daemon)   DAEMON=true  ; shift  ;;
+        --help)     ShowHelp     ; exit 0 ;;
 
         --dind)     DIND=true    ; shift ;;
 
@@ -405,7 +405,6 @@ $(printf '🔌 Using host port: \033[1;32m%s\033[0m -> container: \033[1;34m1000
 
 EOF
 }
-
 
 PortDetermination() {
   # Track whether port was auto-generated
@@ -652,5 +651,64 @@ ShowDebugBanner() {
   fi
 }
 
+ShowHelp() {
+  local sname="${SCRIPT_NAME:-$(basename "$0")}"
 
-Main
+  cat <<EOF
+$sname — launch a Docker-based workspace
+
+USAGE:
+  $sname [options] [--] [command ...]
+  $sname --help
+
+GENERAL:
+  --help                 Show this help and exit
+  --verbose              Print extra debugging information
+  --dryrun               Print the docker commands but do not execute them
+  --pull                 Force pulling the image (when using prebuilt images)
+  --daemon               Run the workspace container in the background
+  --dind                 Enable Docker-in-Docker sidecar and wire DOCKER_HOST
+  --config <file>        Load defaults from a config shell file
+  --workspace <path>     Host workspace path to mount at /home/coder/workspace
+
+IMAGE SELECTION (choose one path):
+  --image <name>         Use an existing image (e.g., repo/name:tag)
+  --dockerfile <path>    Build locally from Dockerfile (file or dir)
+  --variant <name>       Prebuilt variant: container|notebook|codeserver|desktop-{xfce,kde,lxqt}
+  --version <tag>        Prebuilt version tag (default: latest)
+
+BUILD OPTIONS (when building):
+  --build-arg <KEY=VAL>  Add a build-arg (repeatable)
+
+RUNTIME OPTIONS:
+  --name <container>     Container name (default: project name)
+  --port <n|RANDOM|NEXT> Map host port -> container 10000
+  --env-file <file>      Pass an --env-file to docker run
+
+COMMANDS:
+  Everything after '--' is executed inside the container instead of starting
+  the default workspace service. Example: '$sname -- bash -lc "echo hi"'
+
+NOTES:
+  - RANDOM/NEXT for --port will auto-pick a free host port >= 10000.
+  - With --dind, a sidecar 'docker:dind' runs on a private network and the
+    main container gets DOCKER_HOST=tcp://<sidecar>:2375.
+  - In daemon mode, do not pass commands after '--'.
+
+EXAMPLES:
+  # Prebuilt, foreground
+  $sname --variant container --version latest --workspace /path/to/ws
+
+  # Local build from Dockerfile in workspace
+  $sname --dockerfile ./Dockerfile --workspace . --build-arg FOO=bar
+
+  # Daemon mode with random port
+  $sname --daemon --variant codeserver --port RANDOM
+
+  # Run a one-off command inside the image
+  $sname --image my/image:tag -- -- env | sort
+EOF
+}
+
+
+Main "$@"
