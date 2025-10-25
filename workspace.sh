@@ -42,19 +42,15 @@ Main() {
 
   SET_CONFIG_FILE=false
 
-  IMAGE_NAME="${IMAGE_NAME:-}"
-  DOCKER_FILE="${DOCKER_FILE:-}"
-  WORKSPACE_PATH="${WORKSPACE_PATH:-}"
-
   IMAGE_MODE="${IMAGE_MODE:-}"
   LOCAL_BUILD=false
-
 
   PopulateArgs
   ParseArgs "${ARGS[@]}"
   ValidateVariant
 
   EnsureDockerImage
+
   ApplyEnvFile
   PortDetermination
   ShowDebugBanner
@@ -169,15 +165,31 @@ function strip_network_flags() {
 #== PROCEDURES ==================================================================
 
 ApplyEnvFile() {
-  # If VAR has no value and default file exists, use the default.
-  if [[ -z "${CONTAINER_ENV_FILE}" ]] && [[ -f "${WORKSPACE_PATH:-.}/.env" ]]; then
-    CONTAINER_ENV_FILE="${WORKSPACE_PATH:-.}/.env"
-  fi
-  if [[ -n "${CONTAINER_ENV_FILE}" ]] && [[ "$CONTAINER_ENV_FILE" != "$FILE_NOT_USED" ]]; then
-    if [[ ! -f "${CONTAINER_ENV_FILE}" ]]; then
-      echo "Container ENV file most be a file: ${CONTAINER_ENV_FILE}" >&2
+  # If not set, default to <workspace>/.env when it exists
+  if [[ -z "${CONTAINER_ENV_FILE:-}" ]]; then
+    local candidate="${WORKSPACE_PATH:-.}/.env"
+    if [[ -f "$candidate" ]]; then
+      CONTAINER_ENV_FILE="$candidate"
     fi
-    COMMON_ARGS+=(--env-file "$CONTAINER_ENV_FILE")
+  fi
+
+  # Respect the "not used" token
+  if [[ -n "${CONTAINER_ENV_FILE:-}" && "${CONTAINER_ENV_FILE}" == "${FILE_NOT_USED:-none}" ]]; then
+    [[ "${VERBOSE:-false}" == "true" ]] && echo "Skipping --env-file (explicitly disabled)."
+    return 0
+  fi
+
+  # If specified, it must exist; otherwise error out (don’t poison docker run)
+  if [[ -n "${CONTAINER_ENV_FILE:-}" ]]; then
+    if [[ ! -f "${CONTAINER_ENV_FILE}" ]]; then
+      echo "Error: env-file must be an existing file: ${CONTAINER_ENV_FILE}" >&2
+      exit 1
+    fi
+
+    COMMON_ARGS+=( --env-file "$CONTAINER_ENV_FILE" )
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+      echo "Using env-file: ${CONTAINER_ENV_FILE}"
+    fi
   fi
 }
 
@@ -256,21 +268,21 @@ EnsureDockerImage() {
       IMAGE_NAME="${PREBUILD_REPO}:${VARIANT}-${VERSION}"
 
       if $DO_PULL; then
-        $VERBOSE && echo "Pulling image (forced): $IMAGE_NAME"
+        $VERBOSE && echo "Pulling image (forced): $IMAGE_NAME" || true
         if ! output=$(docker pull "$IMAGE_NAME" 2>&1); then
           echo "Error: failed to pull '$IMAGE_NAME':"
           echo "$output" >&2
           exit 1
         fi
-        $VERBOSE && { echo "$output"; echo; }
+        $VERBOSE && { echo "$output"; echo; } || true
       elif ! $DRYRUN && ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        $VERBOSE && echo "Image not found locally. Pulling: $IMAGE_NAME"
+        $VERBOSE && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
         if ! output=$(docker pull "$IMAGE_NAME" 2>&1); then
           echo "Error: failed to pull '$IMAGE_NAME':"
           echo "$output" >&2
           exit 1
         fi
-        $VERBOSE && { echo "$output"; echo; }
+        $VERBOSE && { echo "$output"; echo; } || true
       fi
     fi
   fi  # else => Custom image
@@ -415,8 +427,11 @@ PortDetermination() {
   UPPER_PORT="${HOST_PORT^^}"
 
   if [[ "$UPPER_PORT" == "RANDOM" ]]; then
+    # Ensure full-range random ports by using >15 bits (RANDOM only gives 0–32767)
     for _ in $(seq 1 200); do
-      cand=$(( (RANDOM % (65535 - 10000)) + 10001 ))
+      range=$((65535 - 10000))
+      r30=$(( (RANDOM << 15) | RANDOM ))  # ~30 bits of randomness
+      cand=$(( (r30 % range) + 10001 ))
       if is_port_free "$cand"; then
         HOST_PORT="$cand"
         PORT_GENERATED=true
@@ -427,6 +442,7 @@ PortDetermination() {
       echo "Error: unable to find a free RANDOM port above 10000." >&2
       exit 1
     fi
+
   elif [[ "$UPPER_PORT" == "NEXT" ]]; then
     cand=10000
     while [[ "$cand" -le 65535 ]]; do
@@ -441,19 +457,21 @@ PortDetermination() {
       echo "Error: unable to find the NEXT free port above 10000." >&2
       exit 1
     fi
+
   else
-    # Ensure numeric if not RANDOM/NEXT
-    if ! [[ "$HOST_PORT" =~ ^[0-9]+$ ]]; then
-      echo "Error: WORKSPACE_PORT/--port must be a number, 'RANDOM', or 'NEXT' (got '$HOST_PORT')." >&2
+    # Enforce allowed range to avoid docker -p failures
+    if (( HOST_PORT < 10000 || HOST_PORT > 65535 )); then
+      echo "Error: --port must be between 10000 and 65535 (got '$HOST_PORT')." >&2
       exit 1
     fi
   fi
 
   # Print banner only if (auto-generated OR VERBOSE) AND no CMDS
   if [[ ( "$PORT_GENERATED" == "true" || "$VERBOSE" == "true" ) && ${#CMDS[@]} -eq 0 ]]; then
-    PortBanner "$HOST_PORT"
+    PortBanner "$HOST_PORT"  # ✅ correct port shown
   fi
 }
+
 
 PrepareCommonArgs() {
   COMMON_ARGS+=(
@@ -520,7 +538,7 @@ RunAsDaemon() {
   # Detached: no TTY args
   echo "📦 Running workspace in daemon mode."
   echo "👉 Stop with '${SCRIPT_NAME} -- exit'. The container will be removed (--rm) when stop."
-  echo "👉 Visit 'http://localhost:${WORKSPACE_PORT}'"
+  echo "👉 Visit 'http://localhost:${HOST_PORT}'"
   echo "👉 To open an interactive shell instead: ${SCRIPT_NAME} -- bash"
   echo -n "👉 Container ID: "
   if [[ "${DRYRUN}" == "true" ]]; then
@@ -566,7 +584,7 @@ SetupDind() {
 
     # Create network if missing (quietly)
     if ! docker network inspect "$DIND_NET" >/dev/null 2>&1; then
-      $VERBOSE && echo "Creating network: $DIND_NET"
+      $VERBOSE && echo "Creating network: $DIND_NET" || true
       if [[ "${DRYRUN:-false}" != "true" ]]; then
         command docker network create "$DIND_NET" >/dev/null
       else
@@ -577,7 +595,7 @@ SetupDind() {
 
     # Start DinD sidecar on our private network (silence ID)
     if ! docker ps --filter "name=^/${DIND_NAME}$" --format '{{.Names}}' | grep -qx "$DIND_NAME"; then
-      $VERBOSE && echo "Starting DinD sidecar: $DIND_NAME"
+      $VERBOSE && echo "Starting DinD sidecar: $DIND_NAME" || true
       DockerRun -d --rm --privileged \
         --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
         --name "$DIND_NAME" \
@@ -585,12 +603,12 @@ SetupDind() {
         -e DOCKER_TLS_CERTDIR= \
         docker:dind >/dev/null
     else
-      $VERBOSE && echo "DinD sidecar already running: $DIND_NAME"
+      $VERBOSE && echo "DinD sidecar already running: $DIND_NAME" || true
     fi
 
     # Wait until the sidecar daemon is ready (fast loop, ~10s max)
     if [[ "${DRYRUN:-false}" != "true" ]]; then
-      $VERBOSE && echo "Waiting for DinD to become ready at tcp://${DIND_NAME}:2375 ..."
+      $VERBOSE && echo "Waiting for DinD to become ready at tcp://${DIND_NAME}:2375 ..." || true
       ready=false
       for i in $(seq 1 40); do
         if docker run --rm --network "$DIND_NET" docker:cli \
@@ -618,7 +636,7 @@ SetupDind() {
       fi
       COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
     else
-      $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container."
+      $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container." || true
     fi
   fi
 }
