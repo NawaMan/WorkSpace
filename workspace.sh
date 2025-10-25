@@ -153,16 +153,17 @@ function project_name() {
 
 
 function require_arg() {
-  opt="$1"
-  val="$2"
-  if [[ -z "$val" || "$val" == --* ]]; then
-      echo "Error: $opt requires a value" >&2
-      exit 1
+  local opt="$1"
+  local val="${2-}"     # use ${2-} to avoid set -u error when $2 is missing
+  if [[ -z "${val}" || "$val" == --* ]]; then
+    echo "Error: $opt requires a value" >&2
+    exit 1
   fi
 }
 
-function strip_network_flags() {
-  skip_next=false
+strip_network_flags() {
+  local skip_next=false
+  local arg
   for arg in "$@"; do
     if $skip_next; then
       skip_next=false
@@ -422,7 +423,7 @@ PopulateArgs() {
 }
 
 PortBanner() {
-  port="${1:?host port required}"
+  local port="${1:?host port required}"
   cat <<EOF
 
 ============================================================
@@ -520,6 +521,7 @@ PrepareTtyArgs() {
 }
 
 PrintCmd() {
+  local a q
   printf ''
   for a in "$@"; do
     if [[ "$a" =~ ^[A-Za-z0-9_./:-]+$ ]]; then
