@@ -523,14 +523,17 @@ RunAsDaemon() {
   echo "👉 Visit 'http://localhost:${WORKSPACE_PORT}'"
   echo "👉 To open an interactive shell instead: ${SCRIPT_NAME} -- bash"
   echo -n "👉 Container ID: "
-  if [[ ${DRYRUN} ]]; then echo "<--dryrun-->" ; echo ""; fi
+  if [[ "${DRYRUN}" == "true" ]]; then
+    echo "<--dryrun-->"
+    echo ""
+  else
+    DockerRun -d "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
-  DockerRun -d "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
-
-  # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
-  if [[ "$DIND" == "true" ]]; then
-    echo "🔧 DinD sidecar running: $DIND_NAME (network: $DIND_NET)"
-    echo "   Stop with:  docker stop $DIND_NAME && docker network rm $DIND_NET"
+    # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
+    if [[ "$DIND" == "true" ]]; then
+      echo "🔧 DinD sidecar running: $DIND_NAME (network: $DIND_NET)"
+      echo "   Stop with:  docker stop $DIND_NAME && docker network rm $DIND_NET"
+    fi
   fi
 }
 
