@@ -128,12 +128,29 @@ function parse_args_file() {
 }
 
 function project_name() {
-  WS_PATH=$(readlink -f "${1:-$PWD}")
-  PROJECT="$(basename "${WS_PATH}")"
-  PROJECT="$(printf '%s' "$PROJECT" | tr '[:upper:] ' '[:lower:]-' | sed -E 's/[^a-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
-  [[ -z "$PROJECT" ]] && PROJECT="workspace"
-  echo "${PROJECT}"
+  local input="${1:-$PWD}"
+  local ws proj
+
+  # Resolve to an absolute, physical path portably
+  if command -v realpath >/dev/null 2>&1; then
+    # Plain realpath works on GNU and BSD; no -m/-e flags for portability
+    ws="$(realpath "$input" 2>/dev/null || true)"
+  fi
+  if [[ -z "$ws" ]]; then
+    # Fallback: physical path via pwd -P in a subshell; if cd fails, use input as-is
+    ws="$(
+      cd -- "$input" 2>/dev/null && pwd -P
+    )"
+    [[ -z "$ws" ]] && ws="$input"
+  fi
+
+  proj="$(basename -- "$ws")"
+  proj="$(printf '%s' "$proj" | tr '[:upper:] ' '[:lower:]-' \
+         | sed -E 's/[^a-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
+  [[ -z "$proj" ]] && proj="workspace"
+  printf '%s\n' "$proj"
 }
+
 
 function require_arg() {
   opt="$1"
