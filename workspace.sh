@@ -238,11 +238,22 @@ DockerRun() {
 }
 
 EnsureDockerImage() {
-  if [[ -z "$IMAGE_MODE" ]]; then
-    if [[ -d "$DOCKER_FILE" && -f "$DOCKER_FILE/Dockerfile" ]]; then
-      DOCKER_FILE="$DOCKER_FILE/Dockerfile"
-    elif [[ -z "$DOCKER_FILE" && -d "$WORKSPACE_PATH" && -f "$WORKSPACE_PATH/Dockerfile" ]]; then
-      DOCKER_FILE="$WORKSPACE_PATH/Dockerfile"
+  # Decide image mode based on explicit inputs (image name wins, then Dockerfile, else prebuilt).
+  if [[ -n "${IMAGE_NAME:-}" ]]; then
+    IMAGE_MODE="EXISTING"
+    LOCAL_BUILD=false
+  else
+    # Normalize DOCKER_FILE:
+    # - If a directory containing Dockerfile, resolve to that file
+    # - If unset and workspace has Dockerfile, use that
+    if [[ -n "${DOCKER_FILE:-}" ]]; then
+      if [[ -d "$DOCKER_FILE" && -f "$DOCKER_FILE/Dockerfile" ]]; then
+        DOCKER_FILE="$DOCKER_FILE/Dockerfile"
+      fi
+    else
+      if [[ -d "$WORKSPACE_PATH" && -f "$WORKSPACE_PATH/Dockerfile" ]]; then
+        DOCKER_FILE="$WORKSPACE_PATH/Dockerfile"
+      fi
     fi
 
     if [[ -n "${DOCKER_FILE:-}" ]]; then
@@ -251,26 +262,18 @@ EnsureDockerImage() {
         return 1
       fi
       IMAGE_MODE="LOCAL-BUILD"
+      LOCAL_BUILD=true
+    else
+      IMAGE_MODE="PREBUILT"
+      LOCAL_BUILD=false
     fi
-  else
-    IMAGE_MODE="CUSTOM-BUILD"
   fi
 
-  [[ "$IMAGE_MODE" == "LOCAL-BUILD" ]] && LOCAL_BUILD=true || LOCAL_BUILD=false
-
-  # There are three mode of image selection:
-  #   - Direction selection: IMAGE_NAME is given.
-  #   - Local build:
-  #     - ${DOCKER_FILE}               is a file (assume to be Dockerfile)
-  #     - ${DOCKER_FILE}/Dockerfile    is a file (assume to be Dockerfile)
-  #     - ${WORKSPACE_PATH}/Dockerfile is a file (assume to be Dockerfile)
-  #   - Pre-built: use VARIANT and VERSION to select the pre-built
-
-  if [[ -z "${IMAGE_NAME}" ]] ; then
-    # -- Local --
-    if [[ "${LOCAL_BUILD}" == "true" ]] ; then
+  # Proceed according to mode. If IMAGE_NAME was given (EXISTING), skip build/pull.
+  if [[ -z "${IMAGE_NAME:-}" ]]; then
+    if [[ "$IMAGE_MODE" == "LOCAL-BUILD" ]]; then
       IMAGE_NAME="workspace-local:${PROJECT_NAME}"
-      if $VERBOSE ; then
+      if [[ "${VERBOSE:-false}" == "true" ]]; then
         echo ""
         echo "Build local image: $IMAGE_NAME"
       fi
@@ -282,30 +285,30 @@ EnsureDockerImage() {
         "${BUILD_ARGS[@]}" \
         "${WORKSPACE_PATH}"
     else
-      # Construct the full image name.
+      # PREBUILT: construct image name and pull if needed
       IMAGE_NAME="${PREBUILD_REPO}:${VARIANT}-${VERSION}"
 
       if $DO_PULL; then
-        $VERBOSE && echo "Pulling image (forced): $IMAGE_NAME" || true
+        [[ "${VERBOSE:-false}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
         if ! output=$(docker pull "$IMAGE_NAME" 2>&1); then
-          echo "Error: failed to pull '$IMAGE_NAME':"
+          echo "Error: failed to pull '$IMAGE_NAME':" >&2
           echo "$output" >&2
           exit 1
         fi
-        $VERBOSE && { echo "$output"; echo; } || true
-      elif ! $DRYRUN && ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        $VERBOSE && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
+        [[ "${VERBOSE:-false}" == "true" ]] && { echo "$output"; echo; } || true
+      elif ! ${DRYRUN:-false} && ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+        [[ "${VERBOSE:-false}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
         if ! output=$(docker pull "$IMAGE_NAME" 2>&1); then
-          echo "Error: failed to pull '$IMAGE_NAME':"
+          echo "Error: failed to pull '$IMAGE_NAME':" >&2
           echo "$output" >&2
           exit 1
         fi
-        $VERBOSE && { echo "$output"; echo; } || true
+        [[ "${VERBOSE:-false}" == "true" ]] && { echo "$output"; echo; } || true
       fi
     fi
-  fi  # else => Custom image
+  fi  # EXISTING image path falls through
 
-  # Ensure the image exists.
+  # Final guard: ensure the image exists locally for all modes.
   if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
     echo "Error: image '$IMAGE_NAME' not available locally. Try '--pull'." >&2
     exit 1
@@ -316,7 +319,10 @@ ValidateVariant() {
   case "${VARIANT}" in
     container|notebook|codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
     xfce|kde|lxqt) VARIANT="desktop-${VARIANT}" ;;
-    *) echo "Error: unknown --variant '$VARIANT' (expected: container|notebook|codeserver)"; exit 1 ;;
+    *)
+      echo "Error: unknown --variant '$VARIANT' (valid: container|notebook|codeserver|desktop-xfce|desktop-kde|desktop-lxqt; aliases: xfce|kde|lxqt)" >&2
+      exit 1
+      ;;
   esac
 }
 
