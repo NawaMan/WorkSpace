@@ -236,7 +236,7 @@ Docker() {
     echo ""
   fi
   # Execute unless dry-run
-  if [[ "${DRYRUN:-false}" != "true" ]]; then
+  if [[ "${DRYRUN}" != "true" ]]; then
     command docker "$subcmd" "$@"
     return $?  # propagate exit status
   fi
@@ -556,9 +556,9 @@ RunAsCommand() {
 
   # Foreground-with-command cleanup for DinD
   if [[ "$DIND" == "true" ]]; then
-    command Docker stop "$DIND_NAME" >/dev/null 2>&1 || true
+    Docker stop "$DIND_NAME" >/dev/null 2>&1 || true
     if [[ "${CREATED_DIND_NET}" == "true" ]]; then
-      command Docker network rm "$DIND_NET" >/dev/null 2>&1 || true
+      Docker network rm "$DIND_NET" >/dev/null 2>&1 || true
     fi
   fi
 }
@@ -598,9 +598,9 @@ RunAsForground() {
 
   # Foreground cleanup: stop sidecar & network if DinD was used
   if [[ "$DIND" == "true" ]]; then
-    command Docker stop "$DIND_NAME" >/dev/null 2>&1 || true
+    Docker stop "$DIND_NAME" >/dev/null 2>&1 || true
     if [[ "${CREATED_DIND_NET}" == "true" ]]; then
-      command Docker network rm "$DIND_NET" >/dev/null 2>&1 || true
+      Docker network rm "$DIND_NET" >/dev/null 2>&1 || true
     fi
   fi
 }
@@ -611,67 +611,65 @@ SetupDind() {
   DOCKER_BIN=""
   CREATED_DIND_NET=false
 
-  if [[ "$DIND" == "true" ]]; then
-    # Unique per-instance network + sidecar (always)
-    DIND_NET="${CONTAINER_NAME}-${HOST_PORT}-net"
-    DIND_NAME="${CONTAINER_NAME}-${HOST_PORT}-dind"
+  if [[ "$DIND" != "true" ]]; then
+    return 0
+  fi
 
-    # Create network if missing (quietly)
-    if ! Docker network inspect "$DIND_NET" >/dev/null 2>&1; then
-      $VERBOSE && echo "Creating network: $DIND_NET" || true
-      if [[ "${DRYRUN:-false}" != "true" ]]; then
-        command Docker network create "$DIND_NET" >/dev/null
-      else
-        PrintCmd Docker network create "$DIND_NET"
+  # Unique per-instance network + sidecar (always)
+  DIND_NET="${CONTAINER_NAME}-${HOST_PORT}-net"
+  DIND_NAME="${CONTAINER_NAME}-${HOST_PORT}-dind"
+
+  # Create network if missing (quietly)
+  if ! Docker network inspect "$DIND_NET" >/dev/null 2>&1; then
+    $VERBOSE && echo "Creating network: $DIND_NET" || true
+    Docker network create "$DIND_NET"
+    CREATED_DIND_NET=true
+  fi
+
+  # Start DinD sidecar on our private network (silence ID)
+  if ! Docker ps --filter "name=^/${DIND_NAME}$" --format '{{.Names}}' | grep -qx "$DIND_NAME"; then
+    $VERBOSE && echo "Starting DinD sidecar: $DIND_NAME" || true
+    Docker run -d --rm --privileged \
+      --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+      --name "$DIND_NAME" \
+      --network "$DIND_NET" \
+      -e DOCKER_TLS_CERTDIR= \
+      docker:dind >/dev/null
+  else
+    $VERBOSE && echo "DinD sidecar already running: $DIND_NAME" || true
+  fi
+
+  # Wait until the sidecar daemon is ready (fast loop, ~10s max)
+  if [[ "${DRYRUN:-false}" != "true" ]]; then
+    $VERBOSE && echo "Waiting for DinD to become ready at tcp://${DIND_NAME}:2375 ..." || true
+    ready=false
+    for i in $(seq 1 40); do
+      if Docker run --rm --network "$DIND_NET" docker:cli \
+          -H "tcp://${DIND_NAME}:2375" version >/dev/null 2>&1; then
+        ready=true; break
       fi
-      CREATED_DIND_NET=true
+      sleep 0.25
+    done
+    if [[ "$ready" != true ]]; then
+      echo "⚠️  DinD did not become ready. Check: docker logs $DIND_NAME" >&2
     fi
+  fi
 
-    # Start DinD sidecar on our private network (silence ID)
-    if ! Docker ps --filter "name=^/${DIND_NAME}$" --format '{{.Names}}' | grep -qx "$DIND_NAME"; then
-      $VERBOSE && echo "Starting DinD sidecar: $DIND_NAME" || true
-      Docker run -d --rm --privileged \
-        --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-        --name "$DIND_NAME" \
-        --network "$DIND_NET" \
-        -e DOCKER_TLS_CERTDIR= \
-        docker:dind >/dev/null
-    else
-      $VERBOSE && echo "DinD sidecar already running: $DIND_NAME" || true
+  # Remove any user-provided --network from RUN_ARGS to avoid duplication
+  mapfile -t RUN_ARGS < <(strip_network_flags "${RUN_ARGS[@]}")
+
+  # Wire main container to DinD network + endpoint
+  COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
+
+  # Mount host docker CLI binary if present (so your image need not include it)
+  if DOCKER_BIN="$(command -v docker 2>/dev/null)"; then
+    # Resolve to absolute path for safety
+    if command -v readlink >/dev/null 2>&1; then
+      DOCKER_BIN="$(readlink -f "$DOCKER_BIN" || echo "$DOCKER_BIN")"
     fi
-
-    # Wait until the sidecar daemon is ready (fast loop, ~10s max)
-    if [[ "${DRYRUN:-false}" != "true" ]]; then
-      $VERBOSE && echo "Waiting for DinD to become ready at tcp://${DIND_NAME}:2375 ..." || true
-      ready=false
-      for i in $(seq 1 40); do
-        if Docker run --rm --network "$DIND_NET" docker:cli \
-            -H "tcp://${DIND_NAME}:2375" version >/dev/null 2>&1; then
-          ready=true; break
-        fi
-        sleep 0.25
-      done
-      if [[ "$ready" != true ]]; then
-        echo "⚠️  DinD did not become ready. Check: docker logs $DIND_NAME" >&2
-      fi
-    fi
-
-    # Remove any user-provided --network from RUN_ARGS to avoid duplication
-    mapfile -t RUN_ARGS < <(strip_network_flags "${RUN_ARGS[@]}")
-
-    # Wire main container to DinD network + endpoint
-    COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
-
-    # Mount host docker CLI binary if present (so your image need not include it)
-    if DOCKER_BIN="$(command -v docker 2>/dev/null)"; then
-      # Resolve to absolute path for safety
-      if command -v readlink >/dev/null 2>&1; then
-        DOCKER_BIN="$(readlink -f "$DOCKER_BIN" || echo "$DOCKER_BIN")"
-      fi
-      COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
-    else
-      $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container." || true
-    fi
+    COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
+  else
+    $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container." || true
   fi
 }
 
