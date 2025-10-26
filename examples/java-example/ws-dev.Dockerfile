@@ -20,7 +20,7 @@ ENV PY_VERSION="${PY_VERSION}"
 ENV JDK_VERSION="${JDK_VERSION}"
 ENV JDK_VENDOR="${JDK_VENDOR}"
 
-RUN "$SETUPS_DIR"/jdk-setup.sh 8
+# RUN "$SETUPS_DIR"/jdk-setup.sh 8
 RUN "$SETUPS_DIR"/jdk-setup.sh 9
 RUN "$SETUPS_DIR"/java-nb-kernel-setup.sh
 # RUN "$SETUPS_DIR"/jdk-setup.sh 10          # Not sure why this does not work in Dockerfile ... but works manually
@@ -56,12 +56,16 @@ RUN "$SETUPS_DIR"/java-nb-kernel-setup.sh
 RUN "$SETUPS_DIR"/jdk-setup.sh 25
 RUN "$SETUPS_DIR"/java-nb-kernel-setup.sh
 
+# Force jbang run to not show download afterward.
+RUN jbang - 'class Hi { public static void main(String[]a){System.out.println("Hi again");}}'
+
 RUN "$SETUPS_DIR"/mvn-setup.sh
 RUN "$SETUPS_DIR"/gradle-setup.sh
 RUN "$SETUPS_DIR"/jenv-setup.sh
-RUN "$SETUPS_DIR"/eclipse-setup.sh
-RUN "$SETUPS_DIR"/idea-setup.sh
-RUN "$SETUPS_DIR"/java-code-extension-setup.sh
-RUN "$SETUPS_DIR"/lombok-eclipse-setup.sh
 
-RUN "$SETUPS_DIR"/jetbrains-plugin-setup.sh idea "Lombook Plugin"
+RUN if [[ "$VARIANT_TAG" != container ]]; then "$SETUPS_DIR"/java-code-extension-setup.sh ; fi
+
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/eclipse-setup.sh                                ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/idea-setup.sh                                   ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/lombok-eclipse-setup.sh                         ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/jetbrains-plugin-setup.sh idea "Lombook Plugin" ; fi

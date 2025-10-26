@@ -24,12 +24,12 @@ RUN "$SETUPS_DIR/jdk-setup.sh" 25
 # RUN "$SETUPS_DIR/pycharm-setup.sh"
 
 # COPY --chmod=0755 ./setups/ /tmp/setups/
-RUN "$SETUPS_DIR/jetbrains-setup.sh" idea
-RUN "$SETUPS_DIR/jetbrains-setup.sh" pycharm
-RUN "$SETUPS_DIR/jetbrains-setup.sh" goland
-RUN "$SETUPS_DIR/jetbrains-setup.sh" webstorm
-RUN "$SETUPS_DIR/jetbrains-setup.sh" phpstorm
-RUN "$SETUPS_DIR/jetbrains-setup.sh" clion
-RUN "$SETUPS_DIR/jetbrains-setup.sh" rider
-RUN "$SETUPS_DIR/jetbrains-setup.sh" rubymine
-RUN "$SETUPS_DIR/jetbrains-setup.sh" datagrip
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" idea     ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" pycharm  ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" goland   ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" webstorm ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" phpstorm ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" clion    ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" rider    ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" rubymine ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" datagrip ; fi
