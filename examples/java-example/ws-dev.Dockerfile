@@ -20,6 +20,9 @@ ENV PY_VERSION="${PY_VERSION}"
 ENV JDK_VERSION="${JDK_VERSION}"
 ENV JDK_VENDOR="${JDK_VENDOR}"
 
+
+# You only need one of the below.
+
 # RUN "$SETUPS_DIR"/jdk-setup.sh 8
 RUN "$SETUPS_DIR"/jdk-setup.sh 9
 RUN "$SETUPS_DIR"/java-nb-kernel-setup.sh

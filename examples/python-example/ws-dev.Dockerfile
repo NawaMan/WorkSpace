@@ -20,6 +20,7 @@ ENV PY_VERSION="${PY_VERSION}"
 ENV JDK_VERSION="${JDK_VERSION}"
 ENV JDK_VENDOR="${JDK_VENDOR}"
 
+# Needed by pycharm. if you don't use pycharm, remove this.
 RUN "$SETUPS_DIR"/jdk-setup.sh 25
 
 RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/pycharm-setup.sh                                       ; fi

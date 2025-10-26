@@ -205,7 +205,7 @@ ApplyEnvFile() {
 
   # Respect the "not used" token
   if [[ -n "${CONTAINER_ENV_FILE:-}" && "${CONTAINER_ENV_FILE}" == "${FILE_NOT_USED:-none}" ]]; then
-    [[ "${VERBOSE:-false}" == "true" ]] && echo "Skipping --env-file (explicitly disabled)."
+    [[ "${VERBOSE}" == "true" ]] && echo "Skipping --env-file (explicitly disabled)."
     return 0
   fi
 
@@ -217,7 +217,7 @@ ApplyEnvFile() {
     fi
 
     COMMON_ARGS+=( --env-file "$CONTAINER_ENV_FILE" )
-    if [[ "${VERBOSE:-false}" == "true" ]]; then
+    if [[ "${VERBOSE}" == "true" ]]; then
       echo "Using env-file: ${CONTAINER_ENV_FILE}"
     fi
   fi
@@ -227,26 +227,17 @@ Docker() {
   local subcmd="$1"
   shift
 
-  local args=()
-  # if [ "${VERBOSE:-false}" = "false" ]; then
-  #   case "$subcmd" in
-  #     build|pull|images)
-  #       args+=(-q)
-  #       ;;
-  #   esac
-  # fi
-
   # Build final command array
-  local cmd=(docker "$subcmd" "${args[@]}" "$@")
+  local cmd=(docker "$subcmd" "$@")
 
   # Print if verbose OR dry-run
-  if [[ "${DRYRUN:-false}" == "true" || "${VERBOSE:-false}" == "true" ]]; then
+  if [[ "${DRYRUN}" == "true" || "${VERBOSE}" == "true" ]]; then
     PrintCmd "${cmd[@]}"
     echo ""
   fi
   # Execute unless dry-run
   if [[ "${DRYRUN:-false}" != "true" ]]; then
-    command docker "$subcmd" "${args[@]}" "$@"
+    command docker "$subcmd" "$@"
     return $?  # propagate exit status
   fi
 }
@@ -287,7 +278,7 @@ EnsureDockerImage() {
   if [[ -z "${IMAGE_NAME:-}" ]]; then
     if [[ "$IMAGE_MODE" == "LOCAL-BUILD" ]]; then
       IMAGE_NAME="workspace-local:${PROJECT_NAME}"
-      if [[ "${VERBOSE:-false}" == "true" ]]; then
+      if [[ "${VERBOSE}" == "true" ]]; then
         echo ""
         echo "Build local image: $IMAGE_NAME"
       fi
@@ -306,21 +297,21 @@ EnsureDockerImage() {
       IMAGE_NAME="${PREBUILD_REPO}:${VARIANT}-${VERSION}"
 
       if $DO_PULL; then
-        [[ "${VERBOSE:-false}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
+        [[ "${VERBOSE}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
         if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
           echo "Error: failed to pull '$IMAGE_NAME':" >&2
           echo "$output" >&2
           exit 1
         fi
-        [[ "${VERBOSE:-false}" == "true" ]] && { echo "$output"; echo; } || true
+        [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
       elif ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        [[ "${VERBOSE:-false}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
+        [[ "${VERBOSE}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
         if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
           echo "Error: failed to pull '$IMAGE_NAME':" >&2
           echo "$output" >&2
           exit 1
         fi
-        [[ "${VERBOSE:-false}" == "true" ]] && { echo "$output"; echo; } || true
+        [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
       fi
     fi
   fi  # EXISTING image path falls through
@@ -439,7 +430,7 @@ PopulateArgs() {
   done
 
   # Only print when VERBOSE is explicitly true; avoid nounset with default.
-  if [[ "${VERBOSE:-false}" == "true" ]]; then
+  if [[ "${VERBOSE}" == "true" ]]; then
     echo -n "ARGS: "
     args_to_string "${ARGS[@]}"
   fi
@@ -471,7 +462,7 @@ PortDetermination() {
     # Ensure full-range random ports by using >15 bits (RANDOM only gives 0–32767)
     for _ in $(seq 1 200); do
       range=$((65535 - 10000))
-      r30=$(( (RANDOM << 15) | RANDOM ))  # ~30 bits of randomness
+      r30=$(( ( RANDOM * 32768 ) | RANDOM ))  # ~30 bits of randomness
       cand=$(( (r30 % range) + 10001 ))
       if is_port_free "$cand"; then
         HOST_PORT="$cand"
@@ -512,7 +503,6 @@ PortDetermination() {
     PortBanner "$HOST_PORT"  # ✅ correct port shown
   fi
 }
-
 
 PrepareCommonArgs() {
   COMMON_ARGS+=(
@@ -560,22 +550,9 @@ PrintCmd() {
 }
 
 RunAsCommand() {
-  local has_meta=false s
-  for s in "${CMDS[@]}"; do
-    [[ $s =~ [\|\&\;\<\>\(\)\$\\\`\*\?\[\]\{\}\~] ]] && { has_meta=true; break; }
-  done
-
-  if ! $has_meta; then
-    # Run directly: exact argv preserved, no shell interpretation
-    Docker run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" "${CMDS[@]}"
-  else
-    # Shell needed: escape argv into a single safe string
-local USER_CMDS_ESC
-printf -v USER_CMDS_ESC ' %q' "${CMDS[@]}"
-USER_CMDS_ESC="${USER_CMDS_ESC:1}"
-Docker run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS_ESC"
-
-  fi
+  # Foreground with explicit command
+  USER_CMDS="${CMDS[*]}"
+  Docker run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
 
   # Foreground-with-command cleanup for DinD
   if [[ "$DIND" == "true" ]]; then
