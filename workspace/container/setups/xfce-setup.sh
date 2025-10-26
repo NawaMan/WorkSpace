@@ -28,6 +28,7 @@ source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 # Profile snippet this script will write to (used later)
 PROFILE_FILE="/etc/profile.d/55-ws-desktop-xfce--profile.sh"
 STARTER_FILE="/usr/local/bin/start-xfce"
+DESKTOP_FILE="/usr/local/bin/start-desktop"
 
 
 # ---- install base packages ----
@@ -255,6 +256,9 @@ trap 'echo; echo "🛑 stopping…"; "$VNCBIN" -kill "$DISPLAY" || true; exit 0'
 exec websockify --web=/usr/share/novnc "0.0.0.0:${NOVNC_PORT}" "localhost:${VNC_PORT}"
 EOF
 chmod 0755 ${STARTER_FILE}
+
+rm -Rf ${DESKTOP_FILE}
+ln -s  ${STARTER_FILE} ${DESKTOP_FILE}
 
 # ---- keyring behavior (disable | basic | keep) ----
 : "${KEYRING_MODE:=basic}"

@@ -15,6 +15,7 @@ fi
 
 PROFILE_FILE="/etc/profile.d/55-ws-kde--profile.sh"
 STARTER_FILE="/usr/local/bin/start-kde"
+DESKTOP_FILE="/usr/local/bin/start-desktop"
 
 # ---- configurable args ----
 KDE_PACKAGES="${KDE_PACKAGES:-plasma-desktop konsole dolphin kio-extras ffmpegthumbs kde-cli-tools}"
@@ -189,6 +190,9 @@ trap 'echo; echo "🛑 stopping…"; "$VNCBIN" -kill "$DISPLAY" || true; exit 0'
 exec websockify --web=/usr/share/novnc "0.0.0.0:${NOVNC_PORT}" "localhost:${VNC_PORT}"
 EOF
 chmod 0755 "${STARTER_FILE}"
+
+rm -Rf ${DESKTOP_FILE}
+ln -s  ${STARTER_FILE} ${DESKTOP_FILE}
 
 # ---- KWallet behavior (disable | basic | keep) ----
 : "${KEYRING_MODE:=basic}"
