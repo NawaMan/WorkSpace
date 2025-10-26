@@ -20,6 +20,8 @@ ENV PY_VERSION="${PY_VERSION}"
 ENV JDK_VERSION="${JDK_VERSION}"
 ENV JDK_VENDOR="${JDK_VENDOR}"
 
+RUN "$SETUPS_DIR"/python-setup.sh ${PY_VERSION}
+
 # Needed by pycharm. if you don't use pycharm, remove this.
 RUN "$SETUPS_DIR"/jdk-setup.sh 25
 

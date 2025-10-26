@@ -28,6 +28,8 @@ source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 
 # Profile snippet this script will write to
 PROFILE_FILE="/etc/profile.d/55-ws-desktop-lxqt--profile.sh"
+STARTER_FILE="/usr/local/bin/start-lxqt"
+DESKTOP_FILE="/usr/local/bin/start-desktop"
 
 # ---- install base packages ----
 export DEBIAN_FRONTEND=noninteractive
@@ -242,7 +244,10 @@ echo "🌐 noVNC: http://localhost:${NOVNC_PORT}/vnc.html?autoconnect=1&host=loc
 trap 'echo; echo "🛑 stopping…"; "$VNCBIN" -kill "$DISPLAY" || true; exit 0' INT TERM
 exec websockify --web=/usr/share/novnc "0.0.0.0:${NOVNC_PORT}" "localhost:${VNC_PORT}"
 EOF
-chmod 0755 /usr/local/bin/start-lxqt
+chmod 0755 ${STARTER_FILE}
+
+rm -Rf ${DESKTOP_FILE}
+ln -s  ${STARTER_FILE} ${DESKTOP_FILE}
 
 # ---- keyring behavior ----
 : "${KEYRING_MODE:=basic}"

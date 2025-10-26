@@ -57,12 +57,17 @@ Main() {
 
   SetupDind
 
+  RUN_MODE="COMMAND"
+  if   $DAEMON;                 then RUN_MODE="DAEMON"
+  elif [[ ${#CMDS[@]} -eq 0 ]]; then RUN_MODE="FOREGROUND"
+  fi
+
   PrepareCommonArgs
   PrepareTtyArgs
 
-  if   $DAEMON;                 then RunAsDaemon
-  elif [[ ${#CMDS[@]} -eq 0 ]]; then RunAsForground
-  else                               RunAsCommand
+  if   [ "${RUN_MODE}" == "DAEMON"     ]; then RunAsDaemon
+  elif [ "${RUN_MODE}" == "FOREGROUND" ]; then RunAsForeground
+  else                                         RunAsCommand
   fi
 }
 
@@ -514,15 +519,16 @@ PrepareCommonArgs() {
     -p "${HOST_PORT:-10000}:10000"
 
     # Metadata
-    -e "WS_DAEMON=${DAEMON}"
-    -e "WS_IMAGE_NAME=${IMAGE_NAME}"
-    -e "WS_VARIANT_TAG=${VARIANT}"
-    -e "WS_VERSION_TAG=${VERSION}"
     -e "WS_CONTAINER_NAME=${CONTAINER_NAME}"
+    -e "WS_DAEMON=${DAEMON}"
+    -e "WS_HOST_PORT=${HOST_PORT}"
+    -e "WS_IMAGE_NAME=${IMAGE_NAME}"
+    -e "WS_RUNMODE=${RUN_MODE}"
+    -e "WS_VARIANT_TAG=${VARIANT}"
+    -e "WS_VERBOSE=${VERBOSE}"
+    -e "WS_VERSION_TAG=${VERSION}"
     -e "WS_WORKSPACE_PATH=${WORKSPACE_PATH}"
     -e "WS_WORKSPACE_PORT=${WORKSPACE_PORT}"
-    -e "WS_HOST_PORT=${HOST_PORT}"
-    -e "WS_VERBOSE=${VERBOSE}"
   )
 
   if [[ "$DO_PULL" == false ]]; then
@@ -589,7 +595,7 @@ RunAsDaemon() {
   fi
 }
 
-RunAsForground() {
+RunAsForeground() {
   echo "📦 Running workspace in foreground."
   echo "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
   echo "👉 To open an interactive shell instead: '${SCRIPT_NAME} -- bash'"
