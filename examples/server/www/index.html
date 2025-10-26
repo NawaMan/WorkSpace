@@ -1,0 +1,20 @@
+<html>
+<body>
+<h1>Hello from CodingBooth Workspace!</h1>
+
+<p>Current time: <span id="time"></span></p>
+
+<script>
+function updateTime() {
+    const now = new Date();
+    document.getElementById("time").textContent =
+        now.toLocaleString();  // formats according to system locale
+}
+
+// Refresh every second
+setInterval(updateTime, 1000);
+updateTime(); // run immediately once
+</script>
+
+</body>
+</html>
