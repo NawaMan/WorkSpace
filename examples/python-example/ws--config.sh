@@ -1,4 +1,4 @@
-VARIANT=desktop-xfce
+VARIANT=lxqt
 VERSION=0.2.0--rc
 DOCKER_FILE=ws-dev.Dockerfile
 WORKSPACE_PORT=NEXT
