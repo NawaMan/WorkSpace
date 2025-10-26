@@ -21,6 +21,6 @@ ENV JDK_VERSION="${JDK_VERSION}"
 ENV JDK_VENDOR="${JDK_VENDOR}"
 
 RUN "$SETUPS_DIR"/jdk-setup.sh 25
-RUN "$SETUPS_DIR"/pycharm-setup.sh
 
-RUN "$SETUPS_DIR"/jetbrains-plugin-setup.sh pycharm ru.adelf.idea.dotenv
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/pycharm-setup.sh                                       ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/jetbrains-plugin-setup.sh pycharm ru.adelf.idea.dotenv ; fi

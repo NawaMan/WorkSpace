@@ -104,6 +104,18 @@ function is_port_free() {
   fi
 }
 
+function oneliner() {
+  tput civis  # hide cursor
+  trap 'tput cnorm' EXIT
+
+  while IFS= read -r line; do
+      printf "\r%-80s" "$line"  # overwrite line with padding
+  done
+
+  printf "\r"   # clean prompt line
+  tput el
+}
+
 function parse_args_file() {
   local f="${1:-}"
 
@@ -161,7 +173,7 @@ function require_arg() {
   fi
 }
 
-strip_network_flags() {
+function strip_network_flags() {
   local skip_next=false
   local arg
   for arg in "$@"; do
@@ -211,29 +223,31 @@ ApplyEnvFile() {
   fi
 }
 
-DockerBuild() {
-  # Print the command if dry-run or verbose
-  if [[ "${DRYRUN:-false}" == true || "${VERBOSE:-false}" == true ]]; then
-    PrintCmd docker build "$@"
-  fi
-  # Actually run unless dry-run
-  if [[ "${DRYRUN:-false}" != true ]]; then
-    # TODO -- find a good way to let user control : --progress=plain --no-cache
-    command docker build "$@"
-    return $?   # propagate exit code
-  fi
-}
+Docker() {
+  local subcmd="$1"
+  shift
 
-DockerRun() {
-  # Print the command if dry-run or verbose
+  local args=()
+  # if [ "${VERBOSE:-false}" = "false" ]; then
+  #   case "$subcmd" in
+  #     build|pull|images)
+  #       args+=(-q)
+  #       ;;
+  #   esac
+  # fi
+
+  # Build final command array
+  local cmd=(docker "$subcmd" "${args[@]}" "$@")
+
+  # Print if verbose OR dry-run
   if [[ "${DRYRUN:-false}" == "true" || "${VERBOSE:-false}" == "true" ]]; then
-    PrintCmd docker run "$@"
+    PrintCmd "${cmd[@]}"
     echo ""
   fi
-  # Actually run unless dry-run
+  # Execute unless dry-run
   if [[ "${DRYRUN:-false}" != "true" ]]; then
-    command docker run "$@"
-    return $?   # propagate exit code
+    command docker "$subcmd" "${args[@]}" "$@"
+    return $?  # propagate exit status
   fi
 }
 
@@ -277,28 +291,31 @@ EnsureDockerImage() {
         echo ""
         echo "Build local image: $IMAGE_NAME"
       fi
-      DockerBuild \
-        -f "$DOCKER_FILE" \
-        -t "$IMAGE_NAME"  \
-        --build-arg VARIANT_TAG="${VARIANT}" \
-        --build-arg VERSION_TAG="${VERSION}" \
-        "${BUILD_ARGS[@]}" \
-        "${WORKSPACE_PATH}"
+      {
+        Docker build                          \
+        -f "$DOCKER_FILE"                     \
+        -t "$IMAGE_NAME"                      \
+        --build-arg VARIANT_TAG="${VARIANT}"  \
+        --build-arg VERSION_TAG="${VERSION}"  \
+        "${BUILD_ARGS[@]}"                    \
+        "${WORKSPACE_PATH}"                   \
+        1> >(grep -v '^sha256:')              # Hide the digest if no-need to rebuild build
+      } 
     else
       # PREBUILT: construct image name and pull if needed
       IMAGE_NAME="${PREBUILD_REPO}:${VARIANT}-${VERSION}"
 
       if $DO_PULL; then
         [[ "${VERBOSE:-false}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
-        if ! output=$(docker pull "$IMAGE_NAME" 2>&1); then
+        if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
           echo "Error: failed to pull '$IMAGE_NAME':" >&2
           echo "$output" >&2
           exit 1
         fi
         [[ "${VERBOSE:-false}" == "true" ]] && { echo "$output"; echo; } || true
-      elif ! ${DRYRUN:-false} && ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+      elif ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
         [[ "${VERBOSE:-false}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
-        if ! output=$(docker pull "$IMAGE_NAME" 2>&1); then
+        if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
           echo "Error: failed to pull '$IMAGE_NAME':" >&2
           echo "$output" >&2
           exit 1
@@ -309,7 +326,7 @@ EnsureDockerImage() {
   fi  # EXISTING image path falls through
 
   # Final guard: ensure the image exists locally for all modes.
-  if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+  if ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
     echo "Error: image '$IMAGE_NAME' not available locally. Try '--pull'." >&2
     exit 1
   fi
@@ -514,6 +531,8 @@ PrepareCommonArgs() {
     -e "WS_CONTAINER_NAME=${CONTAINER_NAME}"
     -e "WS_WORKSPACE_PATH=${WORKSPACE_PATH}"
     -e "WS_WORKSPACE_PORT=${WORKSPACE_PORT}"
+    -e "WS_HOST_PORT=${HOST_PORT}"
+    -e "WS_VERBOSE=${VERBOSE}"
   )
 
   if [[ "$DO_PULL" == false ]]; then
@@ -541,15 +560,28 @@ PrintCmd() {
 }
 
 RunAsCommand() {
-  # Foreground with explicit command
-  USER_CMDS="${CMDS[*]}"
-  DockerRun --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
+  local has_meta=false s
+  for s in "${CMDS[@]}"; do
+    [[ $s =~ [\|\&\;\<\>\(\)\$\\\`\*\?\[\]\{\}\~] ]] && { has_meta=true; break; }
+  done
+
+  if ! $has_meta; then
+    # Run directly: exact argv preserved, no shell interpretation
+    Docker run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" "${CMDS[@]}"
+  else
+    # Shell needed: escape argv into a single safe string
+local USER_CMDS_ESC
+printf -v USER_CMDS_ESC ' %q' "${CMDS[@]}"
+USER_CMDS_ESC="${USER_CMDS_ESC:1}"
+Docker run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS_ESC"
+
+  fi
 
   # Foreground-with-command cleanup for DinD
   if [[ "$DIND" == "true" ]]; then
-    command docker stop "$DIND_NAME" >/dev/null 2>&1 || true
+    command Docker stop "$DIND_NAME" >/dev/null 2>&1 || true
     if [[ "${CREATED_DIND_NET}" == "true" ]]; then
-      command docker network rm "$DIND_NET" >/dev/null 2>&1 || true
+      command Docker network rm "$DIND_NET" >/dev/null 2>&1 || true
     fi
   fi
 }
@@ -570,7 +602,7 @@ RunAsDaemon() {
     echo "<--dryrun-->"
     echo ""
   else
-    DockerRun -d "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
+    Docker run -d "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
     # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
     if [[ "$DIND" == "true" ]]; then
@@ -585,13 +617,13 @@ RunAsForground() {
   echo "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
   echo "👉 To open an interactive shell instead: '${SCRIPT_NAME} -- bash'"
   echo ""
-  DockerRun --rm "$TTY_ARGS" "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
+  Docker run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
   # Foreground cleanup: stop sidecar & network if DinD was used
   if [[ "$DIND" == "true" ]]; then
-    command docker stop "$DIND_NAME" >/dev/null 2>&1 || true
+    command Docker stop "$DIND_NAME" >/dev/null 2>&1 || true
     if [[ "${CREATED_DIND_NET}" == "true" ]]; then
-      command docker network rm "$DIND_NET" >/dev/null 2>&1 || true
+      command Docker network rm "$DIND_NET" >/dev/null 2>&1 || true
     fi
   fi
 }
@@ -608,20 +640,20 @@ SetupDind() {
     DIND_NAME="${CONTAINER_NAME}-${HOST_PORT}-dind"
 
     # Create network if missing (quietly)
-    if ! docker network inspect "$DIND_NET" >/dev/null 2>&1; then
+    if ! Docker network inspect "$DIND_NET" >/dev/null 2>&1; then
       $VERBOSE && echo "Creating network: $DIND_NET" || true
       if [[ "${DRYRUN:-false}" != "true" ]]; then
-        command docker network create "$DIND_NET" >/dev/null
+        command Docker network create "$DIND_NET" >/dev/null
       else
-        PrintCmd docker network create "$DIND_NET"
+        PrintCmd Docker network create "$DIND_NET"
       fi
       CREATED_DIND_NET=true
     fi
 
     # Start DinD sidecar on our private network (silence ID)
-    if ! docker ps --filter "name=^/${DIND_NAME}$" --format '{{.Names}}' | grep -qx "$DIND_NAME"; then
+    if ! Docker ps --filter "name=^/${DIND_NAME}$" --format '{{.Names}}' | grep -qx "$DIND_NAME"; then
       $VERBOSE && echo "Starting DinD sidecar: $DIND_NAME" || true
-      DockerRun -d --rm --privileged \
+      Docker run -d --rm --privileged \
         --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
         --name "$DIND_NAME" \
         --network "$DIND_NET" \
@@ -636,7 +668,7 @@ SetupDind() {
       $VERBOSE && echo "Waiting for DinD to become ready at tcp://${DIND_NAME}:2375 ..." || true
       ready=false
       for i in $(seq 1 40); do
-        if docker run --rm --network "$DIND_NET" docker:cli \
+        if Docker run --rm --network "$DIND_NET" docker:cli \
             -H "tcp://${DIND_NAME}:2375" version >/dev/null 2>&1; then
           ready=true; break
         fi
