@@ -612,6 +612,25 @@ RunAsForeground() {
 }
 
 SetupDind() {
+  # ⚠️ Docker-in-Docker Usage Notice
+  # 
+  # This development environment provides Docker access from inside the container by
+  # connecting to an internal Docker daemon running in a sidecar container. While
+  # this enables building and running containers without installing Docker on your
+  # host, it also introduces certain functional and security limitations. Docker
+  # commands executed inside this environment do not run directly on your host — they
+  # run inside an isolated DinD engine with reduced capabilities (for example,
+  # limited resource enforcement, non-standard networking, and slower storage
+  # drivers). Some advanced Docker features may not behave as they would on a native
+  # host installation.
+  # 
+  # Users should avoid running privileged or host-mounted containers, as this
+  # environment is intended strictly for unprivileged development tasks and may not
+  # be resilient against malicious workloads. Container networking and port-publishing
+  # behavior may differ from a native Docker setup. This environment is provided as
+  # a convenience for development only — do not rely on it for production-level
+  # isolation or security.
+  
   DIND_NET=""
   DIND_NAME=""
   DOCKER_BIN=""
