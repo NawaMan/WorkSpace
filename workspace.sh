@@ -254,15 +254,15 @@ EnsureDockerImage() {
     LOCAL_BUILD=false
   else
     # Normalize DOCKER_FILE:
-    # - If a directory containing Dockerfile, resolve to that file
-    # - If unset and workspace has Dockerfile, use that
+    # - If a directory containing ws.Dockerfile, resolve to that file
+    # - If unset and workspace has ws.Dockerfile, use that
     if [[ -n "${DOCKER_FILE:-}" ]]; then
-      if [[ -d "$DOCKER_FILE" && -f "$DOCKER_FILE/Dockerfile" ]]; then
-        DOCKER_FILE="$DOCKER_FILE/Dockerfile"
+      if [[ -d "$DOCKER_FILE" && -f "$DOCKER_FILE/ws.Dockerfile" ]]; then
+        DOCKER_FILE="$DOCKER_FILE/ws.Dockerfile"
       fi
     else
-      if [[ -d "$WORKSPACE_PATH" && -f "$WORKSPACE_PATH/Dockerfile" ]]; then
-        DOCKER_FILE="$WORKSPACE_PATH/Dockerfile"
+      if [[ -d "$WORKSPACE_PATH" && -f "$WORKSPACE_PATH/ws.Dockerfile" ]]; then
+        DOCKER_FILE="$WORKSPACE_PATH/ws.Dockerfile"
       fi
     fi
 
