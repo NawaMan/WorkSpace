@@ -3,33 +3,33 @@ set -euo pipefail
 
 
 
-# # Remove old Docker repos if any
-# sudo apt-get remove -y docker-buildx-plugin || true
+# Remove old Docker repos if any
+sudo apt-get remove -y docker-buildx-plugin || true
 
-# # Setup required deps
-# sudo apt-get update
-# sudo apt-get install -y ca-certificates curl gnupg
+# Setup required deps
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
 
-# # Add Docker’s official GPG key
-# sudo install -m 0755 -d /etc/apt/keyrings
-# curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-#   | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-# sudo chmod a+r /etc/apt/keyrings/docker.gpg
+# Add Docker’s official GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# # Add Docker’s official apt repo
-# echo \
-#   "deb [arch=$(dpkg --print-architecture) \
-#   signed-by=/etc/apt/keyrings/docker.gpg] \
-#   https://download.docker.com/linux/ubuntu \
-#   $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-# | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+# Add Docker’s official apt repo
+echo \
+  "deb [arch=$(dpkg --print-architecture) \
+  signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+| sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# # Install buildx plugin from Docker repo
-# sudo apt-get update
-# sudo apt-get install -y docker-buildx-plugin
+# Install buildx plugin from Docker repo
+sudo apt-get update
+sudo apt-get install -y docker-buildx-plugin
 
-# # Verify
-# docker buildx version
+# Verify
+docker buildx version
 
 SERVER_PORT=8080
 
