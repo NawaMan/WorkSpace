@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+trap 'echo "❌ Error on line $LINENO while running: $BASH_COMMAND" >&2' ERR
 
+# ===================== Must be root =====================
+if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+  echo "This script must be run as root." >&2
+  exit 1
+fi
 
 # Setup required deps
 sudo apt-get update
@@ -24,24 +30,5 @@ echo \
 sudo apt-get update
 sudo apt-get install -y docker-buildx-plugin
 
-# Verify
-docker buildx version
-
-SERVER_PORT=8080
-
-
-DIND_NAME="${WS_CONTAINER_NAME}-${WS_HOST_PORT}-dind"
-socat TCP-LISTEN:${SERVER_PORT},reuseaddr,fork TCP:${DIND_NAME}:8080 &
-SOCAT_PID=$!
-
-cleanup() {
-  echo "Stopping socat..."
-  if [ -n "${SOCAT_PID:-}" ] && kill -0 "$SOCAT_PID" 2>/dev/null; then
-    kill "$SOCAT_PID" 2>/dev/null || true
-    wait "$SOCAT_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT INT TERM
-
-DOCKER_BUILDKIT=1 docker build -t http-server .
-docker run -p ${SERVER_PORT}:${SERVER_PORT} http-server
+echo "✅ Docker + Buildx + Compose installed successfully!"
+echo "👉 Test Buildx: docker buildx version"
