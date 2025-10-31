@@ -21,7 +21,6 @@ ENV JDK_VERSION="${JDK_VERSION}"
 ENV JDK_VENDOR="${JDK_VENDOR}"
 
 RUN "$SETUPS_DIR/jdk-setup.sh" 25
-# RUN "$SETUPS_DIR/pycharm-setup.sh"
 
 # COPY --chmod=0755 ./setups/ /tmp/setups/
 RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" idea     ; fi
