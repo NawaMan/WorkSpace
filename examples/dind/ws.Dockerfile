@@ -18,4 +18,5 @@ ENV VARIANT_TAG="${VARIANT_TAG}"
 ENV WS_VARIANT_TAG="${VARIANT_TAG}"
 ENV PY_VERSION="${PY_VERSION}"
 
-RUN apt-get update && apt-get install -y socat
+RUN "$SETUPS_DIR"/dind-setup.sh
+RUN "$SETUPS_DIR"/docker-buildx-setup.sh
