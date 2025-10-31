@@ -71,7 +71,7 @@ build_variant() {
     docker buildx inspect --bootstrap >/dev/null
 
     log "Building with buildx (push)"
-    docker buildx build \
+    docker buildx build --no-cache \
       "${NO_CACHE_ARG[@]}" \
       --platform "${PLATFORMS}" \
       -f "${DOCKER_FILE}" \
@@ -81,7 +81,7 @@ build_variant() {
   else
     # Local dev/test: plain docker build (so FROM sees locally built base)
     log "Local build (plain 'docker build')"
-    docker build \
+    docker build --no-cache \
       "${NO_CACHE_ARG[@]}" \
       -f "${DOCKER_FILE}" \
       "${TAGS_ARG[@]}" \
