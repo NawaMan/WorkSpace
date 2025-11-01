@@ -20,10 +20,10 @@ ENV PY_VERSION="${PY_VERSION}"
 ENV JDK_VERSION="${JDK_VERSION}"
 ENV JDK_VENDOR="${JDK_VENDOR}"
 
-RUN "$SETUPS_DIR"/python-setup.sh ${PY_VERSION}
+RUN "$SETUPS_DIR"/python--setup.sh ${PY_VERSION}
 
 # Needed by pycharm. if you don't use pycharm, remove this.
-RUN "$SETUPS_DIR"/jdk-setup.sh 25
+RUN "$SETUPS_DIR"/jdk--setup.sh 25
 
-RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/pycharm-setup.sh                                       ; fi
-RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/jetbrains-plugin-setup.sh pycharm ru.adelf.idea.dotenv ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/pycharm--setup.sh                                       ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR"/jetbrains-plugin--setup.sh pycharm ru.adelf.idea.dotenv ; fi

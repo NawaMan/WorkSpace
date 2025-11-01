@@ -2,6 +2,9 @@
 
 This file contains a list of changes for each released version.
 
+## v0.3.0
+- Rename all `*-setup.sh` to `*--setup.sh`.
+
 ## v0.2.0
 
 ### Major Updates
@@ -19,7 +22,6 @@ This file contains a list of changes for each released version.
 - Removed PowerShell support (maintenance overhead too high).
 - Added multiple example configurations:
   - `dind`
-  - `docker`
   - `go`
   - `java`
   - `jetbrain`

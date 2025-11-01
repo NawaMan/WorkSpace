@@ -178,7 +178,7 @@ hash -r || true
 
 # ---- system-wide shell defaults (last install wins) ----
 cat >"$PROFILE_FILE" <<'EOF'
-# Stable Python (managed by python-setup.sh)
+# Stable Python (managed by python--setup.sh)
 export WS_PYENV_ROOT="/opt/pyenv"
 export WS_PY_STABLE="/opt/python"
 export WS_VENV_ROOT="/opt/venvs"
@@ -207,7 +207,7 @@ esac
 source "/opt/python/bin/activate"
 
 
-# Auto-activate the series venv that matches /opt/python (managed by python-setup.sh)
+# Auto-activate the series venv that matches /opt/python (managed by python--setup.sh)
 
 # 1) Resolve active version from the stable symlink
 if [ -x /opt/python/bin/python ]; then

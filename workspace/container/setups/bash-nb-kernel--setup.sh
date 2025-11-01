@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# bash-nb-kernel-setup.sh
+# bash-nb-kernel--setup.sh
 # 
 # Prereqs:
-#   - python-setup.sh and notebook-setup.sh already ran successfully.
+#   - python--setup.sh and notebook--setup.sh already ran successfully.
 #   - /etc/profile.d/53-ws-python--profile.sh should be source
 #   - The chosen Python can install packages with pip.
 

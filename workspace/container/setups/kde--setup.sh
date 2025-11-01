@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kde-setup.sh — root-only installer for KDE Plasma + VNC + noVNC + Dolphin & Konsole pinned + NO LOCK SCREEN
+# kde--setup.sh — root-only installer for KDE Plasma + VNC + noVNC + Dolphin & Konsole pinned + NO LOCK SCREEN
 # Installs deps, writes /etc/profile.d/99-ws-kde.sh, creates /usr/local/bin/start-kde,
 # pins Dolphin and Konsole, and disables KDE screen locking (no password on lock).
 

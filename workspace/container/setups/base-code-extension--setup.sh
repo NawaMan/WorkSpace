@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# code-essentials-extension-setup.sh
+# code-essentials-extension--setup.sh
 # Root-only installer to bootstrap useful VS Code extensions for all users.
 set -Eeuo pipefail
 
@@ -13,6 +13,12 @@ SETUP_LIBS_DIR=${SETUP_LIBS_DIR:-/opt/workspace/setups/libs}
 CODE_EXTENSION_LIB=${CODE_EXTENSION_LIB:-code-extension-source.sh}
 source "${SETUP_LIBS_DIR}/${CODE_EXTENSION_LIB}"
 
-install_extensions dsznajder.es7-react-js-snippets
+install_extensions                      \
+  formulahendry.code-runner             \
+  fabiospampinato.vscode-highlight      \
+  streetsidesoftware.code-spell-checker \
+  yzhang.markdown-all-in-one            \
+  alefragnani.Bookmarks                 \
+  christian-kohler.path-intellisense
 
 echo "✅ Extension installation completed."

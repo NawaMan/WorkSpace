@@ -9,4 +9,4 @@ if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
 fi
 
 SETUPS_DIR=/opt/workspace/setups
-"${SETUPS_DIR}"/jetbrains-setup.sh idea
+"${SETUPS_DIR}"/jetbrains--setup.sh idea

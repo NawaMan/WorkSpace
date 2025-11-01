@@ -27,9 +27,9 @@ Supported JetBrains IDEs:
   datagrip   → DataGrip
 
 Usage examples:
-  sudo ./jetbrains-setup.sh pycharm
-  sudo ./jetbrains-setup.sh idea 2025.2.3
-  sudo ./jetbrains-setup.sh goland 2025.2.3
+  sudo ./jetbrains--setup.sh pycharm
+  sudo ./jetbrains--setup.sh idea 2025.2.3
+  sudo ./jetbrains--setup.sh goland 2025.2.3
 
 ─────────────────────────────────────────────────────────────
 ⚠️  IMPORTANT LICENSE NOTICE

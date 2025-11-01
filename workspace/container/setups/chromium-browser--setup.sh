@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# chromium-browser-setup.sh — Install Chromium (DEB, no snap) on Ubuntu via Debian Bookworm, then clean up
+# chromium-browser--setup.sh — Install Chromium (DEB, no snap) on Ubuntu via Debian Bookworm, then clean up
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
