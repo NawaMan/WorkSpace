@@ -22,6 +22,6 @@ jobs:
       - name: Build
         run: ./build.sh
       - name: Simple test
-        run: ./simple-test.sh
+        run: ./sanity-test.sh
       - name: All tests
         run: cd tests/basic && ./run-all-test.sh

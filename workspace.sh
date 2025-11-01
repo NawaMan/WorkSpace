@@ -12,6 +12,7 @@ Main() {
 
   DRYRUN=${DRYRUN:-false}
   VERBOSE=${VERBOSE:-false}
+  SILENCE_BUILD=${SILENCE_BUILD:-false}
   CONFIG_FILE=${CONFIG_FILE:-./ws--config.sh}
 
   HOST_UID="${HOST_UID:-$(id -u)}"
@@ -107,18 +108,6 @@ function is_port_free() {
   else
     ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$p" >/dev/null 2>&1)
   fi
-}
-
-function oneliner() {
-  tput civis  # hide cursor
-  trap 'tput cnorm' EXIT
-
-  while IFS= read -r line; do
-      printf "\r%-80s" "$line"  # overwrite line with padding
-  done
-
-  printf "\r"   # clean prompt line
-  tput el
 }
 
 function parse_args_file() {
@@ -247,6 +236,37 @@ Docker() {
   fi
 }
 
+DockerBuild() {
+  local args=("$@")  # ✅ capture all arguments first
+
+  # Handle SILENCE_BUILD logic
+  if [[ "${SILENCE_BUILD}" != "true" ]]; then
+    Docker build "${args[@]}"
+    return $?
+  fi
+
+  # Create a secure temporary file for capturing stderr
+  local tmpfile
+  tmpfile=$(mktemp "/tmp/docker-build.XXXXXX") || {
+    echo "Failed to create temp file" >&2
+    return 1
+  }
+
+  # Run the build quietly, capturing stderr (progress and errors)
+  if ! Docker build "${args[@]}" 2> "${tmpfile}"; then
+    echo ""
+    echo "❌ Docker build failed!"
+    echo "---- Build output ----"
+    cat "${tmpfile}"
+    echo "----------------------"
+    rm -f "${tmpfile}"
+    return 1
+  fi
+
+  rm -f "${tmpfile}"
+  return 0
+}
+
 EnsureDockerImage() {
   # Decide image mode based on explicit inputs (image name wins, then Dockerfile, else prebuilt).
   if [[ -n "${IMAGE_NAME:-}" ]]; then
@@ -286,9 +306,11 @@ EnsureDockerImage() {
       if [[ "${VERBOSE}" == "true" ]]; then
         echo ""
         echo "Build local image: $IMAGE_NAME"
+        echo "  - SILENCE_BUILD: $SILENCE_BUILD"
+        
       fi
       {
-        Docker build                          \
+        DockerBuild                           \
         -f "$DOCKER_FILE"                     \
         -t "$IMAGE_NAME"                      \
         --build-arg VARIANT_TAG="${VARIANT}"  \
@@ -347,13 +369,13 @@ ParseArgs() {
       shift
     else
       case $1 in
-        --dryrun)   DRYRUN=true  ; shift  ;;
-        --verbose)  VERBOSE=true ; shift  ;;
-        --pull)     DO_PULL=true ; shift  ;;
-        --daemon)   DAEMON=true  ; shift  ;;
-        --help)     ShowHelp     ; exit 0 ;;
+        --dryrun)   DRYRUN=true    ; shift  ;;
+        --verbose)  VERBOSE=true   ; shift  ;;
+        --pull)     DO_PULL=true   ; shift  ;;
+        --daemon)   DAEMON=true    ; shift  ;;
+        --help)     ShowHelp       ; exit 0 ;;
 
-        --dind)     DIND=true    ; shift ;;
+        --dind)  DIND=true  ; shift ;;
 
         # General
         --config)     [[ -n "${2:-}" ]] && { CONFIG_FILE="$2"    ; shift 2; } || { echo "Error: --config requires a path";      exit 1; } ;;
@@ -366,7 +388,8 @@ ParseArgs() {
         --dockerfile)  [[ -n "${2:-}" ]] && { DOCKER_FILE="$2"  ; shift 2; } || { echo "Error: --dockerfile requires a path";  exit 1; } ;;
 
         # Build
-        --build-arg)        [[ -n "${2:-}" ]] && { BUILD_ARGS+=(--build-arg "$2") ; shift 2; } || { echo "Error: --build-arg requires a value";  exit 1; } ;;
+        --build-arg)      [[ -n "${2:-}" ]] && { BUILD_ARGS+=(--build-arg "$2") ; shift 2; } || { echo "Error: --build-arg requires a value";  exit 1; } ;;
+        --silence-build)  SILENCE_BUILD=true ; shift ;;
 
         # Run
         --name)           [[ -n "${2:-}" ]] && { CONTAINER_NAME="$2"        ; shift 2; } || { echo "Error: --name requires a value";       exit 1; } ;;
@@ -733,7 +756,7 @@ ShowHelp() {
   local sname="${SCRIPT_NAME:-$(basename "$0")}"
 
   cat <<EOF
-$sname — launch a Docker-based workspace
+$sname — launch a Docker-based development workspace
 
 USAGE:
   $sname [options] [--] [command ...]
@@ -745,33 +768,41 @@ GENERAL:
   --dryrun               Print the docker commands but do not execute them
   --pull                 Force pulling the image (when using prebuilt images)
   --daemon               Run the workspace container in the background
-  --dind                 Enable Docker-in-Docker sidecar and wire DOCKER_HOST
-  --config <file>        Load defaults from a config shell file
+  --dind                 Enable a Docker-in-Docker sidecar and set DOCKER_HOST
+  --unit-test            Do not run Main; source functions for unit testing
+  --config <file>        Load defaults from a config shell file (default: ./ws--config.sh)
   --workspace <path>     Host workspace path to mount at /home/coder/workspace
 
-IMAGE SELECTION (choose one path):
-  --image <name>         Use an existing image (e.g., repo/name:tag)
-  --dockerfile <path>    Build locally from Dockerfile (file or dir)
+IMAGE SELECTION (precedence: --image > --dockerfile > prebuilt):
+  --image <name>         Use an existing local/remote image (e.g., repo/name:tag)
+  --dockerfile <path>    Build locally from Dockerfile (file or dir containing ws.Dockerfile)
   --variant <name>       Prebuilt variant: container|notebook|codeserver|desktop-{xfce,kde,lxqt}
   --version <tag>        Prebuilt version tag (default: latest)
 
-BUILD OPTIONS (when building):
+BUILD OPTIONS (only when building locally with --dockerfile):
   --build-arg <KEY=VAL>  Add a build-arg (repeatable)
+  --silence-build        Hide build progress; show output only on failure
+  NOTE: Build args are ignored when using prebuilt images or --image.
 
 RUNTIME OPTIONS:
-  --name <container>     Container name (default: project name)
-  --port <n|RANDOM|NEXT> Map host port -> container 10000
+  --name <container>     Container name (default: inferred from workspace directory)
+  --port <n|RANDOM|NEXT> Map host port -> container 10000 (allowed: 10000–65535)
   --env-file <file>      Pass an --env-file to docker run
+                         Use 'none' to disable automatic .env detection
 
 COMMANDS:
   Everything after '--' is executed inside the container instead of starting
-  the default workspace service. Example: '$sname -- bash -lc "echo hi"'
+  the default workspace service. Example:
+    $sname -- -- bash -lc "echo hi"
 
 NOTES:
-  - RANDOM/NEXT for --port will auto-pick a free host port >= 10000.
-  - With --dind, a sidecar 'docker:dind' runs on a private network and the
-    main container gets DOCKER_HOST=tcp://<sidecar>:2375.
-  - In daemon mode, do not pass commands after '--'.
+  - If --env-file is not provided, a <workspace>/.env file will be used when present.
+    Pass '--env-file none' to explicitly disable this behavior.
+  - RANDOM/NEXT for --port will auto-pick a free host port ≥ 10000.
+  - With --dind, a 'docker:dind' sidecar runs on a private network and the main
+    container receives DOCKER_HOST=tcp://<sidecar>:2375.
+  - In daemon mode, do not pass commands after '--'. Stop the container with:
+      docker stop <container-name>
 
 EXAMPLES:
   # Prebuilt, foreground
@@ -785,8 +816,25 @@ EXAMPLES:
 
   # Run a one-off command inside the image
   $sname --image my/image:tag -- -- env | sort
+
+  # Disable automatic .env usage
+  $sname --env-file none --variant notebook
 EOF
 }
 
 
-Main "$@"
+
+
+UNIT_TEST=${UNITTEST:-false}
+
+ARGS=("$@")
+for (( i=0; i<${#ARGS[@]}; i++ )); do
+  case "${ARGS[i]}" in
+    --unit-test) UNIT_TEST=true ;;
+  esac
+done
+unset ARGS
+
+if [[ "$UNIT_TEST" != "true" ]]; then
+  Main "$@"
+fi

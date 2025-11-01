@@ -2,54 +2,107 @@
 
 **WorkSpace** is a lightweight framework for running reproducible development environments inside Docker.
 
-It provides simple launcher scripts --  `workspace.sh` for Bash/Linux/macOS
-  and `workspace.ps1` for PowerShell/Windows -- that abstract away the messy parts of `docker run`.
-Instead of memorizing long commands or maintaining complex Docker Compose setups, 
-  you configure a few variables in `workspace.env` (image, variant, ports, etc.) and optional runtime tweaks in `workspace-docker.args`.
-Then you can spin up a consistent workspace container with a single command.
+It provides a single launcher script — `workspace.sh` — that abstracts away the messy details of `docker run`.  
+Instead of memorizing long commands or maintaining complex Docker Compose setups,  
+you simply configure a few variables in `ws--config.sh` (such as image, variant, and ports).  
+
+With just one command, you can launch a fully reproducible and isolated development workspace.
 
 ## Why WorkSpace?
 
-When you work inside a container, files you create often end up owned by the container’s user (frequently root).
-That leads to annoying permission errors on the host: 
-  you can’t edit, clean up, or commit those files without `sudo` gymnastics.
+When developing inside containers, files you create often end up owned by the container’s user (usually `root`).  
+This leads to frustrating permission issues on the host — you can’t easily edit, remove, or commit those files without resorting to `sudo` or other workarounds.
 
-WorkSpace fixes that by mapping the container’s user to **your host UID/GID**,
-  so everything you create or modify inside the container is **owned by you on the host**
-  -- as if it came from the same machine.
+**WorkSpace** solves this by mapping the container’s user to **your host UID and GID**.  
+That means every file you create or modify inside the container is **owned by you on the host** — just as if it were created directly on your local machine.
 
-### What this gives you
-- **Seamless file access** – create/edit/delete files in the container; use them on the host with no permission surprises.
-- **Team-friendly**        – every developer keeps their own UID/GID mapping -- no “root-owned” repos.
-- **Project isolation**    – keep toolchains & deps in the container while working directly in your project folder.
-- **Portable config**      – `workspace.env` and `workspace-docker.args` travel with your repo.
+
+### What This Gives You
+
+- **Seamless file access** – Create, edit, and delete files inside the container, then use them on the host with no permission issues.  
+- **Team-friendly** – Each developer uses their own UID and GID mapping — no more “root-owned” repositories.  
+- **Project isolation** – Keep toolchains and dependencies inside the container while working directly in your project folder.  
+- **Portable configuration** – `ws--config.sh` travel with your repository, ensuring consistent setups across machines.
+
 
 ## Variants
-WorkSpace provides **ready-to-use container variants** for common scenarios:
-  - `container`  – minimal base with shell; bare but flexible.
-  - `notebook`   – Jupyter Notebook + bash, useful for runnable notebooks and docs.
-  - `codeserver` – Web-based VS Code (`code-server`) for full IDE in the browser.
 
-Typical use cases include:
-  - Most project + Easy on-boarding -- running Jupyter notebooks (VARIANT=notebook) and create often use operation scripte like build/test as notebooks.
-  - Coding inside VS Code/code-server (VARIANT=codeserver).
-  - Bare-bone development shells (VARIANT=container) where you can build on to customize as you need.
-  - Isolated environments for cloud SDKs, CI builds, or teaching/training setups.
+WorkSpace provides several **ready-to-use container variants** designed for different development workflows.  
+Each variant comes pre-configured with a curated toolset and a consistent runtime environment.
+
+### Available Variants
+
+- **`container`** – A minimal base image with essential shell tools.  
+  Ideal for building custom environments, running CLI applications, or lightweight automation tasks.
+
+- **`notebook`** – Includes Jupyter Notebook with Bash and other utilities.  
+  Great for data science, analytics, documentation, or interactive scripting workflows.
+
+- **`codeserver`** – A web-based VS Code environment powered by [`code-server`](https://github.com/coder/code-server).  
+  Provides a full browser-accessible IDE with Git integration, terminals, and extensions.
+
+- **`desktop-xfce`**, **`desktop-kde`**, **`desktop-lxqt`** – Full Linux desktop environments accessible via browser or remote desktop (e.g., noVNC).  
+  Useful for GUI-heavy workflows or running native IDEs like IntelliJ IDEA, PyCharm, or Eclipse inside Docker.
+
+### Typical Use Cases
+
+- **Data Science & Notebooks** – Quickly spin up reproducible Jupyter environments using `VARIANT=notebook`.  
+  Ideal for experiments, reports, or teaching interactive examples.
+
+- **Web or App Development** – Develop directly in a browser-based IDE using `VARIANT=codeserver`, complete with terminal and Git integration.
+
+- **Lightweight CLI Workflows** – Use `VARIANT=container` for scripting, building, and testing in an isolated but fast shell environment.
+
+- **GUI Development Environments** – Run full desktop IDEs or graphical tools using `VARIANT=desktop-*`.  
+  Perfect for complex projects requiring a windowed environment without polluting your host.
+
+- **Continuous Integration & Training** – Standardize development or CI environments for teams and classrooms, ensuring consistent behavior across machines.
+
+---
+
+> 💡 **Tip:** You can override the variant at runtime using:
+> ```bash
+> ./workspace.sh --variant codeserver
+> ```
+> Or set it permanently in your configuration file (`ws--config.sh`).
+
 
 ## Built-in Tools
 
-The base image comes with a curated set of command-line tools for productivity, scripting, and troubleshooting:
-  - Shells & Process Management: bash, zsh, tini
-  - Networking & Transfers: curl, wget, httpie
-  - Source Control & GitHub: git, gh (GitHub CLI), tig
-  - Editors & File Browsers: nano, tilde, ranger, less
-  - Data Processing: jq, yq, tree
-  - Compression & Archiving: unzip, zip, xz-utils
-  - System Utilities: ca-certificates, locales, sudo
+Every WorkSpace image comes with a carefully selected set of command-line tools for productivity, scripting, and troubleshooting.  
+These essentials are preinstalled so you can start working immediately — no extra setup required.
 
-These are installed by default so you can hit the ground running without needing extra setup.
+### 🧰 Included Tool Categories
 
-## Quick start
+- **Shells & Process Management**  
+  `bash`, `zsh`, `tini`
+
+- **Networking & Transfers**  
+  `curl`, `wget`, `httpie`
+
+- **Source Control & GitHub Integration**  
+  `git`, `gh` (GitHub CLI), `tig`
+
+- **Editors & File Browsers**  
+  `nano`, `tilde`, `ranger`, `less`
+
+- **Data Processing & Formatting**  
+  `jq`, `yq`, `tree`
+
+- **Compression & Archiving**  
+  `unzip`, `zip`, `xz-utils`
+
+- **System Utilities**  
+  `ca-certificates`, `locales`, `sudo`
+
+---
+
+> 💡 **Tip:** Each variant extends this base toolset — for example,  
+> `notebook` adds Jupyter, and `codeserver` adds a web-based IDE.  
+> You can also customize your setup by adding additional packages in your Dockerfile.
+
+
+## Quick Examples
 
 ```shell
 ./workspace.sh -- make test
@@ -59,165 +112,421 @@ These are installed by default so you can hit the ground running without needing
 ./workspace.sh -- 'read -r -p "Press Enter to continue..."'
 ```
 
+More examples : https://github.com/NawaMan/WorkSpace/tree/main/examples
 
-Windows (PowerShell):
-
-```shell
-.\workspace.ps1 -- make test
-```
-
-```shell
-./workspace.ps1 -- 'read -r -p "Press Enter to continue..."'
-```
-```
 
 ### Customization
-  - `workspace.env` – image name, variant, UID/GID overrides, port defaults.
-  - `workspace-docker.args` – extra `docker run` args (ports, mounts, env vars, memory limits).
-  - Runtime flags – `--variant`, `--name`, `--pull`, `--dryrun`, etc.
 
-## Guarantees & limits
-  - ✅ Files in your project folder are always owned by your host user.
-  - ✅ Idempotent user/group setup in the container (`workspace-user-setup`).
-  - ⚠️ Does not abstract away all OS differences (line endings, symlinks, file attrs).
+You can tailor how WorkSpace runs by adjusting configuration files or using runtime flags:
 
-## How it works
-  - The launcher passes your **host UID/GID** into the container (`HOST_UID`, `HOST_GID`).
-  - The entry script (`workspace-user-setup`) ensures a coder user/group exists with those IDs.
-  - Your home (`/home/coder`) and workspace (`/home/coder/workspace`) are owned by you.
-  - Commands run as `coder`, not root.
+- **`ws--config.sh`** – Defines the image name, variant, UID/GID overrides, and default ports.  
+- **Runtime flags** – Options such as `--variant`, `--name`, `--pull`, `--dryrun`, and others can override defaults at launch.
 
+> 💡 **Tip:** Configuration precedence follows this order:  
+> **CLI flags → config file → environment variables → built-in defaults.**
 
-```mermaid
-flowchart TD
-    A[Host machine]
-    B[Launcher workspace.sh or workspace.ps1]
-    C[Docker run passes HOST_UID and HOST_GID]
-    D[Container entry workspace-user-setup]
-    E[Group alignment ensure coder has HOST_GID]
-    F[User alignment ensure coder has HOST_UID]
-    G["Mapped user coder with HOST_UID and HOST_GID"]
-    H[/home/coder/workspace bind mounted/]
-    I[Files created in container appear in project folder on host]
-    J[Owned by same UID and GID]
+---
 
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    D --> F
-    E --> G
-    F --> G
-    G --> H
-    H --> I
-    I --> J
-    J --> A
-```
+## Guarantees & Limits
 
-Result: seamless dev environment, no permission headaches.
+- ✅ **Host file ownership:** All files in your project folder remain owned by your host user — no “root-owned” files.  
+- ✅ **Consistent user mapping:** Each container automatically creates a matching user and group via `workspace-user-setup`.  
+- ⚠️ **Cross-OS caveats:** WorkSpace doesn’t abstract away all host OS differences — things like line endings, symlinks, or file attributes may still vary between platforms.
+
+---
+
+## How It Works
+
+1. The launcher passes your **host UID** and **GID** into the container using the environment variables `HOST_UID` and `HOST_GID`.  
+2. Inside the container, the entrypoint script (`workspace-user-setup`) ensures a matching `coder` user and group exist with those IDs.  
+3. The directories `/home/coder` and `/home/coder/workspace` are owned by that user, ensuring smooth file sharing between host and container.  
+4. Add the user `coder` to sudoers so that it can sudo without needing the password
+5. Prepare `.bashrc` and `.zshrc`
+6. Run startup script (files in `/usr/share/startup.d`)
+7. All commands run as the unprivileged **`coder`** user, not `root`, preserving security and consistent file ownership.
+
+---
+
+> 🧠 **In short:**  
+> WorkSpace mirrors your host identity inside the container — you work as yourself, not as root.
 
 
-## workspace.sh and workspace.ps1 manual
+**Result:** seamless dev environment, no permission headaches.
+
+
+## workspace.sh Manual
 
 ### Feature List
 
-1. Image Selection
-  - **Defaults:**
-    - Repo: `nawaman/workspace`
-    - Variant: `container`
-    - Version: `latest`
-  - **Overrides:**
-    - Env vars: `IMGNAME`, `IMGREPO`, `IMG_TAG`, `VARIANT`, `VERSION`
-    - Config file: `workspace.env`
-    - CLI options: --variant, --version
-  - **Precedence:** CLI > config file > environment vars > built-in defaults.
-  - **Derived:**
-    - `IMGNAME` = `IMGREPO:IMG_TAG`
-    - `IMG_TAG` = defaults to `VARIANT-VERSION`
+### 1. Image Selection
 
-2. Container Name
-  - Default: sanitized current folder name (workspace if empty).
-  - Overrides:
-    - Env var: `CONTAINER`
-    - Config file: `workspace.env`
-    - CLI: `--name <name>`
+**Defaults**
+- **Repository:** `nawaman/workspace`  
+- **Variant:** `container`  
+- **Version:** `latest`
 
-3. Config Files`
-  - **Launcher config (`workspace.env`)**
-    - Sourced before parsing CLI.
-    - Keys: `IMGNAME`, `IMGREPO`, `IMG_TAG`, `VARIANT`, `VERSION`, `CONTAINER`, `HOST_UID`, `HOST_GID`, `WORKSPACE_PORT`.
-  - **Container env-file (`.env`)**
-     - Passed with `--env-file`.
-     - Typical keys: `PASSWORD`, `JUPYTER_TOKEN`, `TZ`, `AWS_*`, etc.
-     - Override with `--env-file F` or `CONTAINER_ENV_FILE`.
-   - **Docker args file (`workspace-docker.args`)**
-     - Lines are parsed into extra docker run args.
-     - Override with `--docker-run-args F` or `DOCKER_ARGS_FILE`.
-     - Supports comments and quoted paths.
+**Overrides**
+- **Environment variables:** `IMAGE_NAME`, `IMAGE_REPO`, `IMAGE_TAG`, `VARIANT`, `VERSION`  
+- **Configuration file:** `ws--config.sh`  
+- **CLI options:** `--variant`, `--version`, `--image`, `--dockerfile`
 
-4. Host UID/GID Handling
-  - Defaults: use `id -u`, `id -g`.
-  - Override via env vars `HOST_UID`, `HOST_GID`, or config file.
-  - Passed into container as envs.
+**Precedence**
+Command-line arguments → config file → environment variables → built-in defaults
 
-5. Run Modes
-  - **Interactive shell (default)**
-    - `docker run --rm -it ... $IMGNAME`
-  - **Command mode (`-- <cmd>`)**
-    - Runs given command under `bash -lc`.
-  - **Daemon mode (`-d` or `--daemon`)**
-    - Detached container.
-    - For `container` variant, runs an infinite sleep loop.
+**Derived Values**
+- `IMAGE_NAME` = `IMAGE_REPO:IMAGE_TAG`  
+- `IMAGE_TAG` = defaults to `${VARIANT}-${VERSION}`  
 
-6. Ports
-  - **Notebook** and **CodeServer** will expose `${WORKSPACE_PORT:-10000}:10000`
-  - All ports can be overridden in workspace.env.
-
-7. Pulling Images
-  - `--pull` forces a pull.
-  - Otherwise, pulls if image missing.
-  - Errors if image not found locally afterwards.
-
-8. Container Cleanup
-  - Automatically `docker rm -f` old container with same name before run.
-
-9. Dry-Run Mode
-  - `--dryrun` prints the fully assembled `docker run ...` command.
-  - No side effects (no docker checks, no container run).
-
-10. Help
-   - `-h` / `--help` prints detailed usage, configuration, and notes.
+> 💡 **Tip:**  
+> When both `--image` and `--dockerfile` are provided, `--image` takes precedence.  
+> Use `--dockerfile` when you want to build locally; otherwise, WorkSpace automatically pulls prebuilt images from `nawaman/workspace`.
 
 
-## Implementation Notes
+### 2. Container Name
 
-### Profile Ordering
+**Default**  
+- The container name defaults to a sanitized version of the current folder name.  
+  If the directory name cannot be determined, it falls back to `workspace`.
 
-Guideline to profile ordering `/etc/profile.d/##-XXXXXX.sh`.
+**Overrides**
+- **Environment variable:** `CONTAINER_NAME`  
+- **Configuration file:** `ws--config.sh`  
+- **CLI option:** `--name <name>`
 
-- 50 - 54 : workspace base setup
-- 55 - 59 : OS/UI setup (except python -- needed for the basic)
-- 60 - 64 : language/development platform setup
-- 65 - 69 : language/development platform extension setup
-- 70 - 74 : language/development tool (like IDE) setup
-- 75 - 79 : language/development tool extension setup
+---
 
-### Setup pattern
-
-- name: &lt;thing&gt;-setup.sh in PATH
-- After setup run, `bash` (a new bash session) should boot strap it.
-- &lt;thing&gt;-setup-info .. might be created.
-- `WS_XXXXX` variables may created
-- Setup does things on as root. For user space.
-- Use `/usr/share/startup.d/*-ws-*.sh` to do things on the user only once at the start of the container.
-- Use `/etc/profile.d/*-ws-*.sh` to do things on the user -- one per bash session.  
-- Create a starter and put in `/ust/local/share/bin/` for the per run action.
+> 💡 **Tip:**  
+> Using unique container names helps avoid conflicts when running multiple WorkSpace instances simultaneously.
 
 
-## Community & feedback
+### 3. Config Files
 
-WorkSpace aims to cover **typical developer needs** without overcomplicating things. 
-If you find a gap, edge case, or improvement, please open an issue or PR -- we’d love to hear how you use it.
+WorkSpace supports several configuration files that control how containers are built and launched.  
+These files let you define defaults, environment variables, and runtime parameters without cluttering your CLI commands.
+
+#### **Launcher Config (`ws--config.sh`)**
+- Sourced automatically **before** command-line arguments are parsed.  
+- Defines default values for image selection, user mapping, and runtime behavior.  
+- Typical keys include:  
+  `IMAGE_NAME`, `IMAGE_REPO`, `IMAGE_TAG`, `VARIANT`, `VERSION`,  
+  `CONTAINER_NAME`, `HOST_UID`, `HOST_GID`, `WORKSPACE_PORT`, `DIND`, and others.
+
+##### **Custom Argument Arrays**
+You can define three special arrays in `ws--config.sh` to customize how the launcher interacts with Docker:
+
+- **`ARGS`** – Adds command-line arguments directly to `workspace.sh`.  
+  Useful for predefining commonly used options (e.g., extra ports or mounts).  
+  ```bash
+  ARGS+=("--variant" "codeserver")
+  ARGS+=("--port" "8080:8080")
+  ```
+
+These behave exactly like command-line flags passed to workspace.sh.
+
+- BUILD_ARGS – Adds extra options to the docker build command.
+  For example, disable caching or pass build-time variables:
+  ```bash
+  BUILD_ARGS=(--no-cache --build-arg NODE_VERSION=20)
+  ```
+- RUN_ARGS – Adds extra options to the docker run command.
+  These are appended automatically at launch:
+  ```bash
+  RUN_ARGS=(-e TZ=Asia/Bangkok -v /mnt/data:/data)
+  ```
+> 💡 Tip:
+> These arrays allow you to version-control useful runtime and build options without hardcoding them into your CLI workflow.
+> Combined with ARGS, you can achieve fully reproducible builds and launches with zero manual typing.
+
+#### Container Environment File (.env)
+- Passed directly to Docker using the --env-file option.
+- Commonly used for credentials or runtime configuration such as: PASSWORD, JUPYTER_TOKEN, TZ, PROXY, AWS_*, GH_TOKEN, etc.
+- Can be overridden with --env-file <path> or the CONTAINER_ENV_FILE variable.
+- To disable, set CONTAINER_ENV_FILE=none or use --env-file none.
+
+> 🧩 Summary:
+> Configuration layers allow customization at two levels:
+> Build+Image: ws--config.sh (persistent project defaults)
+> Container Environment: .env (runtime secrets and environment variables)
+> Together, they give you full control over build, run, and launcher behavior.
+
+
+### 4. Host UID/GID Handling
+
+WorkSpace ensures that all files created inside the container are owned by the same user and group as on your host system.  
+This eliminates the common “root-owned files” problem when developing inside Docker.
+
+**Defaults**
+- Automatically detects and uses your current user and group IDs:
+  ```bash
+  HOST_UID=$(id -u)
+  HOST_GID=$(id -g)
+  ```
+
+### 5. Run Modes
+
+WorkSpace supports multiple run modes to fit different workflows — from one-off commands to long-running containers.
+
+#### **Interactive Shell (Default)**
+- Launches an interactive terminal session inside the container.  
+- The container is removed automatically when you exit.
+  ```bash
+  docker run --rm -it ... $IMAGE_NAME
+  ```
+- Ideal for local development, testing, or exploratory use.
+
+#### Command Mode (-- <cmd>)
+- Executes a specific command inside the container and then exits.
+- Commands are run under a login shell for a consistent environment:
+  ```bash
+  ./workspace.sh -- echo "Hello from container"
+  ```
+- Useful for automation, scripting, or CI/CD pipelines.
+  
+#### Daemon Mode (--daemon)
+- Starts the container in the background (detached).
+- For the container variant, the container runs an infinite sleep loop to stay alive.
+- Commonly used for IDE variants (like codeserver or desktop-*) that provide persistent services.
+
+> 💡 **Tip:**  
+> In daemon mode, you can later attach to the container using:
+> `docker exec -it <container_name> bash`
+> Stop it with:
+> `docker stop <container_name>`
+
+### 6. Ports
+WorkSpace automatically manages port mappings for interactive and web-based variants.
+
+**Defaults**
+- For the `notebook` and `codeserver` variants, the container exposes the following mapping:
+  ```bash
+  ${WORKSPACE_PORT:-10000}:10000
+
+This means port 10000 inside the container is forwarded to port 10000 on the host (or whatever you override).
+
+**Overrides**
+- You can customize the exposed port via:
+  - Environment variable: WORKSPACE_PORT
+  - Configuration file: ws--config.sh
+  - CLI flag: --port <number>
+- The value can be a fixed number (8080), NEXT (to find the next available port), or RANDOM (to assign a random open port).
+
+> 💡 Tip:
+> When using multiple WorkSpace containers at once, consider setting WORKSPACE_PORT=NEXT to avoid conflicts automatically.
+
+### 7. Pulling Images
+
+WorkSpace manages Docker image retrieval intelligently to balance performance and consistency.
+
+**Default Behavior**
+- If the specified image does not exist locally, WorkSpace will **automatically pull** it from the configured repository.  
+- If the image is already present, it reuses the local copy for faster startup.
+
+**Forced Pull**
+- Use the `--pull` flag to explicitly fetch the latest image version, even if a local copy exists:
+  ```bash
+  ./workspace.sh --pull
+  ```
+> 💡 Tip:
+> Use --pull periodically to ensure your local environment stays in sync with the latest base image, especially when sharing configurations across teams.
+
+
+### 8. Dry-Run Mode
+
+The **dry-run** mode allows you to preview exactly what WorkSpace will execute — without actually starting a container.
+
+**Usage**
+```bash
+./workspace.sh --dryrun
+```
+
+**Behavior**
+- Prints the fully assembled docker run ... command that would be executed.
+- No side effects — it does not check Docker status, pull images, or create containers.
+- Useful for debugging configuration issues or verifying CLI overrides before launch.
+
+> 💡 Tip:
+> Combine --dryrun with --verbose to see detailed variable expansion and runtime configuration.
+
+### 9. Help
+
+Displays detailed usage information, supported flags, and configuration notes.
+
+**Usage**
+```bash
+./workspace.sh --help
+# or
+./workspace.sh -h
+```
+
+**Behavior**
+- Prints a full help summary including available variants, runtime options, and examples.
+- Provides hints for environment variables and configuration file structure.
+- Exits immediately after displaying help.
+
+### 10. Docker-in-Docker (DinD) Support -- Experimental Feature
+
+WorkSpace supports **Docker-in-Docker (DinD)** mode, allowing you to build and run Docker containers **from inside your workspace container**.  
+This feature is useful for CI/CD pipelines, containerized builds, or development environments that need access to Docker tooling.
+
+---
+
+**Behavior**
+- When DinD mode is enabled, the workspace container gains access to the host’s Docker daemon or runs its own isolated Docker service.  
+- The mode can operate in one of two styles:
+  1. **Socket sharing (default):** Mounts the host’s Docker socket (`/var/run/docker.sock`) for direct access.  
+  2. **Sidecar DinD service:** Starts a secondary “sidecar” container running the Docker daemon itself (experimental).
+
+---
+
+**Configuration**
+- Enable DinD by setting:
+  ```bash
+  DIND=true
+  ```
+  in your ws--config.sh file or by passing:
+  ```bash
+  ./workspace.sh --dind
+  ```
+- Default behavior (DIND=false) disables Docker access inside the container.
+  
+**Usage Notes**
+- DinD mode may increase resource usage and startup time.
+- The sidecar approach offers stronger isolation but can be slower and more complex to manage.
+- For most development workflows, socket sharing is recommended.
+- The DinD container automatically mounts the /var/run/docker.sock volume when enabled.
+
+> ⚠️ Warning:
+> Running DinD with full socket access means the container can control the host’s Docker daemon.
+> Use with caution in multi-user or production environments.
+
+
+## Setup Implementation Notes
+
+### Setup Files Overview
+
+WorkSpace setup scripts follow a simple pattern that produces **three artifacts**:
+
+1. **Startup script** (runs once per container start, as the normal user)  
+   - Path: `/usr/share/startup.d/<LEVEL>-ws-<thing>--startup.sh`  
+   - Purpose: one-time initialization per container boot (idempotent).  
+   - Example tasks: create user cache dirs, generate config files if missing, first-run migrations.
+
+2. **Profile script** (sourced at the beginning of every shell session)  
+   - Path: `/etc/profile.d/<LEVEL>-ws-<thing>--profile.sh`  
+   - Purpose: lightweight per-shell setup.  
+   - Example tasks: export env vars, update `PATH`, define aliases.
+
+3. **Starter wrapper** (a user-invoked command wrapper)  
+   - Path: `/usr/local/bin/<thing>`  
+   - Purpose: pre-/post-steps around the real tool, then `exec` the tool.  
+   - Example tasks: set tool-specific env, ensure background service is running, sanitize args.
+
+> 🧩 **From the template**  
+> - Replace `XXXXXX` with your feature/tool name (e.g., `python`, `codeserver`).  
+> - Adjust `LEVEL` (see **Profile Ordering** below).  
+> - Use `envsubst` placeholders (e.g., `$XXXXXX_VERSION`) to stamp values into generated files.  
+> - Make startup/profile code **idempotent** (safe to run multiple times).
+
+---
+
+### Startup/Profile Ordering
+
+Name your scripts using this pattern:  
+`/etc/profile.d/<LEVEL>-ws-<thing>--profile.sh` and `/usr/share/startup.d/<LEVEL>-ws-<thing>--startup.sh`
+
+Choose `<LEVEL>` from these ranges to keep load order predictable:
+
+| Level Range | Purpose |
+|---|---|
+| **50–54** | Core WorkSpace base setup |
+| **55–59** | OS / UI setup (desktop, display, browsers) |
+| **60–64** | Language / platform setup (Python, Java, Node.js, Go, etc.) |
+| **65–69** | Language / platform extensions (venv managers, JDK tools, linters) |
+| **70–74** | Developer tools (IDEs, editors, notebook servers) |
+| **75–79** | Tool extensions (plugins, kernels, IDE extensions) |
+
+> 💡 **Guideline:** Prefer **lower** levels for prerequisites and **higher** levels for dependents.  
+> For example, install Python at **60–64**, then add Jupyter kernels at **75–79**.
+
+---
+
+### Setup Pattern & Conventions
+
+**Script naming**
+- Installation script (run as root): `*setup.sh` (placed in a build or image layer)
+- Generated files (by the setup script):  
+  - Startup: `/usr/share/startup.d/<LEVEL>-ws-<thing>--startup.sh`  
+  - Profile: `/etc/profile.d/<LEVEL>-ws-<thing>--profile.sh`  
+  - Starter: `/usr/local/bin/<thing>`
+
+**Root vs. user**
+- The *setup script itself* runs as **root** (installs packages, writes system files).  
+- **Startup** and **profile** scripts run as the **normal user** at container start or shell login, respectively.
+
+**Idempotence**
+- Startup/profile code must be safe to run multiple times.  
+- Use a sentinel when needed:
+  ```bash
+  SENTINEL="$HOME/.<thing>-startup-done"
+  [[ -f "$SENTINEL" ]] && exit 0
+  touch "$SENTINEL"
+
+**Environment variables**
+- Prefer the WS_* prefix for WorkSpace-specific variables (e.g., WS_PYTHON_HOME).
+- In profile scripts, keep exports lightweight and guarded:
+  ```bash
+  case ":$PATH:" in *":/usr/local/bin:"*) ;; *) export PATH="/usr/local/bin:$PATH";; esac
+  ```
+
+**Starter wrappers**
+- Keep wrapper logic minimal and exec the real binary:
+```bash
+# /usr/local/bin/<thing>
+# pre-steps...
+exec /usr/local/bin/real-<thing> "$@"
+```
+- Exit non-zero on failure; avoid swallowing errors.
+
+**File permissions**
+- Startup: chmod 755
+- Profile: chmod 644
+- Starter: chmod 755
+
+
+## Community & Feedback
+
+WorkSpace is built to meet **real developer needs** — simple, reproducible, and flexible without unnecessary complexity.  
+Your feedback and contributions help it evolve and stay relevant for everyone.
+
+---
+
+### 🐛 Issues & Contributions
+- Use the **[Issues page](../../issues)** to report bugs, request new features, or suggest improvements.  
+- Pull Requests are always welcome — from fixing typos to adding new setup scripts or container variants.  
+- Have a creative idea, workflow, or enhancement to share? Open an issue or discussion — we’d love to hear it.  
+- Prefer to reach out directly? Feel free to contact me through any of the links below.
+
+---
+
+### ☕ Support & Appreciation
+If WorkSpace has saved you time, simplified your setup, or made development more enjoyable —  
+you can **[buy me a coffee](https://buymeacoffee.com/NawaMan)** to show your support.  
+
+Your encouragement keeps this project active — and might even help with my kids’ college fund 😄.
+
+---
+
+### 🌐 Connect
+Stay in touch or follow updates, insights, and development notes:
+- 🐦 Twitter/X: [@nawaman](https://x.com/nawaman)
+- 💼 LinkedIn: [nawaman](https://www.linkedin.com/in/nawaman/)
+- 📰 Blog: [nawaman.net/blog](https://nawaman.net/blog/)
+
+---
+
+> 🙏 Every issue, idea, and pull request — big or small — helps make WorkSpace better for everyone.  
+> Thank you for being part of the community!
+
 
 
 

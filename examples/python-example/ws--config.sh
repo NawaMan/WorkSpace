@@ -2,5 +2,3 @@ VARIANT=lxqt
 VERSION=0.2.0
 DOCKER_FILE=ws.Dockerfile
 WORKSPACE_PORT=NEXT
-
-#ARGS+=("--dryrun" "--verbose")

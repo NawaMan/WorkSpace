@@ -87,3 +87,42 @@ cat <<'EON'
     gcloud auth login
     gcloud config set project <PROJECT_ID>
 EON
+
+
+
+
+NOTE_ONLY=<<'NOTE'
+
+To install the Google Cloud CLI (gcloud) on Ubuntu, follow these steps:
+
+1. Update your package list and install the required packages:
+
+  sudo apt-get update && sudo apt-get install -y curl apt-transport-https ca-certificates gnupg
+     
+2. Add the Google Cloud repository to your system. Use the signed-by option if your system supports it:
+
+  echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+ 
+3. Import the Google Cloud public key. If your system supports gpg --dearmor, use:
+
+  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+
+If `gpg --dearmor` is not available, use `apt-key`:
+
+  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+ 
+4. Update the package list and install the Google Cloud CLI:
+
+  sudo apt-get update && sudo apt-get install google-cloud-cli
+ 
+5. Initialize the gcloud CLI by running:
+
+  gcloud init
+ 
+This command will prompt you to log in to your Google Cloud account and select a project.
+
+For installation within a Docker image, use a single RUN command to avoid issues with the apt-key command:
+
+  RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && apt-get update -y && apt-get install google-cloud-cli -y
+ 
+NOTE
