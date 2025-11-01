@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM nawaman/workspace:container-0.2.0--rc
+FROM nawaman/workspace:container-0.2.0
 
 ARG PY_VERSION=3.12
 
