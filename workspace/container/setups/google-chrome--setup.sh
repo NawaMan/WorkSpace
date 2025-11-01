@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# chrome-setup.sh — Install Google Chrome (DEB, no snap) with no-sandbox wrapper
+# chrome--setup.sh — Install Google Chrome (DEB, no snap) with no-sandbox wrapper
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 

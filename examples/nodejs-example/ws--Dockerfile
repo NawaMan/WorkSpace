@@ -19,11 +19,11 @@ ENV PY_VERSION="${PY_VERSION}"
 ENV NODE_MAJOR="${NODE_MAJOR}"
 ENV NVM_VERSION="${NVM_VERSION}"
 
-RUN "$SETUPS_DIR/nodejs-setup.sh" ${NODE_MAJOR} --nvm-version=${NVM_VERSION}
+RUN "$SETUPS_DIR/nodejs--setup.sh" ${NODE_MAJOR} --nvm-version=${NVM_VERSION}
 
 # Somehow this does not work but install react one below let me use JS and TS.
-# RUN if [[ "$VARIANT_TAG" != container ]] && [[ "$VARIANT_TAG" != notebook ]]; then "$SETUPS_DIR/node-code-extension-setup.sh"  ; fi
+# RUN if [[ "$VARIANT_TAG" != container ]] && [[ "$VARIANT_TAG" != notebook ]]; then "$SETUPS_DIR/node-code-extension--setup.sh"  ; fi
 
-RUN if [[ "$VARIANT_TAG" != container ]] && [[ "$VARIANT_TAG" != notebook ]]; then "$SETUPS_DIR/react-code-extension-setup.sh" ; fi
+RUN if [[ "$VARIANT_TAG" != container ]] && [[ "$VARIANT_TAG" != notebook ]]; then "$SETUPS_DIR/react-code-extension--setup.sh" ; fi
 
-RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" webstorm ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains--setup.sh" webstorm ; fi

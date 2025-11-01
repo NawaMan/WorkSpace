@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# codeserver-setup.sh
+# codeserver--setup.sh
 # Installs code-server + Jupyter (Python venv). Bash kernel is installed via external script.
 # Auth behavior:
 #   - If PASSWORD is empty or unset -> auth: none (no password)

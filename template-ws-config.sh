@@ -27,7 +27,7 @@
 # VERSION=latest        # Prebuilt version tag (default: latest)
 
 # IMAGE_NAME=           # Full image reference (e.g. repo/name:tag). If set, no build/pull logic runs.
-# DOCKER_FILE=          # Path to Dockerfile OR a directory containing ws.Dockerfile for local build
+# DOCKER_FILE=          # Path to Dockerfile OR a directory containing ws--Dockerfile for local build
 # DO_PULL=false         # When using a prebuilt image, force `docker pull` even if present locally
 
 ### -------------------------------------------------------------------------------------
@@ -93,7 +93,7 @@
 # DO_PULL=true
 # CONTAINER_ENV_FILE=none
 
-# # Local build from a workspace Dockerfile directory containing ws.Dockerfile:
+# # Local build from a workspace Dockerfile directory containing ws--Dockerfile:
 # DOCKER_FILE="./"
 # BUILD_ARGS+=(--no-cache)
 

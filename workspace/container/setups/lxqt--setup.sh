@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lxqt-setup.sh — root-only installer for LXQt + VNC + noVNC
+# lxqt--setup.sh — root-only installer for LXQt + VNC + noVNC
 # Installs deps, configures defaults, creates /usr/local/bin/start-lxqt
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
@@ -18,10 +18,10 @@ DEFAULT_VNC_PORT="${DEFAULT_VNC_PORT:-5901}"
 DEFAULT_VNC_PASSWORD="${DEFAULT_VNC_PASSWORD:-}"
 LXQT_WM="${LXQT_WM:-openbox}"    # can be xfwm4 if installed
 
-# Use python-setup.sh exactly like setup-code-server-jupyter.sh
+# Use python--setup.sh exactly like setup-code-server-jupyter.sh
 PY_VERSION=${1:-3.12}                    # accepts X.Y or X.Y.Z
 SETUPS_DIR=${SETUPS_DIR:-/opt/workspace/setups}
-"${SETUPS_DIR}/python-setup.sh" "${PY_VERSION}"
+"${SETUPS_DIR}/python--setup.sh" "${PY_VERSION}"
 
 # Load python env exported by the base setup
 source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true

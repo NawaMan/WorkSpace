@@ -1,6 +1,5 @@
 VARIANT=desktop-xfce
-VERSION=0.2.0
-DOCKER_FILE=ws.Dockerfile
+VERSION=0.3.0
 WORKSPACE_PORT=NEXT
 
 ARGS+=(

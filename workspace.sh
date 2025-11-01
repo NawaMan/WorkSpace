@@ -1,5 +1,5 @@
 #!/bin/bash
-# VERSION: 0.2.0
+# VERSION: 0.3.0
 set -euo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
@@ -274,15 +274,15 @@ EnsureDockerImage() {
     LOCAL_BUILD=false
   else
     # Normalize DOCKER_FILE:
-    # - If a directory containing ws.Dockerfile, resolve to that file
-    # - If unset and workspace has ws.Dockerfile, use that
+    # - If a directory containing ws--Dockerfile, resolve to that file
+    # - If unset and workspace has ws--Dockerfile, use that
     if [[ -n "${DOCKER_FILE:-}" ]]; then
-      if [[ -d "$DOCKER_FILE" && -f "$DOCKER_FILE/ws.Dockerfile" ]]; then
-        DOCKER_FILE="$DOCKER_FILE/ws.Dockerfile"
+      if [[ -d "$DOCKER_FILE" && -f "$DOCKER_FILE/ws--Dockerfile" ]]; then
+        DOCKER_FILE="$DOCKER_FILE/ws--Dockerfile"
       fi
     else
-      if [[ -d "$WORKSPACE_PATH" && -f "$WORKSPACE_PATH/ws.Dockerfile" ]]; then
-        DOCKER_FILE="$WORKSPACE_PATH/ws.Dockerfile"
+      if [[ -d "$WORKSPACE_PATH" && -f "$WORKSPACE_PATH/ws--Dockerfile" ]]; then
+        DOCKER_FILE="$WORKSPACE_PATH/ws--Dockerfile"
       fi
     fi
 
@@ -581,7 +581,7 @@ PrintCmd() {
 RunAsCommand() {
   # Foreground with explicit command
   USER_CMDS="${CMDS[*]}"
-  Docker run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
+  Docker run "$TTY_ARGS" --rm "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
 
   # Foreground-with-command cleanup for DinD
   if [[ "$DIND" == "true" ]]; then
@@ -603,12 +603,17 @@ RunAsDaemon() {
   echo "👉 Stop with '${SCRIPT_NAME} -- exit'. The container will be removed (--rm) when stop."
   echo "👉 Visit 'http://localhost:${HOST_PORT}'"
   echo "👉 To open an interactive shell instead: ${SCRIPT_NAME} -- bash"
+  echo "👉 To stop the running contaienr:"
+  echo 
+  echo "      docker stop $CONTAINER_NAME"
+  echo 
+  echo "👉 Container Name: $CONTAINER_NAME"
   echo -n "👉 Container ID: "
   if [[ "${DRYRUN}" == "true" ]]; then
     echo "<--dryrun-->"
     echo ""
   else
-    Docker run -d "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
+    Docker run -d --rm "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
     # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
     if [[ "$DIND" == "true" ]]; then
@@ -623,7 +628,7 @@ RunAsForeground() {
   echo "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
   echo "👉 To open an interactive shell instead: '${SCRIPT_NAME} -- bash'"
   echo ""
-  Docker run --rm "$TTY_ARGS" "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
+  Docker run "$TTY_ARGS" --rm "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
   # Foreground cleanup: stop sidecar & network if DinD was used
   if [[ "$DIND" == "true" ]]; then
@@ -775,7 +780,7 @@ GENERAL:
 
 IMAGE SELECTION (precedence: --image > --dockerfile > prebuilt):
   --image <name>         Use an existing local/remote image (e.g., repo/name:tag)
-  --dockerfile <path>    Build locally from Dockerfile (file or dir containing ws.Dockerfile)
+  --dockerfile <path>    Build locally from Dockerfile (file or dir containing ws--Dockerfile)
   --variant <name>       Prebuilt variant: container|notebook|codeserver|desktop-{xfce,kde,lxqt}
   --version <tag>        Prebuilt version tag (default: latest)
 

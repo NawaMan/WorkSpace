@@ -3,7 +3,7 @@ set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
 # ---------------------------------------------
-# jdk-setup.sh — Install JBang + chosen JDK
+# jdk--setup.sh — Install JBang + chosen JDK
 #
 # Vendor selection order:
 #   1) CLI arg #2 (e.g., "graalvm") → sets JBANG_JDK_VENDOR
@@ -14,10 +14,10 @@ trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 #   --alternative <PRIORITY>  # update-alternatives priority (default: 20000)
 #
 # Usage:
-#   sudo ./jdk-setup.sh
-#   sudo ./jdk-setup.sh 25
-#   sudo ./jdk-setup.sh 25 graalvm
-#   sudo ./jdk-setup.sh --alternative 30000 25 temurin
+#   sudo ./jdk--setup.sh
+#   sudo ./jdk--setup.sh 25
+#   sudo ./jdk--setup.sh 25 graalvm
+#   sudo ./jdk--setup.sh --alternative 30000 25 temurin
 # ---------------------------------------------
 
 log() { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
@@ -43,13 +43,13 @@ while [[ $# -gt 0 ]]; do
       ;;
     --help|-h)
       cat <<'USAGE'
-Usage: jdk-setup.sh [--alternative PRIORITY] [JDK_VERSION] [VENDOR]
+Usage: jdk--setup.sh [--alternative PRIORITY] [JDK_VERSION] [VENDOR]
 
 Examples:
-  sudo ./jdk-setup.sh
-  sudo ./jdk-setup.sh 25
-  sudo ./jdk-setup.sh 25 graalvm
-  sudo ./jdk-setup.sh --alternative 30000 25 temurin
+  sudo ./jdk--setup.sh
+  sudo ./jdk--setup.sh 25
+  sudo ./jdk--setup.sh 25 graalvm
+  sudo ./jdk--setup.sh --alternative 30000 25 temurin
 USAGE
       exit 0
       ;;
@@ -153,7 +153,7 @@ update-alternatives --set jstack "${GENERIC_LINK}/bin/jstack" || true
 # --- System-wide profile for future shells ---
 log "Writing ${PROFILE_FILE} ..."
 cat >"$PROFILE_FILE" <<EOF
-# JDK (${JDK_VERSION}) setup — managed by jdk-setup.sh
+# JDK (${JDK_VERSION}) setup — managed by jdk--setup.sh
 export JAVA_HOME=${GENERIC_LINK}
 export JAVA_${JDK_VERSION}_HOME=${GENERIC_LINK}
 export JAVA_HOME_${JDK_VERSION}_VENDOR=${VENDOR_LINK}

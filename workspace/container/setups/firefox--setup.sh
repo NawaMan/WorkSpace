@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# firefox-setup.sh — Install Firefox via Mozillateam PPA (avoids snap)
+# firefox--setup.sh — Install Firefox via Mozillateam PPA (avoids snap)
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 

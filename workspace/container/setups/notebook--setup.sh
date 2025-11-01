@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-# notebook-setup.sh
-# Uses consolidated Python setup (/opt/workspace/setups/python-setup.sh),
+# notebook--setup.sh
+# Uses consolidated Python setup (/opt/workspace/setups/python--setup.sh),
 # then installs Jupyter and registers kernels + a "notebook" launcher.
-# NOTE: Bash kernel installation is delegated to ${SETUPS_DIR}/bash-nb-kernel-setup.sh
+# NOTE: Bash kernel installation is delegated to ${SETUPS_DIR}/bash-nb-kernel--setup.sh
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 

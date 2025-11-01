@@ -13,7 +13,7 @@ Examples:
   $0 --mix-home /opt/mix-cache --hex-home /opt/hex-cache
 
 Notes:
-- Requires Erlang/OTP in PATH (erl/erlc). Use your erlang-setup.sh first.
+- Requires Erlang/OTP in PATH (erl/erlc). Use your erlang--setup.sh first.
 - Installs to /opt/elixir/elixir-<ver> and links /opt/elixir-stable.
 - Mix & Hex caches live under /opt by default and are world-writable (CI/dev friendly).
 USAGE

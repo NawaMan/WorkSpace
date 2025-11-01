@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# vscode-setup.sh — Install Visual Studio Code (DEB, no snap)
+# vscode--setup.sh — Install Visual Studio Code (DEB, no snap)
 # Adds: Jupyter Notebook + Bash kernel setup (for VS Code Jupyter extension)
 set -Eeuo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
@@ -60,7 +60,7 @@ python -m bash_kernel.install --sys-prefix
 
 # Make Jupyter path globally visible for VS Code
 cat > "$PROFILE_FILE" <<'EOF'
-# Added by vscode-setup.sh
+# Added by vscode--setup.sh
 export JUPYTER_PATH="${VENV_ROOT}/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter:\${JUPYTER_PATH:-}"
 EOF
 chmod 644 "$PROFILE_FILE"
