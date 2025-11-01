@@ -8,7 +8,7 @@ trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 [ "$EUID" -eq 0 ] || { echo "❌ Run as root (use sudo)"; exit 1; }
 
 # --- Defaults ---
-NODE_MAJOR=24
+NODE_MAJOR=20
 NVM_VERSION=0.40.3
 
 # --- Parse args ---
@@ -32,6 +32,7 @@ done
 
 
 STARTUP_FILE="/usr/share/startup.d/57-ws-node--startup.sh"
+PROFILE_FILE="/etc/profile.d/57-ws-node--profile.sh"
 
 mkdir -p "$(dirname "$STARTUP_FILE")"
 
@@ -73,7 +74,6 @@ nvm use --silent default >/dev/null 2>&1 || true
 EOF
 chmod 755 "${STARTUP_FILE}"
 
-PROFILE_FILE="/etc/profile.d/57-ws-node--profile.sh"
 cat >"$PROFILE_FILE" <<"EOF"
 # /etc/profile.d/57-ws-node--profile.sh
 # Load nvm (per-user) and quietly select the default Node.
