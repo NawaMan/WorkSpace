@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Time App</title>
+  </head>
+  <body>
+    <!-- Simple top bar showing client and server times -->
+    <div id="top-time-bar" style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; padding: 8px 12px; background: #f6f8fa; border-bottom: 1px solid #e5e7eb; color: #111827; display: flex; gap: 16px; align-items: baseline;">
+      <span><strong>Client:</strong> <span id="client-time">—</span></span>
+      <span><strong>Server:</strong> <span id="server-time">—</span></span>
+    </div>
+
+    <div id="root"></div>
+
+    <script>
+      (function () {
+        const clientEl = document.getElementById('client-time');
+        const serverEl = document.getElementById('server-time');
+        if (!clientEl || !serverEl) return;
+
+        function format(d) {
+          try { return d.toLocaleString(); } catch { return d.toString(); }
+        }
+
+        function updateClient() {
+          clientEl.textContent = format(new Date());
+        }
+
+        async function updateServer() {
+          try {
+            const res = await fetch('/api/currenttime', { cache: 'no-store' });
+            if (!res.ok) throw new Error(String(res.status));
+            const data = await res.json();
+            const dt = typeof data?.epochMs === 'number' ? new Date(data.epochMs) : new Date();
+            serverEl.textContent = format(dt);
+          } catch (e) {
+            // Keep last good value; optionally show a hint on first failure
+            if (serverEl.textContent === '—') serverEl.textContent = '(unavailable)';
+          }
+        }
+
+        // Initial paint
+        updateClient();
+        updateServer();
+        // Update every second
+        setInterval(updateClient, 1000);
+        setInterval(updateServer, 1000);
+      })();
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

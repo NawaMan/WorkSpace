@@ -1,6 +1,6 @@
 VARIANT=xfce
 VERSION=0.2.0--rc
-DOCKER_FILE=ws-dev.Dockerfile
+DOCKER_FILE=ws.Dockerfile
 WORKSPACE_PORT=NEXT
 
 ARGS+=("-p" "8080:8080")
