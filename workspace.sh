@@ -1,5 +1,5 @@
 #!/bin/bash
-# VERSION: 0.2.0--rc
+# VERSION: 0.2.0
 set -euo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
