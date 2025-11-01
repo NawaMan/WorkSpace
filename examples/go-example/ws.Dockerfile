@@ -18,6 +18,6 @@ ENV PY_VERSION="${PY_VERSION}"
 ENV GO_VERSION="${GO_VERSION}"
 
 RUN "$SETUPS_DIR/go-setup.sh" ${GO_VERSION}
-RUN "$SETUPS_DIR/go-code-extension-setup.sh"
 
-RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" goland ; fi
+RUN if [[ "$VARIANT_TAG" != container ]]; then "$SETUPS_DIR/go-code-extension-setup.sh" ; fi
+RUN if [[ "$VARIANT_TAG" == desktop-* ]]; then "$SETUPS_DIR/jetbrains-setup.sh" goland  ; fi
