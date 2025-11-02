@@ -107,16 +107,16 @@ func buildPrefix(prefixBits []bool, isLast bool) string {
 	// Draw all ancestor levels vertical guides
 	for _, hasMore := range prefixBits {
 		if hasMore {
-			sb.WriteString("│   ")
+			sb.WriteString("│  ")
 		} else {
-			sb.WriteString("    ")
+			sb.WriteString("   ")
 		}
 	}
 	// Current level branch
 	if isLast {
-		sb.WriteString("└── ")
+		sb.WriteString("└─ ")
 	} else {
-		sb.WriteString("├── ")
+		sb.WriteString("├─ ")
 	}
 	return sb.String()
 }

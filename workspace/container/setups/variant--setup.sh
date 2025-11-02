@@ -10,9 +10,9 @@ fi
 
 export PY_VERSION=${PY_VERSION:-3.12}
 
-if [[ "$WS_VARIANT_TAG" == "notebook" ]]; then
+if [[ "$WS_VARIANT_TAG" == "ide-notebook" ]]; then
     /opt/workspace/setups/notebook--setup.sh "${PY_VERSION}"
 fi
-if [[ "$WS_VARIANT_TAG" == "codeserver" ]]; then
+if [[ "$WS_VARIANT_TAG" == "ide-codeserver" ]]; then
     /opt/workspace/setups/codeserver--setup.sh "${PY_VERSION}"
 fi

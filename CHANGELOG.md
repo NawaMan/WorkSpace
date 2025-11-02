@@ -5,6 +5,7 @@ This file contains a list of changes for each released version.
 ## v0.4.0
 - Fix the version to each docker
 - keep-alive
+- Rename variants
 
 ## v0.3.0
 - Rename all `*-setup.sh` to `*--setup.sh`.

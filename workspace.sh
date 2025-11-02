@@ -358,10 +358,12 @@ EnsureDockerImage() {
 
 ValidateVariant() {
   case "${VARIANT}" in
-    container|notebook|codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
-    xfce|kde|lxqt) VARIANT="desktop-${VARIANT}" ;;
+    container|ide-notebook|ide-codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
+    notebook|codeserver) VARIANT="ide-${VARIANT}" ;;
+    xfce|kde|lxqt)       VARIANT="desktop-${VARIANT}" ;;
     *)
-      echo "Error: unknown --variant '$VARIANT' (valid: container|notebook|codeserver|desktop-xfce|desktop-kde|desktop-lxqt; aliases: xfce|kde|lxqt)" >&2
+      echo "Error: unknown --variant '$VARIANT' (valid: container|ide-notebook|ide-codeserver|desktop-xfce|desktop-kde|desktop-lxqt; " >&2
+      echo "       aliases: notebook|codeserver|xfce|kde|lxqt)" >&2
       exit 1
       ;;
   esac

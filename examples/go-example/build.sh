@@ -66,6 +66,6 @@ TARGET_ARCH=${GOARCH:-$(go env GOARCH)}
 
 echo "Building treemoji for ${TARGET_OS}/${TARGET_ARCH}..."
 cd "$ROOT_DIR"
-GOFLAGS="$GOFLAGS" GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$BIN_DIR/treemoji" ./cmd/treemoji
+GOFLAGS="$GOFLAGS" GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$BIN_DIR/treemoji-${TARGET_OS}-${TARGET_ARCH}" ./cmd/treemoji
 
-echo "Built: $BIN_DIR/treemoji"
+echo "Built: $BIN_DIR/treemoji-${TARGET_OS}-${TARGET_ARCH}"
