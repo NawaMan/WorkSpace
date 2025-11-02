@@ -1,12 +1,12 @@
-from http.server import SimpleHTTPRequestHandler, HTTPServer
 import os
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+
+os.chdir("www")  # ✅ Serve files from the www folder
 
 class MyHandler(SimpleHTTPRequestHandler):
-    # Disable directory listing
     def list_directory(self, path):
         self.send_error(403, "Directory listing not allowed")
 
-    # Serve index.html for root
     def do_GET(self):
         if self.path == "/":
             self.path = "/index.html"
