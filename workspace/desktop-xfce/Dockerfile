@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
-FROM nawaman/workspace:container-0.3.0
+ARG VERSION_TAG=latest
+FROM nawaman/workspace:container-${VERSION_TAG}
 
 ARG PY_VERSION=3.12
 

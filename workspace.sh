@@ -1,7 +1,8 @@
 #!/bin/bash
-# VERSION: 0.3.0
 set -euo pipefail
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
+
+WS_VERSION=0.4.0--rc
 
 Main() {
   SCRIPT_NAME="$(basename "$0")"
@@ -23,7 +24,7 @@ Main() {
   DOCKER_FILE="${DOCKER_FILE:-}"
   IMAGE_NAME="${IMAGE_NAME:-}"
   VARIANT=${VARIANT:-container}
-  VERSION=${VERSION:-latest}
+  VERSION=${VERSION:-${WS_VERSION:-latest}}
 
   DO_PULL=${DO_PULL:-false}
 
