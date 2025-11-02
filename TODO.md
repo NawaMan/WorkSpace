@@ -8,6 +8,7 @@ A list of upcoming ideas, improvements, and future goals for the workspace launc
 ## Core Features
 - [ ] Add TESTS, add TESTS, add TESTS, add TESTS!!!
 - [ ] Remove CVEs 
+- [ ] Try to not have "user-land" setup print anthing (unless error)
 - [ ] Add `--keep-alive` flag — keep containers running after command completion.
 - [ ] Improve Docker-in-Docker (DinD) integration — ideally without relying on a sidecar container.
 - [ ] Add Kubernetes (K8s) support.
