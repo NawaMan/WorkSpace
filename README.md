@@ -35,10 +35,10 @@ Each variant comes pre-configured with a curated toolset and a consistent runtim
 - **`container`** – A minimal base image with essential shell tools.  
   Ideal for building custom environments, running CLI applications, or lightweight automation tasks.
 
-- **`notebook`** – Includes Jupyter Notebook with Bash and other utilities.  
+- **`ide-notebook`** – Includes Jupyter Notebook with Bash and other utilities.  
   Great for data science, analytics, documentation, or interactive scripting workflows.
 
-- **`codeserver`** – A web-based VS Code environment powered by [`code-server`](https://github.com/coder/code-server).  
+- **`ide-codeserver`** – A web-based VS Code environment powered by [`code-server`](https://github.com/coder/code-server).  
   Provides a full browser-accessible IDE with Git integration, terminals, and extensions.
 
 - **`desktop-xfce`**, **`desktop-kde`**, **`desktop-lxqt`** – Full Linux desktop environments accessible via browser or remote desktop (e.g., noVNC).  
@@ -217,8 +217,8 @@ You can define three special arrays in `ws--config.sh` to customize how the laun
 - **`ARGS`** – Adds command-line arguments directly to `workspace.sh`.  
   Useful for predefining commonly used options (e.g., extra ports or mounts).  
   ```bash
-  ARGS+=("--variant" "codeserver")
-  ARGS+=("--port" "8080:8080")
+  ARGS+=("--variant" "ide-codeserver")
+  ARGS+=("--port"    "8080:8080")
   ```
 
 These behave exactly like command-line flags passed to workspace.sh.
@@ -347,7 +347,38 @@ The **dry-run** mode allows you to preview exactly what WorkSpace will execute �
 > 💡 Tip:
 > Combine --dryrun with --verbose to see detailed variable expansion and runtime configuration.
 
-### 9. Help
+### 9. Keep Alive
+Keep the container around after it stop.
+- By default, once the container stop, it will be removed.
+- By using `--keep-alive`, the container will be keep around.
+- User can re-start the container using: `docker start <container-name>`.
+- To remove the **stop** container use: `docker rm <container-name>`.
+- To save the current state of a container as a new image:
+  ```bash
+  docker commit <container-name> <new-image-name>:<tag>
+  ```
+  > Useful if you made changes inside the container and want to keep them for future use.
+- To save an image to a file (for backup or sharing):
+  ```bash
+  docker save -o <file-name>.tar <image-name>:<tag>
+  ```
+  > Example: `docker save -o myapp.tar my-image:v1`
+- To load a previously saved image file:
+  ```bash
+  docker load -i <file-name>.tar
+  ```
+- To export a container’s filesystem as a .tar file:
+  ```bash
+  docker export -o <file-name>.tar <container-name>
+  ```
+  > This saves the filesystem only (no image metadata or history).
+- To import the exported container back as a new image:
+  ```bash
+  cat <file-name>.tar | docker import - <new-image-name>:<tag>
+  ```
+- There are more things you can do with stopped containers, please consult docker documentation for more information.
+
+### 10. Help
 
 Displays detailed usage information, supported flags, and configuration notes.
 
@@ -363,7 +394,7 @@ Displays detailed usage information, supported flags, and configuration notes.
 - Provides hints for environment variables and configuration file structure.
 - Exits immediately after displaying help.
 
-### 10. Docker-in-Docker (DinD) Support -- Experimental Feature
+### 11. Docker-in-Docker (DinD) Support -- Experimental Feature
 
 WorkSpace supports **Docker-in-Docker (DinD)** mode, allowing you to build and run Docker containers **from inside your workspace container**.  
 This feature is useful for CI/CD pipelines, containerized builds, or development environments that need access to Docker tooling.

@@ -52,7 +52,6 @@ set -euo pipefail
 SENTINEL="$HOME/.go-startup-done"
 [[ -f "$SENTINEL" ]] || {
   mkdir -p "$HOME/go/bin" "$HOME/go/src" "$HOME/go/pkg"
-  echo "🧩 Go workspace initialized at \$HOME/go"
   touch "$SENTINEL"
 }
 EOF
