@@ -75,15 +75,18 @@ build_variant() {
       "${NO_CACHE_ARG[@]}" \
       --platform "${PLATFORMS}" \
       -f "${DOCKER_FILE}" \
+      --build-arg "VERSION_TAG=${VERSION_TAG}" \
       "${TAGS_ARG[@]}" \
       "${CONTEXT_DIR}" \
       --push
   else
     # Local dev/test: plain docker build (so FROM sees locally built base)
     log "Local build (plain 'docker build')"
+    export DOCKER_BUILDKIT=1
     docker build --no-cache \
       "${NO_CACHE_ARG[@]}" \
       -f "${DOCKER_FILE}" \
+      --build-arg "VERSION_TAG=${VERSION_TAG}" \
       "${TAGS_ARG[@]}" \
       "${CONTEXT_DIR}"
   fi
