@@ -13,6 +13,7 @@ Main() {
 
   DRYRUN=${DRYRUN:-false}
   VERBOSE=${VERBOSE:-false}
+  KEEPALIVE=${KEEPALIVE:-false}
   SILENCE_BUILD=${SILENCE_BUILD:-false}
   CONFIG_FILE=${CONFIG_FILE:-./ws--config.sh}
 
@@ -42,6 +43,9 @@ Main() {
   RUN_ARGS=()
   CMDS=( )
 
+  KEEPALIVE_ARGS=()
+  TTY_ARGS=()
+
   SET_CONFIG_FILE=false
 
   IMAGE_MODE="${IMAGE_MODE:-}"
@@ -65,6 +69,7 @@ Main() {
   fi
 
   PrepareCommonArgs
+  PrepareKeepAliveArgs
   PrepareTtyArgs
 
   if   [ "${RUN_MODE}" == "DAEMON"     ]; then RunAsDaemon
@@ -370,11 +375,12 @@ ParseArgs() {
       shift
     else
       case $1 in
-        --dryrun)   DRYRUN=true    ; shift  ;;
-        --verbose)  VERBOSE=true   ; shift  ;;
-        --pull)     DO_PULL=true   ; shift  ;;
-        --daemon)   DAEMON=true    ; shift  ;;
-        --help)     ShowHelp       ; exit 0 ;;
+        --dryrun)     DRYRUN=true    ; shift  ;;
+        --verbose)    VERBOSE=true   ; shift  ;;
+        --pull)       DO_PULL=true   ; shift  ;;
+        --daemon)     DAEMON=true    ; shift  ;;
+        --keep-alive) KEEPALIVE=true ; shift  ;;
+        --help)       ShowHelp       ; exit 0 ;;
 
         --dind)  DIND=true  ; shift ;;
 
@@ -560,9 +566,16 @@ PrepareCommonArgs() {
   fi
 }
 
+PrepareKeepAliveArgs() {
+  KEEPALIVE_ARGS=("--rm")
+  if [[ "$KEEPALIVE" == "true" ]]; then
+    KEEPALIVE_ARGS=()
+  fi
+}
+
 PrepareTtyArgs() {
-  TTY_ARGS="-i"
-  if [ -t 0 ] && [ -t 1 ]; then TTY_ARGS="-it"; fi
+  TTY_ARGS=("-i")
+  if [ -t 0 ] && [ -t 1 ]; then TTY_ARGS=("-it"); fi
 }
 
 PrintCmd() {
@@ -582,7 +595,7 @@ PrintCmd() {
 RunAsCommand() {
   # Foreground with explicit command
   USER_CMDS="${CMDS[*]}"
-  Docker run "$TTY_ARGS" --rm "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
+  Docker run "${TTY_ARGS[@]}" "${KEEPALIVE_ARGS[@]}" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" bash -lc "$USER_CMDS"
 
   # Foreground-with-command cleanup for DinD
   if [[ "$DIND" == "true" ]]; then
@@ -601,7 +614,11 @@ RunAsDaemon() {
 
   # Detached: no TTY args
   echo "📦 Running workspace in daemon mode."
-  echo "👉 Stop with '${SCRIPT_NAME} -- exit'. The container will be removed (--rm) when stop."
+
+  if [[ "$KEEPALIVE" != "true" ]]; then
+    echo "👉 Stop with '${SCRIPT_NAME} -- exit'. The container will be removed (--rm) when stop."
+  fi
+
   echo "👉 Visit 'http://localhost:${HOST_PORT}'"
   echo "👉 To open an interactive shell instead: ${SCRIPT_NAME} -- bash"
   echo "👉 To stop the running contaienr:"
@@ -614,7 +631,7 @@ RunAsDaemon() {
     echo "<--dryrun-->"
     echo ""
   else
-    Docker run -d --rm "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
+    Docker run -d "${KEEPALIVE_ARGS[@]}" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
     # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
     if [[ "$DIND" == "true" ]]; then
@@ -629,7 +646,7 @@ RunAsForeground() {
   echo "👉 Stop with Ctrl+C. The container will be removed (--rm) when stop."
   echo "👉 To open an interactive shell instead: '${SCRIPT_NAME} -- bash'"
   echo ""
-  Docker run "$TTY_ARGS" --rm "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
+  Docker run "${TTY_ARGS[@]}" "${KEEPALIVE_ARGS[@]}" "${COMMON_ARGS[@]}"  "${RUN_ARGS[@]}" "$IMAGE_NAME"
 
   # Foreground cleanup: stop sidecar & network if DinD was used
   if [[ "$DIND" == "true" ]]; then
@@ -737,6 +754,7 @@ ShowDebugBanner() {
     echo "HOST_UID:       $HOST_UID"
     echo "HOST_GID:       $HOST_GID"
     echo "HOST_PORT:      $HOST_PORT" 
+    echo "KEEPALIVE:      $KEEPALIVE"
     echo "IMAGE_NAME:     $IMAGE_NAME"
     echo "IMAGE_MODE:     $IMAGE_MODE"
     echo "WORKSPACE_PATH: $WORKSPACE_PATH"
@@ -775,6 +793,7 @@ GENERAL:
   --pull                 Force pulling the image (when using prebuilt images)
   --daemon               Run the workspace container in the background
   --dind                 Enable a Docker-in-Docker sidecar and set DOCKER_HOST
+  --keep-alive           Do not remove the container when stop
   --unit-test            Do not run Main; source functions for unit testing
   --config <file>        Load defaults from a config shell file (default: ./ws--config.sh)
   --workspace <path>     Host workspace path to mount at /home/coder/workspace
