@@ -310,7 +310,7 @@ EnsureDockerImage() {
   # Proceed according to mode. If IMAGE_NAME was given (EXISTING), skip build/pull.
   if [[ -z "${IMAGE_NAME:-}" ]]; then
     if [[ "$IMAGE_MODE" == "LOCAL-BUILD" ]]; then
-      IMAGE_NAME="workspace-local:${PROJECT_NAME}"
+      IMAGE_NAME="workspace-local:${PROJECT_NAME}-${VARIANT}-${VERSION}"
       if [[ "${VERBOSE}" == "true" ]]; then
         echo ""
         echo "Build local image: $IMAGE_NAME"
