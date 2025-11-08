@@ -72,6 +72,8 @@ Main() {
   PrepareKeepAliveArgs
   PrepareTtyArgs
 
+  export MSYS_NO_PATHCONV=1
+
   if   [ "${RUN_MODE}" == "DAEMON"     ]; then RunAsDaemon
   elif [ "${RUN_MODE}" == "FOREGROUND" ]; then RunAsForeground
   else                                         RunAsCommand
