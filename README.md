@@ -1,12 +1,36 @@
-# WorkSpace
+# CodingBooth WorkSpace
+
+You’ve containerized your app. You’ve containerized your build.
+But your development environment? Still a mess of local installs, version mismatches, and onboarding docs that no one reads. 
+
+**WorkSpace** fixes that. Once setup, the Docker-powered development environment that just works — for everyone on your team, every time.
+
+Run your IDE, shell, or entire desktop inside a container that maps perfectly to your host — no root-owned files, no permission headaches, no surprises.
+
+One script. Any machine. A clean, consistent workspace wherever you go.
 
 **WorkSpace** is a lightweight framework for running reproducible development environments inside Docker.
 
-It provides a single launcher script — `workspace.sh` — that abstracts away the messy details of `docker run`.  
-Instead of memorizing long commands or maintaining complex Docker Compose setups,  
-you simply configure a few variables in `ws--config.sh` (such as image, variant, and ports).  
+It provides a single launcher script — `workspace.sh` — that abstracts away the messy details of `docker run`.
+You put your dev-env setup in `ws--Dockerfile` -- the docker file for your environment.
+Then, simply configure a few variables in `ws--config.sh` to specify the default run such as variant, ports and environemtnatl variables (for the run).
 
+From here `workspace.sh` will take care of that for you.
 With just one command, you can launch a fully reproducible and isolated development workspace.
+
+## Quick Try
+
+1. Ensure you have docker and can run bash (for Windows you will need GitBash or WSL).
+2. Clone this repo.
+3. cd into it and cd further into `examples/go-example` or any other example in that folder.
+4. Run : `../../workspace.sh`
+5. Wait for a few minutes (may be more for the first run) and visit `http://localhost:10000`
+6. ![Select IDE](DesktopRun.png) and start coding!
+
+### Optional
+7. Inspace `ws--Dockerfile` and `ws-config.sh` inside `examples/go-example` and
+    see if you can figure out what they are.
+8. Try other examples.
 
 ## Why WorkSpace?
 
@@ -142,8 +166,8 @@ You can tailor how WorkSpace runs by adjusting configuration files or using runt
 3. The directories `/home/coder` and `/home/coder/workspace` are owned by that user, ensuring smooth file sharing between host and container.  
 4. Add the user `coder` to sudoers so that it can sudo without needing the password
 5. Prepare `.bashrc` and `.zshrc`
-6. Run startup script (files in `/usr/share/startup.d`)
-7. All commands run as the unprivileged **`coder`** user, not `root`, preserving security and consistent file ownership.
+6. Run startup script (files in `/etc/startup.d`)
+7. All commands run as the unprivileged **`coder`** user, not `cdroot`, preserving security and consistent file ownership.
 
 ---
 
@@ -438,7 +462,7 @@ This feature is useful for CI/CD pipelines, containerized builds, or development
 WorkSpace setup scripts follow a simple pattern that produces **three artifacts**:
 
 1. **Startup script** (runs once per container start, as the normal user)  
-   - Path: `/usr/share/startup.d/<LEVEL>-ws-<thing>--startup.sh`  
+   - Path: `/etc/startup.d/<LEVEL>-ws-<thing>--startup.sh`  
    - Purpose: one-time initialization per container boot (idempotent).  
    - Example tasks: create user cache dirs, generate config files if missing, first-run migrations.
 
@@ -463,7 +487,7 @@ WorkSpace setup scripts follow a simple pattern that produces **three artifacts*
 ### Startup/Profile Ordering
 
 Name your scripts using this pattern:  
-`/etc/profile.d/<LEVEL>-ws-<thing>--profile.sh` and `/usr/share/startup.d/<LEVEL>-ws-<thing>--startup.sh`
+`/etc/profile.d/<LEVEL>-ws-<thing>--profile.sh` and `/etc/startup.d/<LEVEL>-ws-<thing>--startup.sh`
 
 Choose `<LEVEL>` from these ranges to keep load order predictable:
 
@@ -486,7 +510,7 @@ Choose `<LEVEL>` from these ranges to keep load order predictable:
 **Script naming**
 - Installation script (run as root): `*setup.sh` (placed in a build or image layer)
 - Generated files (by the setup script):  
-  - Startup: `/usr/share/startup.d/<LEVEL>-ws-<thing>--startup.sh`  
+  - Startup: `/etc/startup.d/<LEVEL>-ws-<thing>--startup.sh`  
   - Profile: `/etc/profile.d/<LEVEL>-ws-<thing>--profile.sh`  
   - Starter: `/usr/local/bin/<thing>`
 
