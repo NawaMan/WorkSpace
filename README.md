@@ -25,12 +25,14 @@ With just one command, you can launch a fully reproducible and isolated developm
 3. cd into it and cd further into `examples/go-example` or any other example in that folder.
 4. Run : `../../workspace.sh`
 5. Wait for a few minutes (may be more for the first run) and visit `http://localhost:10000`
-6. ![Select IDE](DesktopRun.png) and start coding!
+6. Select your IDE and start coding!
+
+![Select IDE](DesktopRun.png)
 
 ### Optional
 7. Inspace `ws--Dockerfile` and `ws-config.sh` inside `examples/go-example` and
     see if you can figure out what they are.
-8. Try other examples.
+8. Try other examples.`
 
 ## Why WorkSpace?
 
