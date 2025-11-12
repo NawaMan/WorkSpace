@@ -32,7 +32,10 @@ With just one command, you can launch a fully reproducible and isolated developm
 ### Optional
 7. Inspace `ws--Dockerfile` and `ws-config.sh` inside `examples/go-example` and
     see if you can figure out what they are.
-8. Try other examples or different variants.
+8. Try other [examples](https://github.com/NawaMan/WorkSpace/tree/latest/examples) or different [variants](https://github.com/NawaMan/WorkSpace/tree/latest?tab=readme-ov-file#available-variants).
+9. Try on yourown project,
+  1. Download [`workspace.sh`](https://github.com/NawaMan/WorkSpace/releases/download/latest/workspace.sh) and put in your project folder.
+  2. Create `ws--Dockerfile` and `ws-config.sh` -- Take inspire from the existing [examples](https://github.com/NawaMan/WorkSpace/tree/latest/examples).
 
 ## Why WorkSpace?
 
