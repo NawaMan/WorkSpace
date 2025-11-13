@@ -1,7 +1,10 @@
 name: Publish workspace.sh
 
 on:
-  workflow_dispatch:  # manual trigger from GitHub UI
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   publish:
@@ -21,22 +24,33 @@ jobs:
       - name: Show version
         run: echo "Publishing workspace.sh for version $VERSION"
 
-      # Optional: ensure workspace.sh is executable
       - name: Make workspace.sh executable
         run: chmod +x workspace.sh
 
       - name: Generate SHA1 checksum for workspace.sh
         run: |
-          # Create workspace.sh.sha1 with "<hash>  workspace.sh"
           sha1sum workspace.sh > workspace.sh.sha1
           echo "Generated checksum:"
           cat workspace.sh.sha1
 
-      - name: Create GitHub Release and upload files
+      - name: Publish versioned release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.VERSION }}
           name: ${{ env.VERSION }}
+          files: |
+            workspace.sh
+            workspace.sh.sha1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: latest
+          prerelease: false
+          draft: false
           files: |
             workspace.sh
             workspace.sh.sha1
