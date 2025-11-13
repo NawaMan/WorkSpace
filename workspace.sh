@@ -790,6 +790,9 @@ USAGE:
   $sname [options] [--] [command ...]
   $sname --help
 
+COMMAND:
+  ws-version             Print out the version of the workspace.sh (which also the default version of the docker image).
+
 GENERAL:
   --help                 Show this help and exit
   --verbose              Print extra debugging information
@@ -860,6 +863,7 @@ ARGS=("$@")
 for (( i=0; i<${#ARGS[@]}; i++ )); do
   case "${ARGS[i]}" in
     --unit-test) UNIT_TEST=true ;;
+    ws-version)  echo "${WS_VERSION}" ; exit 0 ;;
   esac
 done
 unset ARGS
