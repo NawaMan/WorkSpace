@@ -1,0 +1,44 @@
+name: Publish workspace.sh
+
+on:
+  workflow_dispatch:  # manual trigger from GitHub UI
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read version from version.txt
+        id: get_version
+        run: |
+          VERSION=$(cat version.txt | tr -d ' \t\n\r')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Show version
+        run: echo "Publishing workspace.sh for version $VERSION"
+
+      # Optional: ensure workspace.sh is executable
+      - name: Make workspace.sh executable
+        run: chmod +x workspace.sh
+
+      - name: Generate SHA1 checksum for workspace.sh
+        run: |
+          # Create workspace.sh.sha1 with "<hash>  workspace.sh"
+          sha1sum workspace.sh > workspace.sh.sha1
+          echo "Generated checksum:"
+          cat workspace.sh.sha1
+
+      - name: Create GitHub Release and upload files
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          files: |
+            workspace.sh
+            workspace.sh.sha1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
