@@ -120,8 +120,8 @@ echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/${USER_NAME}
 chmod 0440 /etc/sudoers.d/${USER_NAME}
 
 # Ensure home & workspace exist; chown as requested
-mkdir -p                       "$HOME_DIR" "$WORKSPACE_DIR"
-chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" || true
+sudo mkdir -p                       "$HOME_DIR" "$WORKSPACE_DIR" || true
+sudo chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" || true
 
 # Set up environment for coder and switch to workspace
 export HOME="$HOME_DIR"
