@@ -10,10 +10,30 @@ IMAGE_NAME="nawaman/workspace"
 PLATFORMS="linux/amd64,linux/arm64"
 VERSION_FILE="version.txt"
 
+# All known variants
+ALL_VARIANTS=(
+  container
+  ide-notebook
+  ide-codeserver
+  desktop-xfce
+  desktop-kde
+  desktop-lxqt
+)
+
 # --- Helpers ---
 log() { printf "\033[1;34m[info]\033[0m %s\n" "$1";    }
 err() { printf "\033[1;31m[err]\033[0m %s\n" "$1" >&2; }
 die() { err "$1"; exit 1; }
+
+is_valid_variant() {
+  local v="$1"
+  for known in "${ALL_VARIANTS[@]}"; do
+    if [[ "$known" == "$v" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
 
 # --- Resolve version ---
 VERSION_TAG=""
@@ -97,25 +117,75 @@ build_variant() {
 
 usage() {
   cat <<EOF
-Usage: ./build.sh [--push] [--no-cache]
-Examples
-  ./build.sh                   # local build (plain docker build)
-  ./build.sh --push            # multi-arch buildx build and push
-  ./build.sh --no-cache        # local build without cache
-  ./build.sh --push --no-cache # buildx build+push without cache
+Usage: ./build.sh [--push] [--no-cache] [variant ...]
+Options:
+  --push          Build and push using buildx (multi-arch)
+  --no-cache      Build without using cache
+  -h, --help      Show this help
+
+Variants (if none provided, all are built):
+  container
+  ide-notebook
+  ide-codeserver
+  desktop-xfce
+  desktop-kde
+  desktop-lxqt
+
+Examples:
+  ./build.sh                         # local build of all variants
+  ./build.sh container               # build only 'container'
+  ./build.sh ide-notebook desktop-xfce
+                                     # build two specific variants
+  ./build.sh --push container        # push only 'container' variant
+  ./build.sh --push --no-cache desktop-kde
+                                     # build+push KDE without cache
 EOF
 }
 
 # --- Parse parameters ---
 PUSH="false"
 NO_CACHE="false"
+POSITIONAL=()
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --push)      PUSH="true";                       shift  ;;
-    --no-cache)  NO_CACHE="true";                   shift  ;;
-    -h|--help)   usage;                             exit 0 ;;
-    *)           echo "Unknown option: $1"; usage;  exit 2 ;;
+    --push)
+      PUSH="true"
+      shift
+      ;;
+    --no-cache)
+      NO_CACHE="true"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      POSITIONAL+=("$1")
+      shift
+      ;;
   esac
+done
+
+# Restore positional args (variants)
+set -- "${POSITIONAL[@]}"
+
+# Determine which variants to build
+if [[ $# -gt 0 ]]; then
+  VARIANTS_TO_BUILD=("$@")
+else
+  VARIANTS_TO_BUILD=("${ALL_VARIANTS[@]}")
+fi
+
+# Validate variants
+for v in "${VARIANTS_TO_BUILD[@]}"; do
+  if ! is_valid_variant "$v"; then
+    err "Unknown variant: '$v'"
+    echo
+    usage
+    exit 2
+  fi
 done
 
 # --- Docker login (non-interactive) ---
@@ -132,9 +202,7 @@ if [[ "${PUSH}" == "true" ]]; then
   fi
 fi
 
-build_variant container
-build_variant ide-notebook
-build_variant ide-codeserver
-build_variant desktop-xfce
-build_variant desktop-kde
-build_variant desktop-lxqt
+# --- Build requested variants ---
+for v in "${VARIANTS_TO_BUILD[@]}"; do
+  build_variant "$v"
+done
