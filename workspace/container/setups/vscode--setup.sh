@@ -10,6 +10,10 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# Work around hash-sum-mismatch issues under emulation (libgcrypt)
+mkdir -p /etc/gcrypt
+echo all > /etc/gcrypt/hwf.deny
+
 # ---------------- Load environment from profile.d ----------------
 # These set: PY_STABLE, PY_STABLE_VERSION, PY_SERIES, VENV_SERIES_DIR, PATH tweaks, etc.
 source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
@@ -44,7 +48,7 @@ chmod 0644 /etc/apt/sources.list.d/vscode.list
 # install VS Code
 apt-get clean
 rm -rf /var/lib/apt/lists/*
-apt-get update
+apt-get update || echo "⚠️ apt-get update failed; continuing with existing indexes" >&2
 apt-get install -y code
 echo "✅ VS Code installed"
 
