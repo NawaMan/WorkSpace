@@ -55,10 +55,9 @@ select_cosign_key() {
 }
 
 sign_images() {
-  # Expects full TAGS_ARG array: "-t", "repo:tag", "-t", "repo2:tag2", ...
   local -a args=("$@")
-  local -a tags=()          # image:tag references
-  local -a digest_refs=()   # repo@sha256:digest references
+  local -a tags=()
+  local -a digest_refs=()
   local token
   local expect_ref=0
   local tag repo digest ref
@@ -70,7 +69,6 @@ sign_images() {
 
   echo "Extract image references from -t <ref> pairs"
 
-  # Walk tokens instead of indexing to avoid out-of-bounds/set -u issues
   for token in "${args[@]}"; do
     if (( expect_ref )); then
       tags+=("$token")
@@ -80,7 +78,6 @@ sign_images() {
     fi
   done
 
-  # If we ended right after a "-t", that's malformed
   if (( expect_ref )); then
     die "Malformed TAGS_ARG: '-t' at end with no image reference"
   fi
@@ -95,19 +92,19 @@ sign_images() {
     log "  - ${tag}"
   done
 
-  # Resolve each tag -> digest and dedupe repo@digest refs
   log "Cosign: resolving digests for ${#tags[@]} tag(s)..."
   for tag in "${tags[@]}"; do
     repo="${tag%:*}"
 
-    if [[ "${VERBOSE:-false}" == "true" ]]; then
-      digest="$(docker buildx imagetools inspect "${tag}" | awk '/^Digest:/ {print $2; exit}')"
-    else
-      digest="$(docker buildx imagetools inspect "${tag}" 2>/dev/null | awk '/^Digest:/ {print $2; exit}')"
+    # Guard the command to avoid set -e killing the script
+    if ! digest="$(
+      docker buildx imagetools inspect "${tag}" 2>&1 | awk '/^Digest:/ {print $2; exit}'
+    )"; then
+      die "Cosign: failed to resolve digest for tag '${tag}' (docker buildx imagetools inspect failed)"
     fi
 
     if [[ -z "${digest}" ]]; then
-      die "Cosign: failed to resolve digest for tag '${tag}'"
+      die "Cosign: imagetools inspect did not return a digest for tag '${tag}'"
     fi
 
     ref="${repo}@${digest}"
@@ -118,14 +115,12 @@ sign_images() {
     fi
   done
 
-  # Convert associative keys to an array
   for ref in "${!seen_digests[@]}"; do
     digest_refs+=("$ref")
   done
 
   log "Cosign: signing ${#digest_refs[@]} unique digest reference(s)."
 
-  # Sign each digest ref; quiet by default, noisy in VERBOSE mode
   for ref in "${digest_refs[@]}"; do
     if [[ "${VERBOSE:-false}" == "true" ]]; then
       log "Cosign: signing digest ${ref} with key ${COSIGN_KEY_REF}"
