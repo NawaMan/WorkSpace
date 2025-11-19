@@ -61,20 +61,19 @@ node_modules/
 dist/
 build/
 
+# Cosign / key material
+cosign.key
+cosign*.key
+*.pem
+
 # --- Misc caches ---
 coverage/
 .nyc_output/
 
 examples/java-example/.classpath
-
 examples/java-example/.project
-
 examples/java-example/.settings/org.eclipse.jdt.core.prefs
-
 examples/java-example/.settings/org.eclipse.m2e.core.prefs
-
 examples/java-example/.settings/
-
 examples/go-example/bin/
-
 runner/.workspace/

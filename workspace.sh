@@ -863,7 +863,17 @@ ARGS=("$@")
 for (( i=0; i<${#ARGS[@]}; i++ )); do
   case "${ARGS[i]}" in
     --unit-test) UNIT_TEST=true ;;
-    ws-version)  echo "${WS_VERSION}" ; exit 0 ;;
+    ws-version)
+         cat <<'EOF'
+__      __       _    ___                   
+\ \    / /__ _ _| |__/ __|_ __  __ _ __ ___ 
+ \ \/\/ / _ \ '_| / /\__ \ '_ \/ _` / _/ -_)
+  \_/\_/\___/_| |_\_\|___/ .__/\__,_\__\___|
+                         |_|                
+EOF
+      echo "WorkSpace: ${WS_VERSION}"
+      exit 0
+      ;;
   esac
 done
 unset ARGS

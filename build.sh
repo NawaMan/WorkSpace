@@ -5,6 +5,11 @@ set -euo pipefail
 DOCKER_USER_SCRIPT="${DOCKER_USER_SCRIPT:-}"
 DOCKER_PAT_SCRIPT="${DOCKER_PAT_SCRIPT:-}"
 
+# Cosign key configuration
+COSIGN_KEY_FILE_DEFAULT="${HOME}/.config/nawaman-workspace/cosign.key"
+COSIGN_KEY_FILE="${COSIGN_KEY_FILE:-$COSIGN_KEY_FILE_DEFAULT}"
+COSIGN_KEY_REF=""
+
 # --- Setting ---
 IMAGE_NAME="nawaman/workspace"
 PLATFORMS="linux/amd64,linux/arm64"
@@ -33,6 +38,110 @@ is_valid_variant() {
     fi
   done
   return 1
+}
+
+select_cosign_key() {
+  if [[ -n "${COSIGN_KEY:-}" ]]; then
+    COSIGN_KEY_REF="env://COSIGN_KEY"
+    log "Cosign: using key from COSIGN_KEY environment variable"
+  else
+    COSIGN_KEY_FILE="${COSIGN_KEY_FILE:-$COSIGN_KEY_FILE_DEFAULT}"
+    if [[ ! -f "${COSIGN_KEY_FILE}" ]]; then
+      die "Cosign key file not found at '${COSIGN_KEY_FILE}'. Set COSIGN_KEY or COSIGN_KEY_FILE."
+    fi
+    COSIGN_KEY_REF="${COSIGN_KEY_FILE}"
+    log "Cosign: using key file ${COSIGN_KEY_FILE}"
+  fi
+}
+
+sign_images() {
+  # Expects full TAGS_ARG array: "-t", "repo:tag", "-t", "repo2:tag2", ...
+  local -a args=("$@")
+  local -a tags=()          # image:tag references
+  local -a digest_refs=()   # repo@sha256:digest references
+  local token
+  local expect_ref=0
+  local tag repo digest ref
+  local -A seen_digests=()
+
+  if [[ -z "${COSIGN_KEY_REF}" ]]; then
+    die "Internal error: COSIGN_KEY_REF not set before signing."
+  fi
+
+  echo "Extract image references from -t <ref> pairs"
+
+  # Walk tokens instead of indexing to avoid out-of-bounds/set -u issues
+  for token in "${args[@]}"; do
+    if (( expect_ref )); then
+      tags+=("$token")
+      expect_ref=0
+    elif [[ "$token" == "-t" ]]; then
+      expect_ref=1
+    fi
+  done
+
+  # If we ended right after a "-t", that's malformed
+  if (( expect_ref )); then
+    die "Malformed TAGS_ARG: '-t' at end with no image reference"
+  fi
+
+  if [[ "${#tags[@]}" -eq 0 ]]; then
+    log "Cosign: no images found to sign (TAGS_ARG was empty?)"
+    return 0
+  fi
+
+  log "Cosign: will sign the following image tags (by digest):"
+  for tag in "${tags[@]}"; do
+    log "  - ${tag}"
+  done
+
+  # Resolve each tag -> digest and dedupe repo@digest refs
+  log "Cosign: resolving digests for ${#tags[@]} tag(s)..."
+  for tag in "${tags[@]}"; do
+    repo="${tag%:*}"
+
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+      digest="$(docker buildx imagetools inspect "${tag}" | awk '/^Digest:/ {print $2; exit}')"
+    else
+      digest="$(docker buildx imagetools inspect "${tag}" 2>/dev/null | awk '/^Digest:/ {print $2; exit}')"
+    fi
+
+    if [[ -z "${digest}" ]]; then
+      die "Cosign: failed to resolve digest for tag '${tag}'"
+    fi
+
+    ref="${repo}@${digest}"
+    seen_digests["$ref"]=1
+
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+      log "Cosign: resolved ${tag} -> ${ref}"
+    fi
+  done
+
+  # Convert associative keys to an array
+  for ref in "${!seen_digests[@]}"; do
+    digest_refs+=("$ref")
+  done
+
+  log "Cosign: signing ${#digest_refs[@]} unique digest reference(s)."
+
+  # Sign each digest ref; quiet by default, noisy in VERBOSE mode
+  for ref in "${digest_refs[@]}"; do
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+      log "Cosign: signing digest ${ref} with key ${COSIGN_KEY_REF}"
+      COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
+      cosign sign --yes --key "${COSIGN_KEY_REF}" "${ref}" || \
+        die "cosign sign failed for image digest: ${ref}"
+    else
+      log "Cosign: signing digest ${ref}"
+      if ! COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
+        cosign sign --yes --key "${COSIGN_KEY_REF}" "${ref}" >/dev/null 2>&1; then
+        die "cosign sign failed for image digest: ${ref} (re-run with VERBOSE=true for details)"
+      fi
+    fi
+  done
+
+  log "Cosign: successfully signed ${#digest_refs[@]} digest reference(s)."
 }
 
 # --- Resolve version ---
@@ -85,13 +194,12 @@ build_variant() {
   fi
 
   if [[ "${PUSH}" == "true" ]]; then
-    # Multi-arch + push using buildx docker-container driver
     log "Setting up buildx (driver: docker-container; multi-arch: ${PLATFORMS})"
     docker buildx create --use --name ci_builder >/dev/null 2>&1 || docker buildx use ci_builder
     docker buildx inspect --bootstrap >/dev/null
 
     log "Building with buildx (push)"
-    docker buildx build --no-cache \
+    docker buildx build \
       "${NO_CACHE_ARG[@]}" \
       --platform "${PLATFORMS}" \
       -f "${DOCKER_FILE}" \
@@ -99,11 +207,13 @@ build_variant() {
       "${TAGS_ARG[@]}" \
       "${CONTEXT_DIR}" \
       --push
+
+    log "Calling cosign to sign pushed images for variant '${VARIANT}'"
+    sign_images "${TAGS_ARG[@]}"
   else
-    # Local dev/test: plain docker build (so FROM sees locally built base)
     log "Local build (plain 'docker build')"
     export DOCKER_BUILDKIT=1
-    docker build --no-cache \
+    docker build \
       "${NO_CACHE_ARG[@]}" \
       -f "${DOCKER_FILE}" \
       --build-arg "VERSION_TAG=${VERSION_TAG}" \
@@ -119,7 +229,7 @@ usage() {
   cat <<EOF
 Usage: ./build.sh [--push] [--no-cache] [variant ...]
 Options:
-  --push          Build and push using buildx (multi-arch)
+  --push          Build and push using buildx (multi-arch) and sign images with cosign
   --no-cache      Build without using cache
   -h, --help      Show this help
 
@@ -131,14 +241,21 @@ Variants (if none provided, all are built):
   desktop-kde
   desktop-lxqt
 
+Environment:
+  COSIGN_KEY        Cosign private key content (PEM) stored directly in env; used if set
+  COSIGN_KEY_FILE   Path to cosign private key file (default: ${COSIGN_KEY_FILE_DEFAULT})
+  COSIGN_PASSWORD   Password for the private key (if the key is encrypted)
+
 Examples:
   ./build.sh                         # local build of all variants
   ./build.sh container               # build only 'container'
   ./build.sh ide-notebook desktop-xfce
                                      # build two specific variants
-  ./build.sh --push container        # push only 'container' variant
-  ./build.sh --push --no-cache desktop-kde
-                                     # build+push KDE without cache
+  ./build.sh --push container        # push + sign only 'container' variant
+  COSIGN_KEY_FILE=/path/to/cosign.key ./build.sh --push container
+                                     # push + sign using key file
+  COSIGN_KEY="\$(cat cosign.key)" ./build.sh --push container
+                                     # push + sign using key from env
 EOF
 }
 
@@ -168,17 +285,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Restore positional args (variants)
 set -- "${POSITIONAL[@]}"
 
-# Determine which variants to build
 if [[ $# -gt 0 ]]; then
   VARIANTS_TO_BUILD=("$@")
 else
   VARIANTS_TO_BUILD=("${ALL_VARIANTS[@]}")
 fi
 
-# Validate variants
 for v in "${VARIANTS_TO_BUILD[@]}"; do
   if ! is_valid_variant "$v"; then
     err "Unknown variant: '$v'"
@@ -200,9 +314,14 @@ if [[ "${PUSH}" == "true" ]]; then
     echo "❌ Docker login failed"
     exit 4
   fi
+
+  if ! command -v cosign >/dev/null 2>&1; then
+    die "cosign not found in PATH but --push was requested. Install cosign to sign images."
+  fi
+
+  select_cosign_key
 fi
 
-# --- Build requested variants ---
 for v in "${VARIANTS_TO_BUILD[@]}"; do
   build_variant "$v"
 done
