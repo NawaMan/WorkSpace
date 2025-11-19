@@ -28,7 +28,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
           COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
-          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+          COSIGN_KEY:         ${{ secrets.COSIGN_KEY }}
 
 
   # ---------------------------------------------------------
@@ -52,7 +52,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
           COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
-          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+          COSIGN_KEY:         ${{ secrets.COSIGN_KEY }}
 
 
   build-ide-codeserver:
@@ -73,7 +73,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
           COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
-          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+          COSIGN_KEY:         ${{ secrets.COSIGN_KEY }}
 
 
   build-desktop-xfce:
@@ -94,7 +94,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
           COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
-          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+          COSIGN_KEY:         ${{ secrets.COSIGN_KEY }}
 
 
   build-desktop-kde:
@@ -115,7 +115,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
           COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
-          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+          COSIGN_KEY:         ${{ secrets.COSIGN_KEY }}
 
 
   build-desktop-lxqt:
