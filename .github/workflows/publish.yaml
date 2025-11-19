@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
@@ -24,6 +27,9 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+          COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+
 
   # ---------------------------------------------------------
   # 2. Build all other variants in PARALLEL
@@ -34,6 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
@@ -42,12 +51,18 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+          COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+
 
   build-ide-codeserver:
     needs: build-container
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
@@ -57,12 +72,18 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+          COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+
 
   build-desktop-xfce:
     needs: build-container
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
@@ -72,12 +93,18 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+          COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+
 
   build-desktop-kde:
     needs: build-container
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
@@ -87,12 +114,18 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+          COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
+
 
   build-desktop-lxqt:
     needs: build-container
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
 
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
@@ -102,3 +135,5 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+          COSIGN_PASSWORD:    ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_KEY_FILE:    ${{ secrets.COSIGN_KEY_FILE }}
