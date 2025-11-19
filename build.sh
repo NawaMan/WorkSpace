@@ -57,18 +57,9 @@ select_cosign_key() {
 sign_images() {
   local -a args=("$@")
   local -a tags=()
-  local -a digest_refs=()
-  local token
-  local expect_ref=0
-  local tag repo digest ref
-  local -A seen_digests=()
-
-  if [[ -z "${COSIGN_KEY_REF}" ]]; then
-    die "Internal error: COSIGN_KEY_REF not set before signing."
-  fi
+  local token expect_ref=0
 
   echo "Extract image references from -t <ref> pairs"
-
   for token in "${args[@]}"; do
     if (( expect_ref )); then
       tags+=("$token")
@@ -87,56 +78,27 @@ sign_images() {
     return 0
   fi
 
-  log "Cosign: will sign the following image tags (by digest):"
+  log "Cosign: signing the following tags (cosign will resolve digests):"
   for tag in "${tags[@]}"; do
     log "  - ${tag}"
   done
 
-  log "Cosign: resolving digests for ${#tags[@]} tag(s)..."
   for tag in "${tags[@]}"; do
-    repo="${tag%:*}"
-
-    # Guard the command to avoid set -e killing the script
-    if ! digest="$(
-      docker buildx imagetools inspect "${tag}" 2>&1 | awk '/^Digest:/ {print $2; exit}'
-    )"; then
-      die "Cosign: failed to resolve digest for tag '${tag}' (docker buildx imagetools inspect failed)"
-    fi
-
-    if [[ -z "${digest}" ]]; then
-      die "Cosign: imagetools inspect did not return a digest for tag '${tag}'"
-    fi
-
-    ref="${repo}@${digest}"
-    seen_digests["$ref"]=1
-
     if [[ "${VERBOSE:-false}" == "true" ]]; then
-      log "Cosign: resolved ${tag} -> ${ref}"
-    fi
-  done
-
-  for ref in "${!seen_digests[@]}"; do
-    digest_refs+=("$ref")
-  done
-
-  log "Cosign: signing ${#digest_refs[@]} unique digest reference(s)."
-
-  for ref in "${digest_refs[@]}"; do
-    if [[ "${VERBOSE:-false}" == "true" ]]; then
-      log "Cosign: signing digest ${ref} with key ${COSIGN_KEY_REF}"
+      log "Cosign: signing tag ${tag} with key ${COSIGN_KEY_REF}"
       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
-      cosign sign --yes --key "${COSIGN_KEY_REF}" "${ref}" || \
-        die "cosign sign failed for image digest: ${ref}"
+      cosign sign --yes --key "${COSIGN_KEY_REF}" "${tag}" || \
+        die "cosign sign failed for image tag: ${tag}"
     else
-      log "Cosign: signing digest ${ref}"
+      log "Cosign: signing tag ${tag}"
       if ! COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
-        cosign sign --yes --key "${COSIGN_KEY_REF}" "${ref}" >/dev/null 2>&1; then
-        die "cosign sign failed for image digest: ${ref} (re-run with VERBOSE=true for details)"
+        cosign sign --yes --key "${COSIGN_KEY_REF}" "${tag}" >/dev/null 2>&1; then
+        die "cosign sign failed for image tag: ${tag} (re-run with VERBOSE=true for details)"
       fi
     fi
   done
 
-  log "Cosign: successfully signed ${#digest_refs[@]} digest reference(s)."
+  log "Cosign: successfully signed ${#tags[@]} tag(s)."
 }
 
 # --- Resolve version ---
