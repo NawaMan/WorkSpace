@@ -1,6 +1,13 @@
 # Changelog
 
-This file contains a list of changes for each released version.
+This file contains a list of changes for each released version.1
+
+## v0.6.0
+- Sign the image
+- Change the ws-version display
+- Fix ARM build problem
+- Allow separate build for pushing
+
 ## v0.5.0
 - Fix the path problem when running on Windows.
 - Append variant and version to the image tag so it is cached locally.
