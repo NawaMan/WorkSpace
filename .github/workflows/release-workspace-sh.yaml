@@ -11,39 +11,64 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------------------------------------------------
+      # Checkout
+      # ---------------------------------------------------------
       - name: Check out repository
         uses: actions/checkout@v4
 
+      # ---------------------------------------------------------
+      # Read version.txt → output "version"
+      # ---------------------------------------------------------
       - name: Read version from version.txt
         id: get_version
         run: |
-          VERSION=$(cat version.txt | tr -d ' \t\n\r')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION=$(tr -d ' \t\r\n' < version.txt)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Show version
-        run: echo "Publishing workspace.sh for version $VERSION"
+        run: echo "Publishing workspace.sh for version ${{ steps.get_version.outputs.version }}"
 
+      # ---------------------------------------------------------
+      # Cleanup old untagged releases
+      # ---------------------------------------------------------
+      - name: Delete untagged releases
+        run: |
+          gh release list --limit 100 --json tagName \
+            -q '.[] | select(.tagName | startswith("untagged-")) | .tagName' \
+            | xargs -r -I {} gh release delete {} -y
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------------------------------------------------------
+      # Prepare artifacts
+      # ---------------------------------------------------------
       - name: Make workspace.sh executable
         run: chmod +x workspace.sh
 
-      - name: Generate SHA1 checksum for workspace.sh
+      - name: Generate SHA256 checksum for workspace.sh
         run: |
-          sha1sum workspace.sh > workspace.sh.sha1
+          sha256sum workspace.sh > workspace.sh.sha256
           echo "Generated checksum:"
-          cat workspace.sh.sha1
+          cat workspace.sh.sha256
 
+      # ---------------------------------------------------------
+      # Publish versioned release
+      # ---------------------------------------------------------
       - name: Publish versioned release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION }}
-          name: ${{ env.VERSION }}
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: ${{ steps.get_version.outputs.version }}
           files: |
             workspace.sh
-            workspace.sh.sha1
+            workspace.sh.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # ---------------------------------------------------------
+      # Publish latest release
+      # ---------------------------------------------------------
       - name: Publish latest release
         uses: softprops/action-gh-release@v2
         with:
@@ -53,6 +78,6 @@ jobs:
           draft: false
           files: |
             workspace.sh
-            workspace.sh.sha1
+            workspace.sh.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
