@@ -24,7 +24,7 @@ Main() {
 
   DOCKER_FILE="${DOCKER_FILE:-}"
   IMAGE_NAME="${IMAGE_NAME:-}"
-  VARIANT=${VARIANT:-container}
+  VARIANT=${VARIANT:-default}
   VERSION=${VERSION:-${WS_VERSION:-latest}}
 
   DO_PULL=${DO_PULL:-false}
@@ -361,7 +361,10 @@ EnsureDockerImage() {
 ValidateVariant() {
   case "${VARIANT}" in
     container|ide-notebook|ide-codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
-    notebook|codeserver) VARIANT="ide-${VARIANT}" ;;
+    default)             VARIANT="ide-codeserver"     ;;
+    ide)                 VARIANT="ide-codeserver"     ;;
+    desktop)             VARIANT="desktop-xfce"       ;;
+    notebook|codeserver) VARIANT="ide-${VARIANT}"     ;;
     xfce|kde|lxqt)       VARIANT="desktop-${VARIANT}" ;;
     *)
       echo "Error: unknown --variant '$VARIANT' (valid: container|ide-notebook|ide-codeserver|desktop-xfce|desktop-kde|desktop-lxqt; " >&2
