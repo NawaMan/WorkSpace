@@ -614,9 +614,10 @@ RunAsCommand() {
 }
 
 RunAsDaemon() {
+  USER_CMDS=()
   if [[ ${#CMDS[@]} -ne 0 ]]; then
-    echo "Running command in daemon mode is not allowed: "${CMDS[@]} >&2
-    exit 1
+    USER_CMDS+=(bash -lc)
+    USER_CMDS+=("${CMDS[@]}")
   fi
 
   # Detached: no TTY args
@@ -637,14 +638,13 @@ RunAsDaemon() {
   if [[ "${DRYRUN}" == "true" ]]; then
     echo "<--dryrun-->"
     echo ""
-  else
-    Docker run -d "${KEEPALIVE_ARGS[@]}" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
+  fi
+  Docker run -d "${KEEPALIVE_ARGS[@]}" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" "${USER_CMDS[@]}"
 
-    # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
-    if [[ "$DIND" == "true" ]]; then
-      echo "🔧 DinD sidecar running: $DIND_NAME (network: $DIND_NET)"
-      echo "   Stop with:  docker stop $DIND_NAME && docker network rm $DIND_NET"
-    fi
+  # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
+  if [[ "$DIND" == "true" ]]; then
+    echo "🔧 DinD sidecar running: $DIND_NAME (network: $DIND_NET)"
+    echo "   Stop with:  docker stop $DIND_NAME && docker network rm $DIND_NET"
   fi
 }
 
