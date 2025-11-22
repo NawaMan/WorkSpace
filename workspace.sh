@@ -109,11 +109,14 @@ function default_file_if_exists() {
 
 function is_port_free() {
   local p="$1"
-  if command -v ss >/dev/null 2>&1; then
-    ! ss -ltn "( sport = :$p )" 2>/dev/null | grep -q ":$p"
-  elif command -v lsof >/dev/null 2>&1; then
+
+  # Prefer lsof (macOS + Linux); fall back to ss; fall back to nc
+  if command -v lsof >/dev/null 2>&1; then
     ! lsof -iTCP:"$p" -sTCP:LISTEN -Pn 2>/dev/null | grep -q .
+  elif command -v ss >/dev/null 2>&1; then
+    ! ss -ltn "( sport = :$p )" 2>/dev/null | grep -q ":$p"
   else
+    # Last-ditch: nc
     ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$p" >/dev/null 2>&1)
   fi
 }
@@ -666,7 +669,7 @@ RunAsForeground() {
 
 SetupDind() {
   # ⚠️ Docker-in-Docker Usage Notice
-  # 
+  #
   # This development environment provides Docker access from inside the container by
   # connecting to an internal Docker daemon running in a sidecar container. While
   # this enables building and running containers without installing Docker on your
@@ -704,15 +707,33 @@ SetupDind() {
     CREATED_DIND_NET=true
   fi
 
+  # Detect Docker Desktop (macOS/Windows)
+  local IS_DOCKER_DESKTOP=false
+  if docker info 2>/dev/null | grep -qi "Docker Desktop"; then
+    IS_DOCKER_DESKTOP=true
+  fi
+
   # Start DinD sidecar on our private network (silence ID)
   if ! Docker ps --filter "name=^/${DIND_NAME}$" --format '{{.Names}}' | grep -qx "$DIND_NAME"; then
     $VERBOSE && echo "Starting DinD sidecar: $DIND_NAME" || true
-    Docker run -d --rm --privileged \
-      --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-      --name "$DIND_NAME" \
-      --network "$DIND_NET" \
-      -e DOCKER_TLS_CERTDIR= \
-      docker:dind >/dev/null
+
+    if [[ "$IS_DOCKER_DESKTOP" == true ]]; then
+      # Docker Desktop: skip cgroup flags + /sys/fs/cgroup mount
+      Docker run -d --rm --privileged \
+        --name "$DIND_NAME" \
+        --network "$DIND_NET" \
+        -e DOCKER_TLS_CERTDIR= \
+        docker:dind >/dev/null
+    else
+      # Native Linux: full flags
+      Docker run -d --rm --privileged \
+        --cgroupns=host \
+        -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+        --name "$DIND_NAME" \
+        --network "$DIND_NET" \
+        -e DOCKER_TLS_CERTDIR= \
+        docker:dind >/dev/null
+    fi
   else
     $VERBOSE && echo "DinD sidecar already running: $DIND_NAME" || true
   fi
@@ -733,18 +754,25 @@ SetupDind() {
     fi
   fi
 
-  # Remove any user-provided --network from RUN_ARGS to avoid duplication
+  # Remove any user-provided --network flags from RUN_ARGS
   mapfile -t RUN_ARGS < <(strip_network_flags "${RUN_ARGS[@]}")
 
   # Wire main container to DinD network + endpoint
   COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
 
-  # Mount host docker CLI binary if present (so your image need not include it)
+  # Mount host docker CLI binary if present (portable path resolution)
   if DOCKER_BIN="$(command -v docker 2>/dev/null)"; then
-    # Resolve to absolute path for safety
-    if command -v readlink >/dev/null 2>&1; then
-      DOCKER_BIN="$(readlink -f "$DOCKER_BIN" || echo "$DOCKER_BIN")"
+
+    # Prefer realpath (portable across Linux/macOS/homebrew)
+    if command -v realpath >/dev/null 2>&1; then
+      DOCKER_BIN="$(realpath "$DOCKER_BIN" 2>/dev/null || echo "$DOCKER_BIN")"
+
+    # Fallback: readlink (BSD/macOS/Git Bash without -f)
+    elif command -v readlink >/dev/null 2>&1; then
+      tmp="$(readlink "$DOCKER_BIN" 2>/dev/null || true)"
+      [[ -n "$tmp" ]] && DOCKER_BIN="$tmp"
     fi
+
     COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
   else
     $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container." || true
