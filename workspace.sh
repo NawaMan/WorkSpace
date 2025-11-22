@@ -536,9 +536,15 @@ PortDetermination() {
     fi
 
   else
-    # Enforce allowed range to avoid docker -p failures
-    if (( HOST_PORT < 10000 || HOST_PORT > 65535 )); then
-      echo "Error: --port must be between 10000 and 65535 (got '$HOST_PORT')." >&2
+    # User-specified port:
+    # - allow any valid TCP port (1–65535)
+    # - but still catch obviously bad input before docker -p
+    if ! [[ "$HOST_PORT" =~ ^[0-9]+$ ]]; then
+      echo "Error: --port must be a number (got '$HOST_PORT')." >&2
+      exit 1
+    fi
+    if (( HOST_PORT < 1 || HOST_PORT > 65535 )); then
+      echo "Error: --port must be between 1 and 65535 (got '$HOST_PORT')." >&2
       exit 1
     fi
   fi
@@ -832,7 +838,7 @@ GENERAL:
   --daemon               Run the workspace container in the background
   --dind                 Enable a Docker-in-Docker sidecar and set DOCKER_HOST
   --keep-alive           Do not remove the container when stop
-  --unit-test            Do not run Main; source functions for unit testing
+  --skip-main            Do not run Main; source functions only -- this aim to be used for unit testing
   --config <file>        Load defaults from a config shell file (default: ./ws--config.sh)
   --workspace <path>     Host workspace path to mount at /home/coder/workspace
 
@@ -849,7 +855,9 @@ BUILD OPTIONS (only when building locally with --dockerfile):
 
 RUNTIME OPTIONS:
   --name <container>     Container name (default: inferred from workspace directory)
-  --port <n|RANDOM|NEXT> Map host port -> container 10000 (allowed: 10000–65535)
+  --port <n|RANDOM|NEXT> Map host port -> container 10000
+                         n: any valid TCP port (1–65535)
+                         RANDOM/NEXT: auto-pick a free port ≥ 10000
   --env-file <file>      Pass an --env-file to docker run
                          Use 'none' to disable automatic .env detection
 
@@ -888,12 +896,12 @@ EOF
 
 
 
-UNIT_TEST=${UNITTEST:-false}
+SKIP_MAIN=${SKIP_MAIN:-false}
 
 ARGS=("$@")
 for (( i=0; i<${#ARGS[@]}; i++ )); do
   case "${ARGS[i]}" in
-    --unit-test) UNIT_TEST=true ;;
+    --skip-main) SKIP_MAIN=true ;;
     ws-version)
          cat <<'EOF'
 __      __       _    ___                   
@@ -909,6 +917,6 @@ EOF
 done
 unset ARGS
 
-if [[ "$UNIT_TEST" != "true" ]]; then
+if [[ "$SKIP_MAIN" != "true" ]]; then
   Main "$@"
 fi
