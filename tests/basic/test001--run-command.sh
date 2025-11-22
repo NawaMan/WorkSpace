@@ -13,7 +13,7 @@ echo $DATE > in-host.txt
 ../../workspace.sh --variant container -- echo $DATE '>' in-workspace.txt
 
 if diff -u in-workspace.txt in-host.txt; then
-  echo "✅ Files match"
+  echo "✅ Match"
 else
   echo "❌ Differ"
   echo "-------------------------------------------------------------------------------"
