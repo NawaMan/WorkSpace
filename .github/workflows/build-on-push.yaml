@@ -27,3 +27,5 @@ jobs:
         run: cd tests/basic && ./run-basic-tests.sh && cd ..
       - name: DryRun tests
         run: cd tests/dryrun && ./run-dryrun-tests.sh && cd ..
+      - name: WorkSpace Env
+        run: cd tests/workspace-env && ./run-test.sh && cd ..
