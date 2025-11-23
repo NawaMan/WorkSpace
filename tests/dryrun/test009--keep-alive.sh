@@ -15,13 +15,13 @@ VERSION="$(cat ../../version.txt)"
 EXPECT="\
 docker run \
 -i \
---name basic \
+--name dryrun \
 -e 'HOST_UID=1000' \
 -e 'HOST_GID=1000' \
 -v ${HERE}:/home/coder/workspace \
 -w /home/coder/workspace \
 -p 10000:10000 \
--e 'WS_CONTAINER_NAME=basic' \
+-e 'WS_CONTAINER_NAME=dryrun' \
 -e 'WS_DAEMON=false' \
 -e 'WS_HOST_PORT=10000' \
 -e 'WS_IMAGE_NAME=nawaman/workspace:container-${VERSION}' \
