@@ -93,6 +93,10 @@ fi
 existing_uid_user="$(getent passwd "$HOST_UID" | cut -d: -f1 || true)"
 if id -u "$USER_NAME" >/dev/null 2>&1; then
   current_uid="$(id -u "$USER_NAME")"
+  # minimal additions: detect current primary group name and shell
+  current_gid_name="$(id -gn "$USER_NAME")"
+  current_shell="$(getent passwd "$USER_NAME" | cut -d: -f7 || true)"
+
   if [ "$current_uid" != "$HOST_UID" ]; then
     # If another user has HOST_UID, move them out of the way
     if [ -n "$existing_uid_user" ] && [ "$existing_uid_user" != "$USER_NAME" ]; then
@@ -100,7 +104,10 @@ if id -u "$USER_NAME" >/dev/null 2>&1; then
     fi
     usermod -u "$HOST_UID" -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
   else
-    usermod                -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
+    # Only call usermod if group or shell actually differ (avoid "no changes" noise)
+    if [ "$current_gid_name" != "$USER_NAME" ] || [ "$current_shell" != "$USER_SHELL" ]; then
+      usermod -g "$USER_NAME" -s "$USER_SHELL" "$USER_NAME"
+    fi
   fi
 else
   # 'coder' doesn't exist yet; if HOST_UID is already taken, move that user aside
