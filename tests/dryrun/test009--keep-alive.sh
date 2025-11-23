@@ -16,8 +16,8 @@ EXPECT="\
 docker run \
 -i \
 --name dryrun \
--e 'HOST_UID=1000' \
--e 'HOST_GID=1000' \
+-e 'HOST_UID=${HOST_UID}' \
+-e 'HOST_GID=${HOST_GID}' \
 -v ${HERE}:/home/coder/workspace \
 -w /home/coder/workspace \
 -p 10000:10000 \
