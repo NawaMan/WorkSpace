@@ -44,13 +44,13 @@ function random_free_port() {
 RunWorkspace() {
   local name="$1"
   local port="$2"
-  ../../workspace.sh --variant container --name "$name" --port "$port" -- sleep 5
+  ../../workspace.sh --variant container --name "$name" --port "$port" --daemon -- sleep 5
 }
 
 NAME="$(generate_name)"
 PORT="$(random_free_port)"
 
-RunWorkspace "$NAME" "$PORT" &
+RunWorkspace "$NAME" "$PORT" > $0.log
 
 # --- Wait for container to appear (max ~10 seconds) ---
 for i in {1..10}; do

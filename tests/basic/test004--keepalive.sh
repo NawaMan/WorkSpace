@@ -44,13 +44,13 @@ function random_free_port() {
 RunWorkspace() {
   local name="$1"
   local port="$2"
-  ../../workspace.sh --variant container --name "$name" --port "$port" -- sleep 5
+  ../../workspace.sh --variant container --name "$name" --port "$port" --daemon --keep-alive -- sleep 5
 }
 
 NAME="$(generate_name)"
 PORT="$(random_free_port)"
 
-RunWorkspace "$NAME" "$PORT" &
+RunWorkspace "$NAME" "$PORT" > $0.log 2>/dev/null
 
 # --- Wait for container to appear (max ~10 seconds) ---
 for i in {1..10}; do
@@ -71,9 +71,19 @@ fi
 
 sleep 7
 
-if ! docker inspect "$NAME" >/dev/null 2>&1; then
-  echo "✅ Container '$NAME' has been removed as expected after waiting for it to finish."
+if docker inspect "$NAME" >/dev/null 2>&1; then
+  echo "✅ Container '$NAME' still exists as it is kept alive"
 else
-  echo "❌ Container '$NAME' still exists"
+  echo "❌ Container '$NAME' does NOT exist -- it was not kept alive"
+  exit 1
+fi
+
+docker stop $NAME >/dev/null 2>&1 || true
+docker rm   $NAME >/dev/null 2>&1 || true
+
+if ! docker inspect "$NAME" >/dev/null 2>&1; then
+  echo "✅ Container '$NAME' has now been removed"
+else
+  echo "❌ Container '$NAME' still exists even after explicit removal request"
   exit 1
 fi
