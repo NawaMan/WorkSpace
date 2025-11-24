@@ -786,31 +786,44 @@ SetupDind() {
 }
 
 ShowDebugBanner() {
-  if [[ "${VERBOSE}" == "true" ]] ; then
+  if [[ "${VERBOSE:-false}" == "true" ]] ; then
+    echo ""
+    echo "SCRIPT_NAME:    $SCRIPT_NAME"
+    echo "SCRIPT_DIR:     $SCRIPT_DIR"
+    echo "WS_VERSION:     $WS_VERSION"
+    echo "CONFIG_FILE:    $CONFIG_FILE (set: $SET_CONFIG_FILE)"
     echo ""
     echo "CONTAINER_NAME: $CONTAINER_NAME"
     echo "DAEMON:         $DAEMON"
     echo "DOCKER_FILE:    $DOCKER_FILE"
     echo "DRYRUN:         $DRYRUN"
-    echo "HOST_UID:       $HOST_UID"
-    echo "HOST_GID:       $HOST_GID"
-    echo "HOST_PORT:      $HOST_PORT" 
     echo "KEEPALIVE:      $KEEPALIVE"
+    echo ""
     echo "IMAGE_NAME:     $IMAGE_NAME"
     echo "IMAGE_MODE:     $IMAGE_MODE"
+    echo "LOCAL_BUILD:    $LOCAL_BUILD"
+    echo "VARIANT:        $VARIANT"
+    echo "VERSION:        $VERSION"
+    echo "PREBUILD_REPO:  $PREBUILD_REPO"
+    echo "DO_PULL:        $DO_PULL"
+    echo ""
+    echo "HOST_UID:       $HOST_UID"
+    echo "HOST_GID:       $HOST_GID"
     echo "WORKSPACE_PATH: $WORKSPACE_PATH"
     echo "WORKSPACE_PORT: $WORKSPACE_PORT"
+    echo "HOST_PORT:      $HOST_PORT"
+    echo "PORT_GENERATED: $PORT_GENERATED"
+    echo ""
     echo "DIND:           $DIND"
     echo ""
     echo "CONTAINER_ENV_FILE: $CONTAINER_ENV_FILE"
     echo ""
-    echo "BUILD_ARGS: "$(args_to_string "${BUILD_ARGS[@]}")
-    echo "RUN_ARGS:   "$(args_to_string "${RUN_ARGS[@]}")
-    echo ""
-    echo "CMDS: "$(args_to_string "${CMDS[@]}")
+    echo "BUILD_ARGS: $(args_to_string "${BUILD_ARGS[@]}")"
+    echo "RUN_ARGS:   $(args_to_string "${RUN_ARGS[@]}")"
+    echo "CMDS:       $(args_to_string "${CMDS[@]}")"
     echo ""
 
-    if [[ ${#BUILD_ARGS[@]} -gt 0 ]] && [[ "${LOCAL_BUILD}" == "false" ]] && [[ "${VERBOSE}" == "true" ]]; then
+    if [[ ${#BUILD_ARGS[@]} -gt 0 ]] && [[ "${LOCAL_BUILD}" == "false" ]]; then
       echo "⚠️  Warning: BUILD_ARGS provided, but no build is being performed (using prebuilt image)." >&2
       echo ""
     fi
