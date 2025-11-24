@@ -112,7 +112,7 @@ SCRIPT_DIR:     ..
 SCRIPT_NAME:    ws.sh
 VARIANT:        ide-codeserver
 VERSION:        0.6.0
-WORKSPACE_PATH: /home/nawa/dev/git/WorkSpace/tests/dryrun
+WORKSPACE_PATH: $HERE
 WORKSPACE_PORT: 10005
 WS_VERSION:     0.6.0"
 

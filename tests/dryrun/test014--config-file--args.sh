@@ -100,11 +100,11 @@ LOCAL_BUILD:    true
 PORT_GENERATED: false
 PREBUILD_REPO:  nawaman/workspace
 RUN_ARGS:    \"-p\" \"10005\"
-SCRIPT_DIR:     /home/nawa/dev/git/WorkSpace
+SCRIPT_DIR:     $(realpath "$HERE/../..")
 SCRIPT_NAME:    workspace.sh
 VARIANT:        ide-codeserver
 VERSION:        $VERSION
-WORKSPACE_PATH: /home/nawa/dev/git/WorkSpace/tests/dryrun
+WORKSPACE_PATH: $HERE
 WORKSPACE_PORT: 10000
 WS_VERSION:     $VERSION"
 
