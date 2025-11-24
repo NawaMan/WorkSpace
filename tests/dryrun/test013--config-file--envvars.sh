@@ -23,9 +23,9 @@ DIND:           false
 DOCKER_FILE:    
 DO_PULL:        false
 DRYRUN:         true
-HOST_GID:       1000
+HOST_GID:       $HOST_GID
 HOST_PORT:      10000
-HOST_UID:       1000
+HOST_UID:       $HOST_UID
 IMAGE_MODE:     PREBUILT
 IMAGE_NAME:     nawaman/workspace:ide-codeserver-$VERSION
 KEEPALIVE:      false
