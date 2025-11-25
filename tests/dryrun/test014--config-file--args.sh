@@ -90,9 +90,9 @@ DIND:           true
 DOCKER_FILE:    test--config.sh
 DO_PULL:        true
 DRYRUN:         true
-HOST_GID:       1000
+HOST_GID:       $HOST_GID
 HOST_PORT:      10000
-HOST_UID:       1000
+HOST_UID:       $HOST_UID
 IMAGE_MODE:     LOCAL-BUILD
 IMAGE_NAME:     workspace-local:dryrun-ide-codeserver-$VERSION
 KEEPALIVE:      true

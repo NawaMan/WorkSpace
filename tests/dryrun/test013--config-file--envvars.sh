@@ -66,9 +66,7 @@ DIND=true
 DOCKER_FILE=test--config.sh
 DO_PULL=true
 DRYRUN=true
-HOST_GID=1005
 HOST_PORT=10005
-HOST_UID=1005
 IMAGE_MODE=EXISTING
 IMAGE_NAME=test/workspace:codeserver-$VERSION
 KEEPALIVE=true
@@ -100,9 +98,9 @@ DIND:           true
 DOCKER_FILE:    test--config.sh
 DO_PULL:        true
 DRYRUN:         true
-HOST_GID:       1005
+HOST_GID:       $HOST_GID
 HOST_PORT:      10005
-HOST_UID:       1005
+HOST_UID:       $HOST_UID
 IMAGE_MODE:     EXISTING
 IMAGE_NAME:     test/workspace:codeserver-0.6.0
 KEEPALIVE:      true
