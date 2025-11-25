@@ -37,6 +37,23 @@ With just one command, you can launch a fully reproducible and isolated developm
   1. Download [`workspace.sh`](https://github.com/NawaMan/WorkSpace/releases/download/latest/workspace.sh) and put in your project folder.
   2. Create `ws--Dockerfile` and `ws-config.sh` -- Take inspire from the existing [examples](https://github.com/NawaMan/WorkSpace/tree/latest/examples).
 
+## Quick Install (per project)
+
+Run the following on the project base folder to install [CodingBooth WorkSpace Wrapper](https://github.com/NawaMan/WorkSpaceWrapper).
+The wrapper allows management of the workspace script file.
+
+```shell
+curl -fsSL -o workspace \
+  https://github.com/NawaMan/WorkSpaceWrapper/releases/latest/download/workspace \
+  && chmod +x workspace
+```
+
+Run `workspace` and follow the instruction.
+
+```shell
+./workspace
+```
+
 ## Why WorkSpace?
 
 When developing inside containers, files you create often end up owned by the container’s user (usually `root`).  
