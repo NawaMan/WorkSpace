@@ -860,58 +860,74 @@ USAGE:
   $sname --help
 
 COMMAND:
-  ws-version             Print out the version of the workspace.sh (which also the default version of the docker image).
+  ws-version             Print the workspace.sh version.
 
 GENERAL:
   --help                 Show this help and exit
   --verbose              Print extra debugging information
-  --dryrun               Print the docker commands but do not execute them
-  --pull                 Force pulling the image (when using prebuilt images)
+  --dryrun               Print docker commands without executing them
+  --pull                 Always pull the image, even if it exists locally
+                         (default behavior is to check if the image exists
+                          locally and pull it only if it is missing)
   --daemon               Run the workspace container in the background
   --dind                 Enable a Docker-in-Docker sidecar and set DOCKER_HOST
-  --keep-alive           Do not remove the container when stop
-  --skip-main            Do not run Main; source functions only -- this aim to be used for unit testing
+  --keep-alive           Do not remove the container when stopped
+  --skip-main            Do not run Main; load functions only (for testing)
   --config <file>        Load defaults from a config shell file (default: ./ws--config.sh)
   --workspace <path>     Host workspace path to mount at /home/coder/workspace
 
 IMAGE SELECTION (precedence: --image > --dockerfile > prebuilt):
-  --image <name>         Use an existing local/remote image (e.g., repo/name:tag)
-  --dockerfile <path>    Build locally from Dockerfile (file or dir containing ws--Dockerfile)
-  --variant <name>       Prebuilt variant: container|notebook|codeserver|desktop-{xfce,kde,lxqt}
+  --image <name>         Use an existing local or remote image (e.g. repo/name:tag)
+                         The script will check if the image exists locally and
+                         pull it only if it is missing (unless --pull is used).
+  --dockerfile <path>    Build locally from Dockerfile (file or directory)
+                         If a directory is provided, it must contain ws--Dockerfile.
+  --variant <name>       Prebuilt variant:
+                           container | ide-notebook | ide-codeserver
+                           desktop-xfce | desktop-kde | desktop-lxqt
+                         Aliases:
+                           notebook | codeserver | xfce | kde | lxqt
   --version <tag>        Prebuilt version tag (default: latest)
 
-BUILD OPTIONS (only when building locally with --dockerfile):
-  --build-arg <KEY=VAL>  Add a build-arg (repeatable)
+BUILD OPTIONS (only when using --dockerfile):
+  --build-arg <KEY=VAL>  Add a Docker build-arg (repeatable)
   --silence-build        Hide build progress; show output only on failure
   NOTE: Build args are ignored when using prebuilt images or --image.
 
 RUNTIME OPTIONS:
   --name <container>     Container name (default: inferred from workspace directory)
-  --port <n|RANDOM|NEXT> Map host port -> container 10000
-                         n: any valid TCP port (1–65535)
-                         RANDOM/NEXT: auto-pick a free port ≥ 10000
-  --env-file <file>      Pass an --env-file to docker run
-                         Use 'none' to disable automatic .env detection
+  --port <n|RANDOM|NEXT> Host port → container 10000
+                         n      : any valid TCP port (1–65535)
+                         RANDOM : pick a random free port ≥ 10000
+                         NEXT   : pick the next available free port ≥ 10000
+  --env-file <file>      Provide an --env-file to docker run
+                         Use 'none' to disable auto-detection of <workspace>/.env
 
 COMMANDS:
-  Everything after '--' is executed inside the container instead of starting
-  the default workspace service. Example:
+  All arguments after '--' are executed *inside* the container instead of
+  starting the default workspace service. Example:
     $sname -- -- bash -lc "echo hi"
 
 NOTES:
+  - Default image behavior:
+        The script checks whether the image exists locally.
+        If it is missing, it will be pulled automatically.
+        Use --pull to always pull, even if the image already exists.
+
   - If --env-file is not provided, a <workspace>/.env file will be used when present.
-    Pass '--env-file none' to explicitly disable this behavior.
-  - RANDOM/NEXT for --port will auto-pick a free host port ≥ 10000.
-  - With --dind, a 'docker:dind' sidecar runs on a private network and the main
-    container receives DOCKER_HOST=tcp://<sidecar>:2375.
+    Specify '--env-file none' to disable this behavior.
+
   - In daemon mode, do not pass commands after '--'. Stop the container with:
-      docker stop <container-name>
+        docker stop <container-name>
+
+  - With --dind, a docker:dind sidecar runs on a private network and the main
+    container uses DOCKER_HOST=tcp://<sidecar>:2375.
 
 EXAMPLES:
   # Prebuilt, foreground
   $sname --variant container --version latest --workspace /path/to/ws
 
-  # Local build from Dockerfile in workspace
+  # Local build from Dockerfile
   $sname --dockerfile ./Dockerfile --workspace . --build-arg FOO=bar
 
   # Daemon mode with random port
@@ -924,8 +940,6 @@ EXAMPLES:
   $sname --env-file none --variant notebook
 EOF
 }
-
-
 
 
 SKIP_MAIN=${SKIP_MAIN:-false}
