@@ -154,18 +154,8 @@ function project_name() {
   local input="${1:-$PWD}"
   local ws proj
 
-  # Resolve to an absolute, physical path portably
-  if command -v realpath >/dev/null 2>&1; then
-    # Plain realpath works on GNU and BSD; no -m/-e flags for portability
-    ws="$(realpath "$input" 2>/dev/null || true)"
-  fi
-  if [[ -z "$ws" ]]; then
-    # Fallback: physical path via pwd -P in a subshell; if cd fails, use input as-is
-    ws="$(
-      cd -- "$input" 2>/dev/null && pwd -P
-    )"
-    [[ -z "$ws" ]] && ws="$input"
-  fi
+  # Resolve to an absolute, physical path using pure-shell helper
+  ws="$(ws_realpath "$input")"
 
   proj="$(basename -- "$ws")"
   proj="$(printf '%s' "$proj" | tr '[:upper:] ' '[:lower:]-' \
@@ -201,6 +191,22 @@ function strip_network_flags() {
         printf '%s\n' "$arg" ;;
     esac
   done
+}
+
+function ws_realpath() {
+  local target="$1"
+  (
+    if [ -d "$target" ]; then
+      cd -- "$target" 2>/dev/null || { printf '%s\n' "$target"; exit 0; }
+      pwd -P
+    else
+      local dir base
+      dir=$(dirname -- "$target")   || { printf '%s\n' "$target"; exit 0; }
+      base=$(basename -- "$target") || { printf '%s\n' "$target"; exit 0; }
+      cd -- "$dir" 2>/dev/null      || { printf '%s\n' "$target"; exit 0; }
+      printf '%s/%s\n' "$(pwd -P)" "$base"
+    fi
+  )
 }
 
 #== PROCEDURES ==================================================================
@@ -789,19 +795,9 @@ SetupDind() {
   # Wire main container to DinD network + endpoint
   COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
 
-  # Mount host docker CLI binary if present (portable path resolution)
+  # Mount host docker CLI binary if present (portable path resolution via pure shell)
   if DOCKER_BIN="$(command -v docker 2>/dev/null)"; then
-
-    # Prefer realpath (portable across Linux/macOS/homebrew)
-    if command -v realpath >/dev/null 2>&1; then
-      DOCKER_BIN="$(realpath "$DOCKER_BIN" 2>/dev/null || echo "$DOCKER_BIN")"
-
-    # Fallback: readlink (BSD/macOS/Git Bash without -f)
-    elif command -v readlink >/dev/null 2>&1; then
-      tmp="$(readlink "$DOCKER_BIN" 2>/dev/null || true)"
-      [[ -n "$tmp" ]] && DOCKER_BIN="$tmp"
-    fi
-
+    DOCKER_BIN="$(ws_realpath "$DOCKER_BIN")"
     COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
   else
     $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container." || true
