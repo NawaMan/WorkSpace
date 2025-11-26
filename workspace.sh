@@ -155,7 +155,7 @@ function project_name() {
   local ws proj
 
   # Resolve to an absolute, physical path using pure-shell helper
-  ws="$(ws_realpath "$input")"
+  ws="$(realpath "$input")"
 
   proj="$(basename -- "$ws")"
   proj="$(printf '%s' "$proj" | tr '[:upper:] ' '[:lower:]-' \
@@ -193,7 +193,7 @@ function strip_network_flags() {
   done
 }
 
-function ws_realpath() {
+function realpath() {
   local target="$1"
   (
     if [ -d "$target" ]; then
@@ -797,7 +797,7 @@ SetupDind() {
 
   # Mount host docker CLI binary if present (portable path resolution via pure shell)
   if DOCKER_BIN="$(command -v docker 2>/dev/null)"; then
-    DOCKER_BIN="$(ws_realpath "$DOCKER_BIN")"
+    DOCKER_BIN="$(realpath "$DOCKER_BIN")"
     COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
   else
     $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container." || true
