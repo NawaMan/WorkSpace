@@ -1,4 +1,7 @@
 # syntax=docker/dockerfile:1.7
+
+#== This section is required to allow normal operation of all variants ==
+
 ARG VARIANT_TAG=container
 ARG VERSION_TAG=latest
 FROM nawaman/workspace:${VARIANT_TAG}-${VERSION_TAG}
@@ -16,10 +19,18 @@ ENV WS_VARIANT_TAG="${VARIANT_TAG}"
 ENV PY_VERSION="${PY_VERSION}"
 
 
-# Customizations
+#== Customizations ==
+
+# ARG - ENV pairs for customizable stuff
+
+# Example
+# ARG JDK_VERSION=24
+# ENV JDK_VERSION="${JDK_VERSION}"
 
 
-# Setup
+#== Setup ==
 
-RUN "$SETUPS_DIR"/dind--setup.sh
-RUN "$SETUPS_DIR"/docker-buildx--setup.sh
+# RUN command to setup things (mostly from "$SETUPS_DIR")
+
+# Example
+# RUN "$SETUPS_DIR"/jdk--setup.sh 25

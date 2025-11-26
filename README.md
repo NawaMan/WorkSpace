@@ -37,6 +37,25 @@ With just one command, you can launch a fully reproducible and isolated developm
   1. Download [`workspace.sh`](https://github.com/NawaMan/WorkSpace/releases/download/latest/workspace.sh) and put in your project folder.
   2. Create `ws--Dockerfile` and `ws-config.sh` -- Take inspire from the existing [examples](https://github.com/NawaMan/WorkSpace/tree/latest/examples).
 
+## Quick Install (per project)
+
+Run the following on the project base folder to install [CodingBooth WorkSpace Wrapper](https://github.com/NawaMan/WorkSpaceWrapper).
+The wrapper allows management of the workspace script file.
+
+```shell
+curl -fsSL -o workspace \
+  https://github.com/NawaMan/WorkSpaceWrapper/releases/latest/download/workspace \
+  && chmod +x workspace \
+  && ./workspace install \
+  && ./workspace help
+```
+
+Run `workspace` and follow the instruction.
+
+```shell
+./workspace
+```
+
 ## Why WorkSpace?
 
 When developing inside containers, files you create often end up owned by the container’s user (usually `root`).  
@@ -56,7 +75,7 @@ That means every file you create or modify inside the container is **owned by yo
 
 ## Variants
 
-WorkSpace provides several **ready-to-use container variants** designed for different development workflows.  
+WorkSpace provides several **ready-to-use container variants** designed for different development workflows.
 Each variant comes pre-configured with a curated toolset and a consistent runtime environment.
 
 ### Available Variants
@@ -73,16 +92,37 @@ Each variant comes pre-configured with a curated toolset and a consistent runtim
 - **`desktop-xfce`**, **`desktop-kde`**, **`desktop-lxqt`** – Full Linux desktop environments accessible via browser or remote desktop (e.g., noVNC).  
   Useful for GUI-heavy workflows or running native IDEs like IntelliJ IDEA, PyCharm, or Eclipse inside Docker.
 
+### Aliases & Defaults
+
+The `ValidateVariant()` logic supports several shortcuts and fallback values:
+
+| Input Alias	| Resolved Variant |
+|-------------|------------------|
+| default	    | ide-codeserver   |
+| ide	        | ide-codeserver   |
+| notebook    | ide-notebook     |
+| codeserver  | ide-codeserver   |
+| desktop	    | desktop-xfce     |
+| xfce        | desktop-xfce     |
+| kde	        | desktop-kde      |
+| lxqt        | desktop-lxqt     |
+
+If an unknown value is provided, WorkSpace will exit with an error listing supported variants and aliases.
+
 ### Typical Use Cases
 
-- **Data Science & Notebooks** – Quickly spin up reproducible Jupyter environments using `VARIANT=notebook`.  
+- **Data Science & Notebooks** – Quickly spin up reproducible Jupyter environments using `--variant notebook`.  
   Ideal for experiments, reports, or teaching interactive examples.
 
-- **Web or App Development** – Develop directly in a browser-based IDE using `VARIANT=codeserver`, complete with terminal and Git integration.
+- **Executable Bash Notebooks** – Use `--variant notebook` to work in a Jupyter environment that includes a Bash kernel.
+  This allows you to write notebooks that mix explanations, commands, and output in one place — effectively turning a notebook into a runnable document.
+  It's ideal for creating repeatable build instructions, walkthroughs, tutorials, or Makefile-like automation that is much more readable and approachable than shell scripts alone.
 
-- **Lightweight CLI Workflows** – Use `VARIANT=container` for scripting, building, and testing in an isolated but fast shell environment.
+- **Web or App Development** – Develop directly in a browser-based IDE using `--variant codeserver`, complete with terminal and Git integration.
 
-- **GUI Development Environments** – Run full desktop IDEs or graphical tools using `VARIANT=desktop-*`.  
+- **Lightweight CLI Workflows** – Use `--variant container` for scripting, building, and testing in an isolated but fast shell environment.
+
+- **GUI Development Environments** – Run full desktop IDEs or graphical tools using `--variant desktop-*`.  
   Perfect for complex projects requiring a windowed environment without polluting your host.
 
 - **Continuous Integration & Training** – Standardize development or CI environments for teams and classrooms, ensuring consistent behavior across machines.
