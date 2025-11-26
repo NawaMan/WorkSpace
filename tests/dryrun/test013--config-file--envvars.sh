@@ -8,6 +8,22 @@ PWD=$(pwd)
 HERE="$PWD"
 VERSION="$(cat ../../version.txt)"
 
+function realpath() {
+  local target="$1"
+  (
+    if [ -d "$target" ]; then
+      cd -- "$target" 2>/dev/null || { printf '%s\n' "$target"; exit 0; }
+      pwd -P
+    else
+      local dir base
+      dir=$(dirname -- "$target")   || { printf '%s\n' "$target"; exit 0; }
+      base=$(basename -- "$target") || { printf '%s\n' "$target"; exit 0; }
+      cd -- "$dir" 2>/dev/null      || { printf '%s\n' "$target"; exit 0; }
+      printf '%s/%s\n' "$(pwd -P)" "$base"
+    fi
+  )
+}
+
 
 ACTUAL=$(../../workspace.sh --verbose --dryrun | grep -E '^[A-Z_]+:' | sort)
 
