@@ -50,6 +50,16 @@ set -euo pipefail
 #   • No-op if host UID/GID matches current "coder" UID/GID and ownership is OK.
 # -----------------------------------------------------------------------------
 
+# Verbose logging (default: false)
+WS_VERBOSE="${WS_VERBOSE:-false}"
+log() {
+  if [ "$WS_VERBOSE" = "true" ]; then
+    printf '[ws-setup] %s\n' "$*"
+  fi
+}
+
+log "Starting workspace-user-setup..."
+
 #== Constants ==
 USER_NAME="coder"
 HOME_DIR="/home/${USER_NAME}"
@@ -61,6 +71,9 @@ WORKSPACE_DIR="/home/${USER_NAME}/${WORKSPACE_NAME}"
 USER_SHELL="${USER_SHELL:-/bin/bash}"
 HOST_UID="${HOST_UID:-1000}"
 HOST_GID="${HOST_GID:-1000}"
+
+log "USER_NAME=$USER_NAME HOME_DIR=$HOME_DIR WORKSPACE_DIR=$WORKSPACE_DIR"
+log "HOST_UID=$HOST_UID HOST_GID=$HOST_GID"
 
 # Find a free numeric uid/gid starting from 2000 to relocate conflicts safely
 find_free_uid() { local uid=2000; while getent passwd "$uid" >/dev/null 2>&1; do uid=$((uid+1)); done; echo "$uid"; }
@@ -76,6 +89,8 @@ GroupMod() {
 }
 
 # --- GROUP: ensure HOST_GID is owned by group 'coder' ---
+log "Ensuring group '$USER_NAME' exists and matches HOST_GID..."
+
 # 1) Ensure 'coder' group exists (with any GID for now). Prefer HOST_GID if free.
 if ! getent group "$USER_NAME" >/dev/null 2>&1; then
   if getent group "$HOST_GID"  >/dev/null 2>&1; then
@@ -99,6 +114,8 @@ if [ "$current_gid" != "$HOST_GID" ]; then
 fi
 
 # --- USER: align UID and ensure primary group is 'coder' by name ---
+log "Ensuring user '$USER_NAME' exists and matches HOST_UID..."
+
 existing_uid_user="$(getent passwd "$HOST_UID" | cut -d: -f1 || true)"
 if id -u "$USER_NAME" >/dev/null 2>&1; then
   current_uid="$(id -u "$USER_NAME")"
@@ -132,10 +149,12 @@ else
 fi
 
 # Allow passwordless sudo for coder (restricted to this file)
+log "Configuring passwordless sudo for '$USER_NAME'..."
 echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/${USER_NAME}
 chmod 0440 /etc/sudoers.d/${USER_NAME}
 
 # Ensure home & workspace exist; chown as requested
+log "Ensuring home and workspace directories exist and are owned by host UID/GID..."
 sudo mkdir -p                       "$HOME_DIR" "$WORKSPACE_DIR" || true
 sudo chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" 2>&1 \
     | grep -v "Permission denied" || true
@@ -146,6 +165,8 @@ export PATH="$HOME/.local/bin:$PATH"
 cd "$WORKSPACE_DIR" 2>/dev/null || true
 
 # Populate skeleton dotfiles if missing (so non-login shells get env/aliases)
+log "Ensuring default dotfiles exist in $HOME_DIR..."
+
 if [ ! -f "$HOME_DIR/.bashrc" ]; then
   if [ -f /etc/skel/.bashrc ]; then
     cp /etc/skel/.bashrc "$HOME_DIR/.bashrc"
@@ -202,6 +223,7 @@ chown "$HOST_UID:$HOST_GID" "$HOME_DIR/.bashrc" "$HOME_DIR/.profile" "$HOME_DIR/
 # --- One-time workspace startup hooks (run as $USER_NAME) ---
 RUN_ONCE_FLAG="/var/run/ws-startup.once"
 if [ -d "/usr/share/startup.d" ] && [ ! -f "$RUN_ONCE_FLAG" ]; then
+  log "Running one-time workspace startup hooks in /usr/share/startup.d..."
   runuser -u "$USER_NAME" -- bash -lc '
     # Run the startup.
     set -euo pipefail
@@ -216,7 +238,9 @@ fi
 
 # Exec the requested command as coder (default to login shell if none provided)
 if [ "$#" -eq 0 ]; then
+  log "No command provided; starting login shell for $USER_NAME..."
   exec runuser -u "$USER_NAME" --login
 else
+  log "Executing as $USER_NAME: $*"
   exec runuser -u "$USER_NAME" -- "$@"
 fi
