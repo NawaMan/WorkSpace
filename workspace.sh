@@ -248,8 +248,12 @@ Docker() {
   fi
   # Execute unless dry-run
   if [[ "${DRYRUN}" != "true" ]]; then
+    local status
+    set +e
     command docker "$subcmd" "$@"
-    return $?  # propagate exit status
+    status=$?
+    set -e
+    return $status  # propagate exit status
   fi
 }
 
