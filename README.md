@@ -45,7 +45,9 @@ The wrapper allows management of the workspace script file.
 ```shell
 curl -fsSL -o workspace \
   https://github.com/NawaMan/WorkSpaceWrapper/releases/latest/download/workspace \
-  && chmod +x workspace
+  && chmod +x workspace \
+  && ./workspace install \
+  && ./workspace help
 ```
 
 Run `workspace` and follow the instruction.
