@@ -789,8 +789,14 @@ SetupDind() {
     fi
   fi
 
-  # Remove any user-provided --network flags from RUN_ARGS
-  mapfile -t RUN_ARGS < <(strip_network_flags "${RUN_ARGS[@]}")
+  # Remove any user-provided --network flags from RUN_ARGS (Bash 3 compatible)
+  {
+    local _new_run_args=()
+    while IFS= read -r line; do
+      _new_run_args+=("$line")
+    done < <(strip_network_flags "${RUN_ARGS[@]}")
+    RUN_ARGS=("${_new_run_args[@]}")
+  }
 
   # Wire main container to DinD network + endpoint
   COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
