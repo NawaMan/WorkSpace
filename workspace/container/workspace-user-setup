@@ -128,7 +128,8 @@ chmod 0440 /etc/sudoers.d/${USER_NAME}
 
 # Ensure home & workspace exist; chown as requested
 sudo mkdir -p                       "$HOME_DIR" "$WORKSPACE_DIR" || true
-sudo chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" || true
+sudo chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" 2>&1 \
+    | grep -v "Permission denied" || true
 
 # Set up environment for coder and switch to workspace
 export HOME="$HOME_DIR"

@@ -1,5 +1,11 @@
 #!/bin/bash
+
 set -euo pipefail
+
+if [[ "$(uname)" == "Darwin" ]]; then
+  set +u
+fi
+
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
 WS_VERSION=0.6.0
@@ -310,7 +316,8 @@ EnsureDockerImage() {
     fi
   fi
 
-  # Proceed according to mode. If IMAGE_NAME was given (EXISTING), skip build/pull.
+  # Proceed according to mode. If IMAGE_NAME was given (EXISTING), skip build, but still
+  # perform presence/pull logic later.
   if [[ -z "${IMAGE_NAME:-}" ]]; then
     if [[ "$IMAGE_MODE" == "LOCAL-BUILD" ]]; then
       IMAGE_NAME="workspace-local:${PROJECT_NAME}-${VARIANT}-${VERSION}"
@@ -318,45 +325,57 @@ EnsureDockerImage() {
         echo ""
         echo "Build local image: $IMAGE_NAME"
         echo "  - SILENCE_BUILD: $SILENCE_BUILD"
-        
       fi
       {
         DockerBuild                           \
-        -f "$DOCKER_FILE"                     \
-        -t "$IMAGE_NAME"                      \
-        --build-arg VARIANT_TAG="${VARIANT}"  \
-        --build-arg VERSION_TAG="${VERSION}"  \
-        "${BUILD_ARGS[@]}"                    \
-        "${WORKSPACE_PATH}"                   \
-        1> >(grep -v '^sha256:')              # Hide the digest if no-need to rebuild build
-      } 
+          -f "$DOCKER_FILE"                   \
+          -t "$IMAGE_NAME"                    \
+          --build-arg VARIANT_TAG="${VARIANT}" \
+          --build-arg VERSION_TAG="${VERSION}" \
+          "${BUILD_ARGS[@]}"                  \
+          "${WORKSPACE_PATH}"                 \
+          1> >(grep -v '^sha256:')            # Hide the digest if no-need to rebuild build
+      }
     else
-      # PREBUILT: construct image name and pull if needed
+      # PREBUILT: just construct the image name; pulling is handled in the common logic below.
       IMAGE_NAME="${PREBUILD_REPO}:${VARIANT}-${VERSION}"
-
-      if $DO_PULL; then
-        [[ "${VERBOSE}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
-        if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
-          echo "Error: failed to pull '$IMAGE_NAME':" >&2
-          echo "$output" >&2
-          exit 1
-        fi
-        [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
-      elif ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        [[ "${VERBOSE}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
-        if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
-          echo "Error: failed to pull '$IMAGE_NAME':" >&2
-          echo "$output" >&2
-          exit 1
-        fi
-        [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
-      fi
     fi
   fi  # EXISTING image path falls through
 
-  # Final guard: ensure the image exists locally for all modes.
-  if ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-    echo "Error: image '$IMAGE_NAME' not available locally. Try '--pull'." >&2
+  # Common logic: for any non-local-build image, ensure it is present locally.
+  # Default behavior:
+  #   - Check if the image exists locally.
+  #   - Pull it only if it is not present.
+  #
+  # With --pull:
+  #   - Always pull, even if the image already exists locally.
+  if [[ "$LOCAL_BUILD" != "true" ]]; then
+    if $DO_PULL; then
+      # Always pull when --pull is set
+      [[ "${VERBOSE}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
+      if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
+        echo "Error: failed to pull '$IMAGE_NAME':" >&2
+        echo "$output" >&2
+        exit 1
+      fi
+      [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
+
+    elif ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+      # Default behavior: check if image exists locally; pull if it does not.
+      [[ "${VERBOSE}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
+      if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
+        echo "Error: failed to pull '$IMAGE_NAME':" >&2
+        echo "$output" >&2
+        exit 1
+      fi
+      [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
+    fi
+  fi
+
+  # Final guard: ensure the image exists locally (unless in dry-run mode).
+  if ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+    echo "Error: image '$IMAGE_NAME' not available locally." >&2
+    echo "       Use '--pull' if you want to force pulling it." >&2
     exit 1
   fi
 }
@@ -501,7 +520,7 @@ PortDetermination() {
 
   # Resolve WORKSPACE_PORT into a concrete host port
   HOST_PORT="${WORKSPACE_PORT}"
-  UPPER_PORT="${HOST_PORT^^}"
+  UPPER_PORT="$(printf '%s' "$HOST_PORT" | tr '[:lower:]' '[:upper:]')"
 
   if [[ "$UPPER_PORT" == "RANDOM" ]]; then
     # Ensure full-range random ports by using >15 bits (RANDOM only gives 0–32767)

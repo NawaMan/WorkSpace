@@ -1,6 +1,13 @@
 # Changelog
 
-This file contains a list of changes for each released version.1
+This file contains a list of changes for each released version.
+
+## v0.7.0--rc
+- Default variant
+- Variant alias
+- Compatibilities
+- Tests
+- Make it work on Mac
 
 ## v0.6.0
 - Sign the image
