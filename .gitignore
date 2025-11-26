@@ -77,3 +77,8 @@ examples/java-example/.settings/org.eclipse.m2e.core.prefs
 examples/java-example/.settings/
 examples/go-example/bin/
 runner/.workspace/
+
+tests/basic/test*.sh.log
+tests/basic/test--dockerfile
+tests/dryrun/test--.env
+tests/dryrun/test--config.sh

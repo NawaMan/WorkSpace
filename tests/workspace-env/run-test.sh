@@ -23,8 +23,8 @@ CONTAINER_NAME="ws-test-${RUN_ID}"
 
 # ---- Preconditions ------------------------------------------------------------
 if ! command -v docker >/dev/null 2>&1; then
-  echo "SKIP: docker not found in PATH"
-  exit 0
+  echo "ERROR: docker not found in PATH"
+  exit 1
 fi
 
 if [[ ! -x "$WS_SCRIPT" ]]; then
@@ -59,8 +59,21 @@ run_ws() {
 }
 
 # ---- Assertions ---------------------------------------------------------------
-pass() { printf 'ok - %s\n' "$*"; }
-fail() { printf 'not ok - %s\n' "$*\n" >&2; exit 1; }
+total_checks=0
+failed_checks=0
+failed_msgs=()
+
+pass() {
+  total_checks=$((total_checks + 1))
+  printf '✅ passed: %s\n' "$*"
+}
+
+fail() {
+  total_checks=$((total_checks + 1))
+  failed_checks=$((failed_checks + 1))
+  failed_msgs+=("$*")
+  printf '❌ failed: %s\n' "$*" >&2
+}
 
 # 1) SECRET from .env is visible
 out="$(run_ws 'echo $SECRET' | tr -d '\r')"
@@ -79,4 +92,15 @@ pass "Sourcing data.txt exposes PUBLIC"
 
 popd >/dev/null
 
-echo "All checks passed."
+# ---- Summary ------------------------------------------------------------------
+if (( failed_checks == 0 )); then
+  echo "✅ All $total_checks checks passed."
+  exit 0
+else
+  echo "❌ $failed_checks out of $total_checks checks failed."
+  echo "Failed checks:"
+  for msg in "${failed_msgs[@]}"; do
+    echo "  - $msg"
+  done
+  exit 1
+fi

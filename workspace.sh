@@ -1,8 +1,14 @@
 #!/bin/bash
+
 set -euo pipefail
+
+if [[ "$(uname)" == "Darwin" ]]; then
+  set +u
+fi
+
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
-WS_VERSION=0.6.0
+WS_VERSION=0.7.0--rc
 
 Main() {
   SCRIPT_NAME="$(basename "$0")"
@@ -24,7 +30,7 @@ Main() {
 
   DOCKER_FILE="${DOCKER_FILE:-}"
   IMAGE_NAME="${IMAGE_NAME:-}"
-  VARIANT=${VARIANT:-container}
+  VARIANT=${VARIANT:-default}
   VERSION=${VERSION:-${WS_VERSION:-latest}}
 
   DO_PULL=${DO_PULL:-false}
@@ -109,11 +115,14 @@ function default_file_if_exists() {
 
 function is_port_free() {
   local p="$1"
-  if command -v ss >/dev/null 2>&1; then
-    ! ss -ltn "( sport = :$p )" 2>/dev/null | grep -q ":$p"
-  elif command -v lsof >/dev/null 2>&1; then
+
+  # Prefer lsof (macOS + Linux); fall back to ss; fall back to nc
+  if command -v lsof >/dev/null 2>&1; then
     ! lsof -iTCP:"$p" -sTCP:LISTEN -Pn 2>/dev/null | grep -q .
+  elif command -v ss >/dev/null 2>&1; then
+    ! ss -ltn "( sport = :$p )" 2>/dev/null | grep -q ":$p"
   else
+    # Last-ditch: nc
     ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$p" >/dev/null 2>&1)
   fi
 }
@@ -239,8 +248,12 @@ Docker() {
   fi
   # Execute unless dry-run
   if [[ "${DRYRUN}" != "true" ]]; then
+    local status
+    set +e
     command docker "$subcmd" "$@"
-    return $?  # propagate exit status
+    status=$?
+    set -e
+    return $status  # propagate exit status
   fi
 }
 
@@ -307,7 +320,8 @@ EnsureDockerImage() {
     fi
   fi
 
-  # Proceed according to mode. If IMAGE_NAME was given (EXISTING), skip build/pull.
+  # Proceed according to mode. If IMAGE_NAME was given (EXISTING), skip build, but still
+  # perform presence/pull logic later.
   if [[ -z "${IMAGE_NAME:-}" ]]; then
     if [[ "$IMAGE_MODE" == "LOCAL-BUILD" ]]; then
       IMAGE_NAME="workspace-local:${PROJECT_NAME}-${VARIANT}-${VERSION}"
@@ -315,45 +329,57 @@ EnsureDockerImage() {
         echo ""
         echo "Build local image: $IMAGE_NAME"
         echo "  - SILENCE_BUILD: $SILENCE_BUILD"
-        
       fi
       {
         DockerBuild                           \
-        -f "$DOCKER_FILE"                     \
-        -t "$IMAGE_NAME"                      \
-        --build-arg VARIANT_TAG="${VARIANT}"  \
-        --build-arg VERSION_TAG="${VERSION}"  \
-        "${BUILD_ARGS[@]}"                    \
-        "${WORKSPACE_PATH}"                   \
-        1> >(grep -v '^sha256:')              # Hide the digest if no-need to rebuild build
-      } 
+          -f "$DOCKER_FILE"                   \
+          -t "$IMAGE_NAME"                    \
+          --build-arg VARIANT_TAG="${VARIANT}" \
+          --build-arg VERSION_TAG="${VERSION}" \
+          "${BUILD_ARGS[@]}"                  \
+          "${WORKSPACE_PATH}"                 \
+          1> >(grep -v '^sha256:')            # Hide the digest if no-need to rebuild build
+      }
     else
-      # PREBUILT: construct image name and pull if needed
+      # PREBUILT: just construct the image name; pulling is handled in the common logic below.
       IMAGE_NAME="${PREBUILD_REPO}:${VARIANT}-${VERSION}"
-
-      if $DO_PULL; then
-        [[ "${VERBOSE}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
-        if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
-          echo "Error: failed to pull '$IMAGE_NAME':" >&2
-          echo "$output" >&2
-          exit 1
-        fi
-        [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
-      elif ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        [[ "${VERBOSE}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
-        if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
-          echo "Error: failed to pull '$IMAGE_NAME':" >&2
-          echo "$output" >&2
-          exit 1
-        fi
-        [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
-      fi
     fi
   fi  # EXISTING image path falls through
 
-  # Final guard: ensure the image exists locally for all modes.
-  if ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-    echo "Error: image '$IMAGE_NAME' not available locally. Try '--pull'." >&2
+  # Common logic: for any non-local-build image, ensure it is present locally.
+  # Default behavior:
+  #   - Check if the image exists locally.
+  #   - Pull it only if it is not present.
+  #
+  # With --pull:
+  #   - Always pull, even if the image already exists locally.
+  if [[ "$LOCAL_BUILD" != "true" ]]; then
+    if $DO_PULL; then
+      # Always pull when --pull is set
+      [[ "${VERBOSE}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
+      if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
+        echo "Error: failed to pull '$IMAGE_NAME':" >&2
+        echo "$output" >&2
+        exit 1
+      fi
+      [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
+
+    elif ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+      # Default behavior: check if image exists locally; pull if it does not.
+      [[ "${VERBOSE}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
+      if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
+        echo "Error: failed to pull '$IMAGE_NAME':" >&2
+        echo "$output" >&2
+        exit 1
+      fi
+      [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
+    fi
+  fi
+
+  # Final guard: ensure the image exists locally (unless in dry-run mode).
+  if ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+    echo "Error: image '$IMAGE_NAME' not available locally." >&2
+    echo "       Use '--pull' if you want to force pulling it." >&2
     exit 1
   fi
 }
@@ -361,7 +387,10 @@ EnsureDockerImage() {
 ValidateVariant() {
   case "${VARIANT}" in
     container|ide-notebook|ide-codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
-    notebook|codeserver) VARIANT="ide-${VARIANT}" ;;
+    default)             VARIANT="ide-codeserver"     ;;
+    ide)                 VARIANT="ide-codeserver"     ;;
+    desktop)             VARIANT="desktop-xfce"       ;;
+    notebook|codeserver) VARIANT="ide-${VARIANT}"     ;;
     xfce|kde|lxqt)       VARIANT="desktop-${VARIANT}" ;;
     *)
       echo "Error: unknown --variant '$VARIANT' (valid: container|ide-notebook|ide-codeserver|desktop-xfce|desktop-kde|desktop-lxqt; " >&2
@@ -495,7 +524,7 @@ PortDetermination() {
 
   # Resolve WORKSPACE_PORT into a concrete host port
   HOST_PORT="${WORKSPACE_PORT}"
-  UPPER_PORT="${HOST_PORT^^}"
+  UPPER_PORT="$(printf '%s' "$HOST_PORT" | tr '[:lower:]' '[:upper:]')"
 
   if [[ "$UPPER_PORT" == "RANDOM" ]]; then
     # Ensure full-range random ports by using >15 bits (RANDOM only gives 0–32767)
@@ -530,9 +559,15 @@ PortDetermination() {
     fi
 
   else
-    # Enforce allowed range to avoid docker -p failures
-    if (( HOST_PORT < 10000 || HOST_PORT > 65535 )); then
-      echo "Error: --port must be between 10000 and 65535 (got '$HOST_PORT')." >&2
+    # User-specified port:
+    # - allow any valid TCP port (1–65535)
+    # - but still catch obviously bad input before docker -p
+    if ! [[ "$HOST_PORT" =~ ^[0-9]+$ ]]; then
+      echo "Error: --port must be a number (got '$HOST_PORT')." >&2
+      exit 1
+    fi
+    if (( HOST_PORT < 1 || HOST_PORT > 65535 )); then
+      echo "Error: --port must be between 1 and 65535 (got '$HOST_PORT')." >&2
       exit 1
     fi
   fi
@@ -611,9 +646,10 @@ RunAsCommand() {
 }
 
 RunAsDaemon() {
+  USER_CMDS=()
   if [[ ${#CMDS[@]} -ne 0 ]]; then
-    echo "Running command in daemon mode is not allowed: "${CMDS[@]} >&2
-    exit 1
+    USER_CMDS+=(bash -lc)
+    USER_CMDS+=("${CMDS[@]}")
   fi
 
   # Detached: no TTY args
@@ -634,14 +670,13 @@ RunAsDaemon() {
   if [[ "${DRYRUN}" == "true" ]]; then
     echo "<--dryrun-->"
     echo ""
-  else
-    Docker run -d "${KEEPALIVE_ARGS[@]}" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME"
+  fi
+  Docker run -d "${KEEPALIVE_ARGS[@]}" "${COMMON_ARGS[@]}" "${RUN_ARGS[@]}" "$IMAGE_NAME" "${USER_CMDS[@]}"
 
-    # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
-    if [[ "$DIND" == "true" ]]; then
-      echo "🔧 DinD sidecar running: $DIND_NAME (network: $DIND_NET)"
-      echo "   Stop with:  docker stop $DIND_NAME && docker network rm $DIND_NET"
-    fi
+  # If DinD is enabled in daemon mode, leave sidecar running but inform user how to stop it
+  if [[ "$DIND" == "true" ]]; then
+    echo "🔧 DinD sidecar running: $DIND_NAME (network: $DIND_NET)"
+    echo "   Stop with:  docker stop $DIND_NAME && docker network rm $DIND_NET"
   fi
 }
 
@@ -663,7 +698,7 @@ RunAsForeground() {
 
 SetupDind() {
   # ⚠️ Docker-in-Docker Usage Notice
-  # 
+  #
   # This development environment provides Docker access from inside the container by
   # connecting to an internal Docker daemon running in a sidecar container. While
   # this enables building and running containers without installing Docker on your
@@ -701,15 +736,33 @@ SetupDind() {
     CREATED_DIND_NET=true
   fi
 
+  # Detect Docker Desktop (macOS/Windows)
+  local IS_DOCKER_DESKTOP=false
+  if docker info 2>/dev/null | grep -qi "Docker Desktop"; then
+    IS_DOCKER_DESKTOP=true
+  fi
+
   # Start DinD sidecar on our private network (silence ID)
   if ! Docker ps --filter "name=^/${DIND_NAME}$" --format '{{.Names}}' | grep -qx "$DIND_NAME"; then
     $VERBOSE && echo "Starting DinD sidecar: $DIND_NAME" || true
-    Docker run -d --rm --privileged \
-      --cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
-      --name "$DIND_NAME" \
-      --network "$DIND_NET" \
-      -e DOCKER_TLS_CERTDIR= \
-      docker:dind >/dev/null
+
+    if [[ "$IS_DOCKER_DESKTOP" == true ]]; then
+      # Docker Desktop: skip cgroup flags + /sys/fs/cgroup mount
+      Docker run -d --rm --privileged \
+        --name "$DIND_NAME" \
+        --network "$DIND_NET" \
+        -e DOCKER_TLS_CERTDIR= \
+        docker:dind >/dev/null
+    else
+      # Native Linux: full flags
+      Docker run -d --rm --privileged \
+        --cgroupns=host \
+        -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+        --name "$DIND_NAME" \
+        --network "$DIND_NET" \
+        -e DOCKER_TLS_CERTDIR= \
+        docker:dind >/dev/null
+    fi
   else
     $VERBOSE && echo "DinD sidecar already running: $DIND_NAME" || true
   fi
@@ -730,18 +783,25 @@ SetupDind() {
     fi
   fi
 
-  # Remove any user-provided --network from RUN_ARGS to avoid duplication
+  # Remove any user-provided --network flags from RUN_ARGS
   mapfile -t RUN_ARGS < <(strip_network_flags "${RUN_ARGS[@]}")
 
   # Wire main container to DinD network + endpoint
   COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
 
-  # Mount host docker CLI binary if present (so your image need not include it)
+  # Mount host docker CLI binary if present (portable path resolution)
   if DOCKER_BIN="$(command -v docker 2>/dev/null)"; then
-    # Resolve to absolute path for safety
-    if command -v readlink >/dev/null 2>&1; then
-      DOCKER_BIN="$(readlink -f "$DOCKER_BIN" || echo "$DOCKER_BIN")"
+
+    # Prefer realpath (portable across Linux/macOS/homebrew)
+    if command -v realpath >/dev/null 2>&1; then
+      DOCKER_BIN="$(realpath "$DOCKER_BIN" 2>/dev/null || echo "$DOCKER_BIN")"
+
+    # Fallback: readlink (BSD/macOS/Git Bash without -f)
+    elif command -v readlink >/dev/null 2>&1; then
+      tmp="$(readlink "$DOCKER_BIN" 2>/dev/null || true)"
+      [[ -n "$tmp" ]] && DOCKER_BIN="$tmp"
     fi
+
     COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
   else
     $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container." || true
@@ -749,31 +809,44 @@ SetupDind() {
 }
 
 ShowDebugBanner() {
-  if [[ "${VERBOSE}" == "true" ]] ; then
+  if [[ "${VERBOSE:-false}" == "true" ]] ; then
+    echo ""
+    echo "SCRIPT_NAME:    $SCRIPT_NAME"
+    echo "SCRIPT_DIR:     $SCRIPT_DIR"
+    echo "WS_VERSION:     $WS_VERSION"
+    echo "CONFIG_FILE:    $CONFIG_FILE (set: $SET_CONFIG_FILE)"
     echo ""
     echo "CONTAINER_NAME: $CONTAINER_NAME"
     echo "DAEMON:         $DAEMON"
     echo "DOCKER_FILE:    $DOCKER_FILE"
     echo "DRYRUN:         $DRYRUN"
-    echo "HOST_UID:       $HOST_UID"
-    echo "HOST_GID:       $HOST_GID"
-    echo "HOST_PORT:      $HOST_PORT" 
     echo "KEEPALIVE:      $KEEPALIVE"
+    echo ""
     echo "IMAGE_NAME:     $IMAGE_NAME"
     echo "IMAGE_MODE:     $IMAGE_MODE"
+    echo "LOCAL_BUILD:    $LOCAL_BUILD"
+    echo "VARIANT:        $VARIANT"
+    echo "VERSION:        $VERSION"
+    echo "PREBUILD_REPO:  $PREBUILD_REPO"
+    echo "DO_PULL:        $DO_PULL"
+    echo ""
+    echo "HOST_UID:       $HOST_UID"
+    echo "HOST_GID:       $HOST_GID"
     echo "WORKSPACE_PATH: $WORKSPACE_PATH"
     echo "WORKSPACE_PORT: $WORKSPACE_PORT"
+    echo "HOST_PORT:      $HOST_PORT"
+    echo "PORT_GENERATED: $PORT_GENERATED"
+    echo ""
     echo "DIND:           $DIND"
     echo ""
     echo "CONTAINER_ENV_FILE: $CONTAINER_ENV_FILE"
     echo ""
-    echo "BUILD_ARGS: "$(args_to_string "${BUILD_ARGS[@]}")
-    echo "RUN_ARGS:   "$(args_to_string "${RUN_ARGS[@]}")
-    echo ""
-    echo "CMDS: "$(args_to_string "${CMDS[@]}")
+    echo "BUILD_ARGS: $(args_to_string "${BUILD_ARGS[@]}")"
+    echo "RUN_ARGS:   $(args_to_string "${RUN_ARGS[@]}")"
+    echo "CMDS:       $(args_to_string "${CMDS[@]}")"
     echo ""
 
-    if [[ ${#BUILD_ARGS[@]} -gt 0 ]] && [[ "${LOCAL_BUILD}" == "false" ]] && [[ "${VERBOSE}" == "true" ]]; then
+    if [[ ${#BUILD_ARGS[@]} -gt 0 ]] && [[ "${LOCAL_BUILD}" == "false" ]]; then
       echo "⚠️  Warning: BUILD_ARGS provided, but no build is being performed (using prebuilt image)." >&2
       echo ""
     fi
@@ -791,56 +864,74 @@ USAGE:
   $sname --help
 
 COMMAND:
-  ws-version             Print out the version of the workspace.sh (which also the default version of the docker image).
+  ws-version             Print the workspace.sh version.
 
 GENERAL:
   --help                 Show this help and exit
   --verbose              Print extra debugging information
-  --dryrun               Print the docker commands but do not execute them
-  --pull                 Force pulling the image (when using prebuilt images)
+  --dryrun               Print docker commands without executing them
+  --pull                 Always pull the image, even if it exists locally
+                         (default behavior is to check if the image exists
+                          locally and pull it only if it is missing)
   --daemon               Run the workspace container in the background
   --dind                 Enable a Docker-in-Docker sidecar and set DOCKER_HOST
-  --keep-alive           Do not remove the container when stop
-  --unit-test            Do not run Main; source functions for unit testing
+  --keep-alive           Do not remove the container when stopped
+  --skip-main            Do not run Main; load functions only (for testing)
   --config <file>        Load defaults from a config shell file (default: ./ws--config.sh)
   --workspace <path>     Host workspace path to mount at /home/coder/workspace
 
 IMAGE SELECTION (precedence: --image > --dockerfile > prebuilt):
-  --image <name>         Use an existing local/remote image (e.g., repo/name:tag)
-  --dockerfile <path>    Build locally from Dockerfile (file or dir containing ws--Dockerfile)
-  --variant <name>       Prebuilt variant: container|notebook|codeserver|desktop-{xfce,kde,lxqt}
+  --image <name>         Use an existing local or remote image (e.g. repo/name:tag)
+                         The script will check if the image exists locally and
+                         pull it only if it is missing (unless --pull is used).
+  --dockerfile <path>    Build locally from Dockerfile (file or directory)
+                         If a directory is provided, it must contain ws--Dockerfile.
+  --variant <name>       Prebuilt variant:
+                           container | ide-notebook | ide-codeserver
+                           desktop-xfce | desktop-kde | desktop-lxqt
+                         Aliases:
+                           notebook | codeserver | xfce | kde | lxqt
   --version <tag>        Prebuilt version tag (default: latest)
 
-BUILD OPTIONS (only when building locally with --dockerfile):
-  --build-arg <KEY=VAL>  Add a build-arg (repeatable)
+BUILD OPTIONS (only when using --dockerfile):
+  --build-arg <KEY=VAL>  Add a Docker build-arg (repeatable)
   --silence-build        Hide build progress; show output only on failure
   NOTE: Build args are ignored when using prebuilt images or --image.
 
 RUNTIME OPTIONS:
   --name <container>     Container name (default: inferred from workspace directory)
-  --port <n|RANDOM|NEXT> Map host port -> container 10000 (allowed: 10000–65535)
-  --env-file <file>      Pass an --env-file to docker run
-                         Use 'none' to disable automatic .env detection
+  --port <n|RANDOM|NEXT> Host port → container 10000
+                         n      : any valid TCP port (1–65535)
+                         RANDOM : pick a random free port ≥ 10000
+                         NEXT   : pick the next available free port ≥ 10000
+  --env-file <file>      Provide an --env-file to docker run
+                         Use 'none' to disable auto-detection of <workspace>/.env
 
 COMMANDS:
-  Everything after '--' is executed inside the container instead of starting
-  the default workspace service. Example:
+  All arguments after '--' are executed *inside* the container instead of
+  starting the default workspace service. Example:
     $sname -- -- bash -lc "echo hi"
 
 NOTES:
+  - Default image behavior:
+        The script checks whether the image exists locally.
+        If it is missing, it will be pulled automatically.
+        Use --pull to always pull, even if the image already exists.
+
   - If --env-file is not provided, a <workspace>/.env file will be used when present.
-    Pass '--env-file none' to explicitly disable this behavior.
-  - RANDOM/NEXT for --port will auto-pick a free host port ≥ 10000.
-  - With --dind, a 'docker:dind' sidecar runs on a private network and the main
-    container receives DOCKER_HOST=tcp://<sidecar>:2375.
+    Specify '--env-file none' to disable this behavior.
+
   - In daemon mode, do not pass commands after '--'. Stop the container with:
-      docker stop <container-name>
+        docker stop <container-name>
+
+  - With --dind, a docker:dind sidecar runs on a private network and the main
+    container uses DOCKER_HOST=tcp://<sidecar>:2375.
 
 EXAMPLES:
   # Prebuilt, foreground
   $sname --variant container --version latest --workspace /path/to/ws
 
-  # Local build from Dockerfile in workspace
+  # Local build from Dockerfile
   $sname --dockerfile ./Dockerfile --workspace . --build-arg FOO=bar
 
   # Daemon mode with random port
@@ -855,14 +946,12 @@ EOF
 }
 
 
-
-
-UNIT_TEST=${UNITTEST:-false}
+SKIP_MAIN=${SKIP_MAIN:-false}
 
 ARGS=("$@")
 for (( i=0; i<${#ARGS[@]}; i++ )); do
   case "${ARGS[i]}" in
-    --unit-test) UNIT_TEST=true ;;
+    --skip-main) SKIP_MAIN=true ;;
     ws-version)
          cat <<'EOF'
 __      __       _    ___                   
@@ -878,6 +967,6 @@ EOF
 done
 unset ARGS
 
-if [[ "$UNIT_TEST" != "true" ]]; then
+if [[ "$SKIP_MAIN" != "true" ]]; then
   Main "$@"
 fi
