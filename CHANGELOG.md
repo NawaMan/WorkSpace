@@ -2,7 +2,7 @@
 
 This file contains a list of changes for each released version.
 
-## v0.7.0--rc
+## v0.7.0
 - Default variant
 - Variant alias
 - Compatibilities
