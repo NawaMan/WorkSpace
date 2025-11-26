@@ -18,7 +18,7 @@ set -euo pipefail
 #   2) Ensure user "coder" exists and has UID=HOST_UID, primary group "coder",
 #      and login shell USER_SHELL (moving any user that already holds HOST_UID).
 #   3) Add passwordless sudo for "coder".
-#   4) Create $HOME and $WORKSPACE; chown them (optionally recursive).
+#   4) Create $HOME and $WORKSPACE.
 #   5) cd into $WORKSPACE_PATH and exec the given command as "coder".
 #
 # Environment variables:
@@ -153,10 +153,10 @@ log "Configuring passwordless sudo for '$USER_NAME'..."
 echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/${USER_NAME}
 chmod 0440 /etc/sudoers.d/${USER_NAME}
 
-# Ensure home & workspace exist; chown as requested
+# Ensure home & workspace exist.
 log "Ensuring home and workspace directories exist and are owned by host UID/GID..."
 sudo mkdir -p                       "$HOME_DIR" "$WORKSPACE_DIR" || true
-sudo chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" 2>&1 \
+sudo chown    "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" 2>&1 \
     | grep -v "Permission denied" || true
 
 # Set up environment for coder and switch to workspace
