@@ -18,7 +18,7 @@ USAGE:
   workspace.sh --help
 
 COMMAND:
-  ws-version             Print out the version of the workspace.sh (which also the default version of the docker image).
+  ws-version             Print the workspace.sh version.
 
 GENERAL:"
 

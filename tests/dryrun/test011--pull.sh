@@ -13,8 +13,8 @@ VERSION="$(cat ../../version.txt)"
 
 EXPECT="\
 ARGS:  \"--verbose\" \"--dryrun\" \"--pull\" \"--variant\" \"container\" \"--\" \"tree\" \"-C\"
-Pulling image (forced): nawaman/workspace:container-0.6.0
-docker pull nawaman/workspace:container-0.6.0 \
+Pulling image (forced): nawaman/workspace:container-${VERSION}
+docker pull nawaman/workspace:container-${VERSION} \
 "
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then

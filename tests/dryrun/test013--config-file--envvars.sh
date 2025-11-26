@@ -102,7 +102,7 @@ HOST_GID:       $HOST_GID
 HOST_PORT:      10005
 HOST_UID:       $HOST_UID
 IMAGE_MODE:     EXISTING
-IMAGE_NAME:     test/workspace:codeserver-0.6.0
+IMAGE_NAME:     test/workspace:codeserver-${VERSION}
 KEEPALIVE:      true
 LOCAL_BUILD:    false
 PORT_GENERATED: false
@@ -111,10 +111,10 @@ RUN_ARGS:
 SCRIPT_DIR:     ..
 SCRIPT_NAME:    ws.sh
 VARIANT:        ide-codeserver
-VERSION:        0.6.0
+VERSION:        ${VERSION}
 WORKSPACE_PATH: $HERE
 WORKSPACE_PORT: 10005
-WS_VERSION:     0.6.0"
+WS_VERSION:     ${VERSION}"
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
   echo "✅ Match - Override variables"

@@ -38,7 +38,7 @@ docker run \
 -e 'WS_RUNMODE=DAEMON' \
 -e 'WS_VARIANT_TAG=container' \
 -e 'WS_VERBOSE=false' \
--e 'WS_VERSION_TAG=0.6.0' \
+-e 'WS_VERSION_TAG=${VERSION}' \
 -e 'WS_WORKSPACE_PATH=${HERE}' \
 -e 'WS_WORKSPACE_PORT=10000' \
 '--pull=never' \
