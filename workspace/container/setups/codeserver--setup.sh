@@ -265,3 +265,4 @@ Kernels available (scoped to venv):
   - Python 3 (venv)
   - Bash
 EOF
+
