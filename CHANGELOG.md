@@ -8,6 +8,7 @@ This file contains a list of changes for each released version.
 - Compatibilities
 - Tests
 - Make it work on Mac
+- Verbose mode in workspace-user-setup
 
 ## v0.6.0
 - Sign the image
