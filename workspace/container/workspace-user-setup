@@ -18,7 +18,7 @@ set -euo pipefail
 #   2) Ensure user "coder" exists and has UID=HOST_UID, primary group "coder",
 #      and login shell USER_SHELL (moving any user that already holds HOST_UID).
 #   3) Add passwordless sudo for "coder".
-#   4) Create $HOME and $WORKSPACE; chown them (optionally recursive).
+#   4) Create $HOME and $WORKSPACE.
 #   5) cd into $WORKSPACE_PATH and exec the given command as "coder".
 #
 # Environment variables:
@@ -58,7 +58,7 @@ log() {
   fi
 }
 
-log "Starting workspace-user-setup..."
+log "Start workspace-user-steup $@ ..."
 
 #== Constants ==
 USER_NAME="coder"
@@ -71,6 +71,7 @@ WORKSPACE_DIR="/home/${USER_NAME}/${WORKSPACE_NAME}"
 USER_SHELL="${USER_SHELL:-/bin/bash}"
 HOST_UID="${HOST_UID:-1000}"
 HOST_GID="${HOST_GID:-1000}"
+
 
 log "USER_NAME=$USER_NAME HOME_DIR=$HOME_DIR WORKSPACE_DIR=$WORKSPACE_DIR"
 log "HOST_UID=$HOST_UID HOST_GID=$HOST_GID"
@@ -153,11 +154,12 @@ log "Configuring passwordless sudo for '$USER_NAME'..."
 echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/${USER_NAME}
 chmod 0440 /etc/sudoers.d/${USER_NAME}
 
-# Ensure home & workspace exist; chown as requested
-log "Ensuring home and workspace directories exist and are owned by host UID/GID..."
-sudo mkdir -p                       "$HOME_DIR" "$WORKSPACE_DIR" || true
-sudo chown -R "$HOST_UID:$HOST_GID" "$HOME_DIR" "$WORKSPACE_DIR" 2>&1 \
-    | grep -v "Permission denied" || true
+# OK, I don't know where are these from but it need to be belong to the user
+find "${HOME_DIR}"         \
+  -path "${WORKSPACE_DIR}" \
+  -prune                   \
+  -o                       \
+  -exec chown "${HOST_UID}:${HOST_GID}" {} + >/dev/null 2>&1 || true
 
 # Set up environment for coder and switch to workspace
 export HOME="$HOME_DIR"
