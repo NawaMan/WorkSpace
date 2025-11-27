@@ -2,6 +2,9 @@
 
 This file contains a list of changes for each released version.
 
+## v0.8.0
+- Not chown in workspace-user-setup
+
 ## v0.7.0
 - Default variant
 - Variant alias
