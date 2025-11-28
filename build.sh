@@ -117,15 +117,9 @@ build_variant() {
   DOCKER_FILE="${CONTEXT_DIR}/Dockerfile"
 
   TAGS_ARG+=( -t "${IMAGE_NAME}:${VARIANT}-${VERSION_TAG}" )
-  if [[ "$VARIANT" == "container" ]]; then
-    TAGS_ARG+=( -t "${IMAGE_NAME}:${VERSION_TAG}" )
-  fi
 
   if [[ ! "$VERSION_TAG" =~ --rc([0-9]+)?$ ]]; then
     TAGS_ARG+=( -t "${IMAGE_NAME}:${VARIANT}-latest" )
-    if [[ "$VARIANT" == "container" ]]; then
-      TAGS_ARG+=( -t "${IMAGE_NAME}:latest" )
-    fi
   fi
 
   # Pretty-print tags
@@ -165,8 +159,9 @@ build_variant() {
       "${CONTEXT_DIR}" \
       --push
 
-    log "Calling cosign to sign pushed images for variant '${VARIANT}'"
-    sign_images "${TAGS_ARG[@]}"
+    # log "Calling cosign to sign pushed images for variant '${VARIANT}'"
+    # sign_images "${TAGS_ARG[@]}"
+
   else
     log "Local build (plain 'docker build')"
     export DOCKER_BUILDKIT=1
@@ -223,31 +218,18 @@ POSITIONAL=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --push)
-      PUSH="true"
-      shift
-      ;;
-    --no-cache)
-      NO_CACHE="true"
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      POSITIONAL+=("$1")
-      shift
-      ;;
+    --push)       PUSH="true";        shift  ;;
+    --no-cache)   NO_CACHE="true";    shift  ;;
+    -h|--help)    usage;              exit 0 ;;
+    *)            POSITIONAL+=("$1"); shift  ;;
   esac
 done
 
 set -- "${POSITIONAL[@]}"
 
-if [[ $# -gt 0 ]]; then
-  VARIANTS_TO_BUILD=("$@")
-else
-  VARIANTS_TO_BUILD=("${ALL_VARIANTS[@]}")
+if [[ $# -gt 0 ]];
+then  VARIANTS_TO_BUILD=("$@")
+else  VARIANTS_TO_BUILD=("${ALL_VARIANTS[@]}")
 fi
 
 for v in "${VARIANTS_TO_BUILD[@]}"; do
@@ -272,11 +254,12 @@ if [[ "${PUSH}" == "true" ]]; then
     exit 4
   fi
 
-  if ! command -v cosign >/dev/null 2>&1; then
-    die "cosign not found in PATH but --push was requested. Install cosign to sign images."
-  fi
+  # DISABLED: It create dockerhub entires that are not runnable. Will have to figure out the right way.
+  # if ! command -v cosign >/dev/null 2>&1; then
+  #   die "cosign not found in PATH but --push was requested. Install cosign to sign images."
+  # fi
+  # select_cosign_key
 
-  select_cosign_key
 fi
 
 for v in "${VARIANTS_TO_BUILD[@]}"; do
