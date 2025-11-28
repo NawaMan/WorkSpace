@@ -8,5 +8,5 @@ if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
   exit 1
 fi
 
-SETUPS_DIR=/opt/workspace/setups
+SETUPS_DIR=${SETUPS_DIR:-/opt/workspace/setups}
 "${SETUPS_DIR}"/jetbrains--setup.sh idea

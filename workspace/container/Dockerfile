@@ -13,49 +13,49 @@ SHELL ["/bin/bash","-o","pipefail","-lc"]
 # Update base OS, install packages, generate locale
 # NOTE: we intentionally DO NOT install python3-pip (it can pull in an old setuptools)
 RUN set -euo pipefail         \
- && apt-get update            \
- && apt-get install           \
-      -y                      \
-      --no-install-recommends \
-      bash                    \
-      ca-certificates         \
-      curl                    \
-      debian-archive-keyring  \
-      direnv                  \
-      gettext-base            \
-      git                     \
-      gnupg                   \
-      jq                      \
-      less                    \
-      locales                 \
-      nano                    \
-      ranger                  \
-      rsync                   \
-      sudo                    \
-      tar                     \
-      tig                     \
-      tilde                   \
-      tini                    \
-      tree                    \
-      unzip                   \
-      wget                    \
-      xz-utils                \
-      zip                     \
-      zsh                     \
- && sed -i "/${LOCALE}/s/^# //g" /etc/locale.gen \
- && locale-gen "${LOCALE}"
+  && apt-get update            \
+  && apt-get install           \
+  -y                      \
+  --no-install-recommends \
+  bash                    \
+  ca-certificates         \
+  curl                    \
+  debian-archive-keyring  \
+  direnv                  \
+  gettext-base            \
+  git                     \
+  gnupg                   \
+  jq                      \
+  less                    \
+  locales                 \
+  nano                    \
+  ranger                  \
+  rsync                   \
+  sudo                    \
+  tar                     \
+  tig                     \
+  tilde                   \
+  tini                    \
+  tree                    \
+  unzip                   \
+  wget                    \
+  xz-utils                \
+  zip                     \
+  zsh                     \
+  && sed -i "/${LOCALE}/s/^# //g" /etc/locale.gen \
+  && locale-gen "${LOCALE}"
 
 # Fixed values (name & paths). UID/GID come from HOST_UID/HOST_GID at runtime.
 ENV USER_NAME=coder  \
-    HOME=/home/coder \
-    LANG=${LOCALE}   \
-    LC_ALL=${LOCALE} \
-    WORKSPACE=/home/coder/workspace
+  HOME=/home/coder \
+  LANG=${LOCALE}   \
+  LC_ALL=${LOCALE} \
+  WORKSPACE=/home/coder/workspace
 
 # Make the venv default and set pip knobs AFTER the upgrade above
 ENV PATH=/opt/workspace/setups:/opt/python/bin:/home/coder/.local/bin:$PATH \
-    TERM=xterm-256color \
-    EDITOR=tilde
+  TERM=xterm-256color \
+  EDITOR=tilde
 
 # ---- Belt & suspenders: seed a 'coder' user/group even if 1000 is taken ----
 # We pick the first free UID/GID >= 1000 so name lookups always work.
@@ -63,13 +63,13 @@ RUN set -eux; \
   free_uid() { local uid=1000; while getent passwd "$uid" >/dev/null; do uid=$((uid+1)); done; echo "$uid"; }; \
   free_gid() { local gid=1000; while getent group  "$gid" >/dev/null; do gid=$((gid+1)); done; echo "$gid"; }; \
   if ! getent group coder >/dev/null; then \
-    gid="$(free_gid)"; \
-    groupadd -g "$gid" coder; \
+  gid="$(free_gid)"; \
+  groupadd -g "$gid" coder; \
   fi; \
   if ! id -u coder >/dev/null 2>&1; then \
-    uid="$(free_uid)"; \
-    # Do NOT create the home at build time: avoids skel dotfiles with old GID
-    useradd -M -u "$uid" -g coder -s /bin/bash coder; \
+  uid="$(free_uid)"; \
+  # Do NOT create the home at build time: avoids skel dotfiles with old GID
+  useradd -M -u "$uid" -g coder -s /bin/bash coder; \
   fi;
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
@@ -102,23 +102,23 @@ EOF
 
 # --- Make bash and zsh source ALL /etc/profile.d/*.sh for interactive shells ---
 RUN set -euo pipefail \
- && mkdir -p /etc/zsh \
- && touch /etc/bash.bashrc /etc/zsh/zshrc
+  && mkdir -p /etc/zsh \
+  && touch /etc/bash.bashrc /etc/zsh/zshrc
 
 RUN grep -Fq 'profile.d/*.sh' /etc/bash.bashrc || true \
-    grep -Fq 'profile.d/*.sh' /etc/zsh/zshrc   || true
+  grep -Fq 'profile.d/*.sh' /etc/zsh/zshrc   || true
 
 
 # Make sudo see setup scripts (extend secure_path)
 RUN set -euo pipefail \
- && printf 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/workspace/setups:/usr/local/uv/bin"\n' \
-              > /etc/sudoers.d/50-workspace-base-secure-path \
- && chmod  0440 /etc/sudoers.d/50-workspace-base-secure-path \
- && visudo -cf  /etc/sudoers.d/50-workspace-base-secure-path
+  && printf 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/workspace/setups:/usr/local/uv/bin"\n' \
+  > /etc/sudoers.d/50-workspace-base-secure-path \
+  && chmod  0440 /etc/sudoers.d/50-workspace-base-secure-path \
+  && visudo -cf  /etc/sudoers.d/50-workspace-base-secure-path
 
 # --- Install the tidy terminal 
 RUN apt-get update && apt-get install -y ttyd \
-    && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/*
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
 COPY --chmod=0755 ./setups/ /opt/workspace/setups/

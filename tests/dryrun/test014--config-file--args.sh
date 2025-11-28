@@ -46,7 +46,7 @@ IMAGE_MODE:     PREBUILT
 IMAGE_NAME:     nawaman/workspace:ide-codeserver-$VERSION
 KEEPALIVE:      false
 LOCAL_BUILD:    false
-PORT_GENERATED: false
+PORT_GENERATED: true
 PREBUILD_REPO:  nawaman/workspace
 RUN_ARGS:   
 SCRIPT_DIR:     $(realpath "$HERE/../..")
@@ -54,7 +54,7 @@ SCRIPT_NAME:    workspace.sh
 VARIANT:        ide-codeserver
 VERSION:        $VERSION
 WORKSPACE_PATH: $HERE
-WORKSPACE_PORT: 10000
+WORKSPACE_PORT: NEXT
 WS_VERSION:     $VERSION"
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
@@ -113,7 +113,7 @@ IMAGE_MODE:     LOCAL-BUILD
 IMAGE_NAME:     workspace-local:dryrun-ide-codeserver-$VERSION
 KEEPALIVE:      true
 LOCAL_BUILD:    true
-PORT_GENERATED: false
+PORT_GENERATED: true
 PREBUILD_REPO:  nawaman/workspace
 RUN_ARGS:    \"-p\" \"10005\"
 SCRIPT_DIR:     $(realpath "$HERE/../..")
@@ -121,7 +121,7 @@ SCRIPT_NAME:    workspace.sh
 VARIANT:        ide-codeserver
 VERSION:        $VERSION
 WORKSPACE_PATH: $HERE
-WORKSPACE_PORT: 10000
+WORKSPACE_PORT: NEXT
 WS_VERSION:     $VERSION"
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
