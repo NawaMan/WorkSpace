@@ -2,6 +2,13 @@
 
 This file contains a list of changes for each released version.
 
+## v0.9.0
+- Simplify conditional setups with WS_HAS_NOTEBOOK, WS_HAS_VSCODE and WS_HAS_DESKTOP
+- Simplify the basic Dockfile structure to use ARG instead of ENV -- as it will be there anyway.
+- Release to latest only when not RC
+- NEXT port by default
+- Print image pull/build to stderr to give the user some insight for long running commands
+
 ## v0.8.0
 - Not chown in workspace-user-setup
 

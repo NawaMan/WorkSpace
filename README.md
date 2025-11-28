@@ -363,14 +363,19 @@ WorkSpace supports multiple run modes to fit different workflows — from one-of
 > `docker stop <container_name>`
 
 ### 6. Ports
-WorkSpace automatically manages port mappings for interactive and web-based variants.
+WorkSpace automatically manages host ↔ container port mappings for interactive and web-based variants.
 
-**Defaults**
-- For the `notebook` and `codeserver` variants, the container exposes the following mapping:
+**Defaults Behavior**
+For the notebook and codeserver variants, the container exposes port 10000, which is mapped to:
+
   ```bash
-  ${WORKSPACE_PORT:-10000}:10000
+  ${WORKSPACE_PORT:-NEXT}:10000
+  ```
 
-This means port 10000 inside the container is forwarded to port 10000 on the host (or whatever you override).
+Meaning:
+- The launcher will search for the first available host port ≥ 10000
+- It tries 10000 → 10001 → 10002 → … until it finds a free port
+
 
 **Overrides**
 - You can customize the exposed port via:

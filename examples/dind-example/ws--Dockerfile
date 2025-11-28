@@ -1,25 +1,23 @@
 # syntax=docker/dockerfile:1.7
-ARG VARIANT_TAG=container
-ARG VERSION_TAG=latest
-FROM nawaman/workspace:${VARIANT_TAG}-${VERSION_TAG}
+ARG WS_VARIANT_TAG=container
+ARG WS_VERSION_TAG=latest
+FROM nawaman/workspace:${WS_VARIANT_TAG}-${WS_VERSION_TAG}
 
-# The default value is the latest LTS
-ARG PY_VERSION=3.12
-ARG VARIANT_TAG=container
 
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 USER root
 
-ENV SETUPS_DIR=/opt/workspace/setups
-ENV VARIANT_TAG="${VARIANT_TAG}"
-ENV WS_VARIANT_TAG="${VARIANT_TAG}"
-ENV PY_VERSION="${PY_VERSION}"
-
+ARG WS_SETUPS_DIR=/opt/workspace/setups
+ARG WS_VARIANT_TAG=container
+ARG WS_VERSION_TAG=latest
+ARG WS_HAS_NOTEBOOK=false
+ARG WS_HAS_VSCODE=false
+ARG WS_HAS_DESKTOP=false
 
 # Customizations
 
 
 # Setup
 
-RUN "$SETUPS_DIR"/dind--setup.sh
-RUN "$SETUPS_DIR"/docker-buildx--setup.sh
+RUN "$WS_SETUPS_DIR"/dind--setup.sh
+RUN "$WS_SETUPS_DIR"/docker-buildx--setup.sh
