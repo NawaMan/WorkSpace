@@ -5,12 +5,22 @@ HOST_UID="$(id -u)"
 HOST_GID="$(id -g)"
 PWD=$(pwd)
 
-ACTUAL=$(../../workspace.sh --variant container --dryrun)
+strip_ansi() { sed -r 's/\x1B\[[0-9;]*[A-Za-z]//g'; }
+
+ACTUAL=$(../../workspace.sh --variant container --dryrun | strip_ansi)
 
 HERE="$PWD"
 VERSION="$(cat ../../version.txt)"
 
 EXPECT="\
+
+============================================================
+🚀 WORKSPACE PORT SELECTED
+============================================================
+🔌 Using host port: 10000 -> container: 10000
+🌐 Open: http://localhost:10000
+============================================================
+
 📦 Running workspace in foreground.
 👉 Stop with Ctrl+C. The container will be removed (--rm) when stop.
 👉 To open an interactive shell instead: 'workspace.sh -- bash'
@@ -34,7 +44,7 @@ docker run \
 -e 'WS_VERBOSE=false' \
 -e 'WS_VERSION_TAG=${VERSION}' \
 -e 'WS_WORKSPACE_PATH=${HERE}' \
--e 'WS_WORKSPACE_PORT=10000' \
+-e 'WS_WORKSPACE_PORT=NEXT' \
 -e 'WS_HAS_NOTEBOOK=false' \
 -e 'WS_HAS_VSCODE=false' \
 -e 'WS_HAS_DESKTOP=false' \

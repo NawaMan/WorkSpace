@@ -41,7 +41,7 @@ Main() {
 
   CONTAINER_NAME="${CONTAINER_NAME:-${PROJECT_NAME}}"
   DAEMON=${DAEMON:-false}
-  WORKSPACE_PORT="${WORKSPACE_PORT:-10000}"
+  WORKSPACE_PORT="${WORKSPACE_PORT:-NEXT}"
 
   CONTAINER_ENV_FILE=${CONTAINER_ENV_FILE:-}
 
@@ -120,16 +120,37 @@ function default_file_if_exists() {
 function is_port_free() {
   local p="$1"
 
-  # Prefer lsof (macOS + Linux); fall back to ss; fall back to nc
+  # 1. Best: actively try to connect (works on Linux & macOS).
+  if command -v nc >/dev/null 2>&1; then
+    # On both GNU netcat and BSD netcat (macOS), this pattern is valid:
+    #   nc -z <host> <port>
+    if nc -z 127.0.0.1 "$p" >/dev/null 2>&1; then
+      # Connection succeeded => something is listening => NOT free
+      return 1
+    else
+      # Connection failed => likely free
+      return 0
+    fi
+  fi
+
+  # 2. Fallbacks if nc isn't available.
+
+  # On Linux this is common; on macOS it often isn't installed.
+  if command -v ss >/dev/null 2>&1; then
+    ! ss -ltn "( sport = :$p )" 2>/dev/null | grep -q ":$p"
+    return $?
+  fi
+
+  # lsof exists on both Linux and macOS, but can be limited by permissions.
   if command -v lsof >/dev/null 2>&1; then
     ! lsof -iTCP:"$p" -sTCP:LISTEN -Pn 2>/dev/null | grep -q .
-  elif command -v ss >/dev/null 2>&1; then
-    ! ss -ltn "( sport = :$p )" 2>/dev/null | grep -q ":$p"
-  else
-    # Last-ditch: nc
-    ! (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 "$p" >/dev/null 2>&1)
+    return $?
   fi
+
+  # 3. If we truly have no tools, just assume it's free.
+  return 0
 }
+
 
 function parse_args_file() {
   local f="${1:-}"
@@ -341,18 +362,18 @@ EnsureDockerImage() {
         echo "  - SILENCE_BUILD: $SILENCE_BUILD"
       fi
       {
-        DockerBuild                                  \
-          -f "$DOCKER_FILE"                          \
-          -t "$IMAGE_NAME"                           \
+        DockerBuild                                     \
+          -f "$DOCKER_FILE"                             \
+          -t "$IMAGE_NAME"                              \
           --build-arg WS_VARIANT_TAG="${VARIANT}"       \
           --build-arg WS_VERSION_TAG="${VERSION}"       \
           --build-arg WS_SETUPS_DIR="${SETUPS_DIR}"     \
           --build-arg WS_HAS_NOTEBOOK="${HAS_NOTEBOOK}" \
           --build-arg WS_HAS_VSCODE="${HAS_VSCODE}"     \
           --build-arg WS_HAS_DESKTOP="${HAS_DESKTOP}"   \
-          "${BUILD_ARGS[@]}"                         \
-          "${WORKSPACE_PATH}"                        \
-          1> >(grep -v '^sha256:')                   # Hide the digest if no-need to rebuild build
+          "${BUILD_ARGS[@]}"                            \
+          "${WORKSPACE_PATH}"                           \
+          1> >(grep -v '^sha256:')                      # Hide the digest if no-need to rebuild build
       }
     else
       # PREBUILT: just construct the image name; pulling is handled in the common logic below.
