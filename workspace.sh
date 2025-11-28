@@ -8,7 +8,7 @@ fi
 
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
-WS_VERSION=0.8.0
+WS_VERSION=0.9.0--rc
 
 Main() {
   SCRIPT_NAME="$(basename "$0")"
@@ -16,6 +16,7 @@ Main() {
   LIB_DIR=${SCRIPT_DIR}/libs
   PREBUILD_REPO="nawaman/workspace"
   FILE_NOT_USED=none
+  SETUPS_DIR=${SETUPS_DIR:-/opt/workspace/setups}
 
   DRYRUN=${DRYRUN:-false}
   VERBOSE=${VERBOSE:-false}
@@ -32,6 +33,9 @@ Main() {
   IMAGE_NAME="${IMAGE_NAME:-}"
   VARIANT=${VARIANT:-default}
   VERSION=${VERSION:-${WS_VERSION:-latest}}
+  HAS_NOTEBOOK=${HAS_NOTEBOOK:-false}
+  HAS_VSCODE=${HAS_VSCODE:-false}
+  HAS_DESKTOP=${HAS_DESKTOP:-false}
 
   DO_PULL=${DO_PULL:-false}
 
@@ -337,14 +341,18 @@ EnsureDockerImage() {
         echo "  - SILENCE_BUILD: $SILENCE_BUILD"
       fi
       {
-        DockerBuild                           \
-          -f "$DOCKER_FILE"                   \
-          -t "$IMAGE_NAME"                    \
-          --build-arg VARIANT_TAG="${VARIANT}" \
-          --build-arg VERSION_TAG="${VERSION}" \
-          "${BUILD_ARGS[@]}"                  \
-          "${WORKSPACE_PATH}"                 \
-          1> >(grep -v '^sha256:')            # Hide the digest if no-need to rebuild build
+        DockerBuild                                  \
+          -f "$DOCKER_FILE"                          \
+          -t "$IMAGE_NAME"                           \
+          --build-arg WS_VARIANT_TAG="${VARIANT}"       \
+          --build-arg WS_VERSION_TAG="${VERSION}"       \
+          --build-arg WS_SETUPS_DIR="${SETUPS_DIR}"     \
+          --build-arg WS_HAS_NOTEBOOK="${HAS_NOTEBOOK}" \
+          --build-arg WS_HAS_VSCODE="${HAS_VSCODE}"     \
+          --build-arg WS_HAS_DESKTOP="${HAS_DESKTOP}"   \
+          "${BUILD_ARGS[@]}"                         \
+          "${WORKSPACE_PATH}"                        \
+          1> >(grep -v '^sha256:')                   # Hide the digest if no-need to rebuild build
       }
     else
       # PREBUILT: just construct the image name; pulling is handled in the common logic below.
@@ -403,6 +411,14 @@ ValidateVariant() {
       echo "       aliases: notebook|codeserver|xfce|kde|lxqt)" >&2
       exit 1
       ;;
+  esac
+
+  case "${VARIANT}" in
+    container)      HAS_NOTEBOOK=false ; HAS_VSCODE=false ; HAS_DESKTOP=false ;;
+    ide-notebook)   HAS_NOTEBOOK=true  ; HAS_VSCODE=false ; HAS_DESKTOP=false ;;
+    ide-codeserver) HAS_NOTEBOOK=true  ; HAS_VSCODE=true  ; HAS_DESKTOP=false ;;
+    desktop-*)      HAS_NOTEBOOK=true  ; HAS_VSCODE=true  ; HAS_DESKTOP=true  ;;
+    *)              echo "Error: unknown variant '$VARIANT'." >&2 ; exit 1    ;;
   esac
 }
 
@@ -594,6 +610,7 @@ PrepareCommonArgs() {
     -p "${HOST_PORT:-10000}:10000"
 
     # Metadata
+    -e "WS_SETUPS_DIR=${SETUPS_DIR}"
     -e "WS_CONTAINER_NAME=${CONTAINER_NAME}"
     -e "WS_DAEMON=${DAEMON}"
     -e "WS_HOST_PORT=${HOST_PORT}"
@@ -604,6 +621,9 @@ PrepareCommonArgs() {
     -e "WS_VERSION_TAG=${VERSION}"
     -e "WS_WORKSPACE_PATH=${WORKSPACE_PATH}"
     -e "WS_WORKSPACE_PORT=${WORKSPACE_PORT}"
+    -e "WS_HAS_NOTEBOOK=${HAS_NOTEBOOK}"
+    -e "WS_HAS_VSCODE=${HAS_VSCODE}"
+    -e "WS_HAS_DESKTOP=${HAS_DESKTOP}"
   )
 
   if [[ "$DO_PULL" == false ]]; then
