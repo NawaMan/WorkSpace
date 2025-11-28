@@ -82,3 +82,5 @@ tests/basic/test*.sh.log
 tests/basic/test--dockerfile
 tests/dryrun/test--.env
 tests/dryrun/test--config.sh
+
+playground/

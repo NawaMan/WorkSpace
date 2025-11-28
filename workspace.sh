@@ -8,7 +8,7 @@ fi
 
 trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
-WS_VERSION=0.9.0
+WS_VERSION=0.10.0
 
 Main() {
   SCRIPT_NAME="$(basename "$0")"

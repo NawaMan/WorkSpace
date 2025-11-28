@@ -25,6 +25,16 @@ ALL_VARIANTS=(
   desktop-lxqt
 )
 
+# Push order (reverse dependency order to ensure latest tags are correct on DockerHub)
+PUSH_ORDER=(
+  desktop-lxqt
+  desktop-kde
+  desktop-xfce
+  ide-notebook
+  container
+  ide-codeserver
+)
+
 # --- Helpers ---
 log() { printf "\033[1;34m[info]\033[0m %s\n" "$1";    }
 err() { printf "\033[1;31m[err]\033[0m %s\n" "$1" >&2; }
@@ -112,6 +122,7 @@ fi
 
 build_variant() {
   VARIANT="${1:-container}"
+  DO_PUSH="${2:-false}"
   TAGS_ARG=()
   CONTEXT_DIR="workspace/${VARIANT}"
   DOCKER_FILE="${CONTEXT_DIR}/Dockerfile"
@@ -144,7 +155,7 @@ build_variant() {
     NO_CACHE_ARG+=( --no-cache )
   fi
 
-  if [[ "${PUSH}" == "true" ]]; then
+  if [[ "${DO_PUSH}" == "true" ]]; then
     log "Setting up buildx (driver: docker-container; multi-arch: ${PLATFORMS})"
     docker buildx create --use --name ci_builder >/dev/null 2>&1 || docker buildx use ci_builder
     docker buildx inspect --bootstrap >/dev/null
@@ -262,6 +273,19 @@ if [[ "${PUSH}" == "true" ]]; then
 
 fi
 
+# --- Build Phase ---
+log "=== Build Phase ==="
 for v in "${VARIANTS_TO_BUILD[@]}"; do
-  build_variant "$v"
+  build_variant "$v" "false"
 done
+
+# --- Push Phase ---
+if [[ "${PUSH}" == "true" ]]; then
+  log "=== Push Phase ==="
+  for v in "${PUSH_ORDER[@]}"; do
+    # Check if this variant was requested to be built
+    if [[ " ${VARIANTS_TO_BUILD[*]} " =~ " ${v} " ]]; then
+      build_variant "$v" "true"
+    fi
+  done
+fi
