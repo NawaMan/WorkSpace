@@ -10,7 +10,6 @@ GOARCH=${GOARCH:-}
 TARGET_OS=${GOOS:-$(go env GOOS)}
 TARGET_ARCH=${GOARCH:-$(go env GOARCH)}
 
-# Optional: handle Windows .exe name (if you care about it)
 BIN_NAME="treemoji-${TARGET_OS}-${TARGET_ARCH}"
 if [[ "$TARGET_OS" == "windows" ]]; then
   BIN_NAME="${BIN_NAME}.exe"
@@ -24,5 +23,4 @@ if [[ ! -x "$BIN_PATH" ]]; then
   GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" "$ROOT_DIR/build.sh"
 fi
 
-echo "Running $BIN_NAME..."
 exec "$BIN_PATH" "$@"

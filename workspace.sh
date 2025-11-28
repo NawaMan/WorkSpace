@@ -356,6 +356,9 @@ EnsureDockerImage() {
   if [[ -z "${IMAGE_NAME:-}" ]]; then
     if [[ "$IMAGE_MODE" == "LOCAL-BUILD" ]]; then
       IMAGE_NAME="workspace-local:${PROJECT_NAME}-${VARIANT}-${VERSION}"
+      if [[ "${SILENCE_BUILD}" != "true" ]]; then
+        echo "Info: building local image '$IMAGE_NAME' from '$DOCKER_FILE'..." >&2
+      fi
       if [[ "${VERBOSE}" == "true" ]]; then
         echo ""
         echo "Build local image: $IMAGE_NAME"
@@ -390,6 +393,9 @@ EnsureDockerImage() {
   #   - Always pull, even if the image already exists locally.
   if [[ "$LOCAL_BUILD" != "true" ]]; then
     if $DO_PULL; then
+      if [[ "${SILENCE_BUILD}" != "true" ]]; then
+        echo "Info: pulling image '$IMAGE_NAME' (forced by --pull)..." >&2
+      fi
       # Always pull when --pull is set
       [[ "${VERBOSE}" == "true" ]] && echo "Pulling image (forced): $IMAGE_NAME" || true
       if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
@@ -400,6 +406,7 @@ EnsureDockerImage() {
       [[ "${VERBOSE}" == "true" ]] && { echo "$output"; echo; } || true
 
     elif ! ${DRYRUN:-false} && ! Docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+      echo "Info: pulling image '$IMAGE_NAME' (not found locally)..." >&2
       # Default behavior: check if image exists locally; pull if it does not.
       [[ "${VERBOSE}" == "true" ]] && echo "Image not found locally. Pulling: $IMAGE_NAME" || true
       if ! output=$(Docker pull "$IMAGE_NAME" 2>&1); then
