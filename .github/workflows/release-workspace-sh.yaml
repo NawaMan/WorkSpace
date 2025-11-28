@@ -58,21 +58,6 @@ jobs:
           echo "Generated checksum:"
           cat workspace.sh.sha256
 
-      # ---------------------------------------------------------
-      # Publish versioned release
-      # ---------------------------------------------------------
-      - name: Publish versioned release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          name: v${{ steps.get_version.outputs.version }}
-          body: v${{ steps.get_version.outputs.version }}
-          files: |
-            workspace.sh
-            workspace.sh.sha256
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Check if pre-release
         id: check_prerelease
         run: |
@@ -85,6 +70,22 @@ jobs:
           fi
         env:
           VERSION: ${{ steps.get_version.outputs.version }}
+
+      # ---------------------------------------------------------
+      # Publish versioned release
+      # ---------------------------------------------------------
+      - name: Publish versioned release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: v${{ steps.get_version.outputs.version }}
+          body: v${{ steps.get_version.outputs.version }}
+          prerelease: ${{ steps.check_prerelease.outputs.is_prerelease }}
+          files: |
+            workspace.sh
+            workspace.sh.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ---------------------------------------------------------
       # Publish latest release
