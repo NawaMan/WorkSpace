@@ -20,6 +20,7 @@ docker run \
 -v ${HERE}:/home/coder/workspace \
 -w /home/coder/workspace \
 -p 10000:10000 \
+-e 'WS_SETUPS_DIR=/opt/workspace/setups' \
 -e 'WS_CONTAINER_NAME=test-container' \
 -e 'WS_DAEMON=false' \
 -e 'WS_HOST_PORT=10000' \
@@ -30,6 +31,9 @@ docker run \
 -e 'WS_VERSION_TAG=${VERSION}' \
 -e 'WS_WORKSPACE_PATH=${HERE}' \
 -e 'WS_WORKSPACE_PORT=10000' \
+-e 'WS_HAS_NOTEBOOK=false' \
+-e 'WS_HAS_VSCODE=false' \
+-e 'WS_HAS_DESKTOP=false' \
 '--pull=never' \
 nawaman/workspace:container-${VERSION} \
 bash -lc 'tree -C' "

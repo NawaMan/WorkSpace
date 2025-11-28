@@ -1,11 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$ROOT_DIR/bin"
 
-# Build first if binary does not exist
-if [[ ! -x "$BIN_DIR/treemoji" ]]; then
-  "$ROOT_DIR/build.sh"
+# Derive effective target just like build.sh
+GOOS=${GOOS:-}
+GOARCH=${GOARCH:-}
+TARGET_OS=${GOOS:-$(go env GOOS)}
+TARGET_ARCH=${GOARCH:-$(go env GOARCH)}
+
+# Optional: handle Windows .exe name (if you care about it)
+BIN_NAME="treemoji-${TARGET_OS}-${TARGET_ARCH}"
+if [[ "$TARGET_OS" == "windows" ]]; then
+  BIN_NAME="${BIN_NAME}.exe"
 fi
 
-exec "$BIN_DIR/treemoji" "$@"
+BIN_PATH="$BIN_DIR/$BIN_NAME"
+
+# Build first if binary does not exist
+if [[ ! -x "$BIN_PATH" ]]; then
+  echo "Binary $BIN_NAME not found, building..."
+  GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" "$ROOT_DIR/build.sh"
+fi
+
+echo "Running $BIN_NAME..."
+exec "$BIN_PATH" "$@"

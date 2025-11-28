@@ -45,9 +45,9 @@ func TestRenderBasic(t *testing.T) {
 	// Hidden file should be excluded by default
 	expectLines := []string{
 		"📁 " + root,
-		"├── 📄 a.txt",
-		"└── 📁 b",
-		"    └── 📄 c.txt",
+		"├─ 📄 a.txt",
+		"└─ 📁 b",
+		"   └─ 📄 c.txt",
 	}
 	expect := strings.Join(expectLines, "\n") + "\n"
 	if out != expect {
@@ -71,9 +71,9 @@ func TestRenderAllAndMaxDepth(t *testing.T) {
 	// Order: .hidden, a.txt, b (case-insensitive sort)
 	expectLines := []string{
 		"📁 " + root,
-		"├── 📄 .hidden",
-		"├── 📄 a.txt",
-		"└── 📁 b",
+		"├─ 📄 .hidden",
+		"├─ 📄 a.txt",
+		"└─ 📁 b",
 	}
 	expect := strings.Join(expectLines, "\n") + "\n"
 	if out != expect {
@@ -95,8 +95,8 @@ func TestRenderDirsOnly(t *testing.T) {
 	// alpha then beta in sort order
 	expectLines := []string{
 		"📁 " + root,
-		"├── 📁 alpha",
-		"└── 📁 beta",
+		"├─ 📁 alpha",
+		"└─ 📁 beta",
 	}
 	expect := strings.Join(expectLines, "\n") + "\n"
 	if out != expect {
