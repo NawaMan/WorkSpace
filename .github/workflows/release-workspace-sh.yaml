@@ -94,8 +94,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: v${{ steps.get_version.outputs.version }}
-          body: v${{ steps.get_version.outputs.version }}
+          name: latest - v${{ steps.get_version.outputs.version }}
+          body: latest - v${{ steps.get_version.outputs.version }}
           prerelease: false
           draft: false
           files: |
