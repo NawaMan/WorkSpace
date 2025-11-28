@@ -1,4 +1,4 @@
-name: Release workspace.sh and workspace (the wrapper)
+name: Release scripts
 
 on:
   workflow_dispatch:
