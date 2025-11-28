@@ -41,7 +41,7 @@ docker run \
 -e 'WS_VERBOSE=false' \
 -e 'WS_VERSION_TAG=${VERSION}' \
 -e 'WS_WORKSPACE_PATH=${HERE}' \
--e 'WS_WORKSPACE_PORT=10000' \
+-e 'WS_WORKSPACE_PORT=NEXT' \
 -e 'WS_HAS_NOTEBOOK=false' \
 -e 'WS_HAS_VSCODE=false' \
 -e 'WS_HAS_DESKTOP=false' \
