@@ -2,6 +2,9 @@
 
 This file contains a list of changes for each released version.
 
+## v0.10.0
+- Bring in the wrapper
+
 ## v0.9.0
 - Simplify conditional setups with WS_HAS_NOTEBOOK, WS_HAS_VSCODE and WS_HAS_DESKTOP
 - Simplify the basic Dockfile structure to use ARG instead of ENV -- as it will be there anyway.
