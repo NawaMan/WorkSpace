@@ -66,6 +66,7 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           name: v${{ steps.get_version.outputs.version }}
+          body: v${{ steps.get_version.outputs.version }}
           files: |
             workspace.sh
             workspace.sh.sha256
@@ -94,6 +95,7 @@ jobs:
         with:
           tag_name: latest
           name: v${{ steps.get_version.outputs.version }}
+          body: v${{ steps.get_version.outputs.version }}
           prerelease: false
           draft: false
           files: |
