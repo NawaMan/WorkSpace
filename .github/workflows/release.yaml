@@ -1,4 +1,4 @@
-name: Release workspace.sh, wrapper and launcher
+name: Release workspace.sh and workspace (the wrapper)
 
 on:
   workflow_dispatch:
@@ -52,16 +52,11 @@ jobs:
       - name: Make workspace.sh executable
         run: chmod +x workspace.sh
 
-      - name: Make launcher and wrapper executable
-        run: |
-          chmod +x launcher/workspace
-          chmod +x launcher/wrapper/wrapper.sh
+      - name: Make workspace wrapper executable
+        run: chmod +x wrapper/workspace
 
       - name: Generate SHA256 checksum for workspace.sh
-        run: |
-          sha256sum workspace.sh > workspace.sh.sha256
-          echo "Generated checksum:"
-          cat workspace.sh.sha256
+        run: sha256sum workspace.sh > workspace.sh.sha256
 
       - name: Check if pre-release
         id: check_prerelease
@@ -107,8 +102,7 @@ jobs:
           files: |
             workspace.sh
             workspace.sh.sha256
-            launcher/workspace
-            launcher/wrapper/wrapper.sh
+            wrapper/workspace
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -127,7 +121,6 @@ jobs:
           files: |
             workspace.sh
             workspace.sh.sha256
-            launcher/workspace
-            launcher/wrapper/wrapper.sh
+            wrapper/workspace
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
