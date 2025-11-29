@@ -17,7 +17,7 @@ Whether you want a browser-based VS Code session, a Jupyter notebook environment
 # Table of Contents
 - [Introduction](#introduction)
 - [Quick Try](#quick-try)
-- [Quick Install (Per Project)](#quick-install-per-project)
+- [Installation](#installation)
 - [Why WorkSpace?](#why-workspace)
 - [Variants](#variants)
 - [Built-in Tools](#built-in-tools)
@@ -48,7 +48,7 @@ Whether you want a browser-based VS Code session, a Jupyter notebook environment
   1. Download [`workspace.sh`](https://github.com/NawaMan/WorkSpace/releases/download/latest/workspace.sh) and put in your project folder.
   2. Create `ws--Dockerfile` and `ws-config.sh` -- Take inspire from the existing [examples](https://github.com/NawaMan/WorkSpace/tree/latest/examples).
 
-## Install (per project)
+## Installation
 
 Run the following on the project **base folder** to install [CodingBooth WorkSpace Wrapper](https://github.com/NawaMan/WorkSpaceWrapper).
 The wrapper allows management of the workspace script file.
@@ -554,6 +554,14 @@ This feature is useful for CI/CD pipelines, containerized builds, or development
 
 
 ## Setup Implementation Notes
+Setup scripts are scripts that install tools and dependencies.
+Not every tool or dependency needs a setup script.
+A basic `apt-get install ....` or `curl ...` can be be used.
+A setup script may be required, if a tool or dependency requires:
+- user specific configuration
+- custom bash session (such as environmental variables)
+- a starter wrapper
+- requires other tools or dependencies that need a setup script.
 
 ### Setup Files Overview
 
