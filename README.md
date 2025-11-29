@@ -93,15 +93,18 @@ Each variant comes pre-configured with a curated toolset and a consistent runtim
 
 - **`container`** – A minimal base image with essential shell tools.  
   Ideal for building custom environments, running CLI applications, or lightweight automation tasks.
+  The terminal is expose with [ttyd](https://github.com/tsl0922/ttyd) on port 10000.
 
-- **`ide-notebook`** – Includes Jupyter Notebook with Bash and other utilities.  
+- **`ide-notebook`** – Includes [Jupyter Notebook](https://jupyter.org/) with Bash and other utilities.  
   Great for data science, analytics, documentation, or interactive scripting workflows.
 
 - **`ide-codeserver`** – A web-based VS Code environment powered by [`code-server`](https://github.com/coder/code-server).  
   Provides a full browser-accessible IDE with Git integration, terminals, and extensions.
 
-- **`desktop-xfce`**, **`desktop-kde`**, **`desktop-lxqt`** – Full Linux desktop environments accessible via browser or remote desktop (e.g., noVNC).  
-  Useful for GUI-heavy workflows or running native IDEs like IntelliJ IDEA, PyCharm, or Eclipse inside Docker.
+- **[`desktop-xfce`]( https://www.xfce.org  )**, **[`desktop-kde`]( https://kde.org/plasma-desktop)**, **[`desktop-lxqt`]( https://lxqt-project.org)** – Full Linux desktop environments accessible via browser or remote desktop (e.g., [noVNC](https://novnc.com)).  
+  Useful for GUI-heavy workflows or running native IDEs like [IntelliJ IDEA](https://www.jetbrains.com/idea/), [PyCharm](https://www.jetbrains.com/pycharm/), or [Eclipse](https://www.eclipse.org) inside Docker.
+
+All variants expose its UI on port 10000 but NEXT and RANDOM can be use. See [Port](#6-ports) for more details. 
 
 ### Aliases & Defaults
 
@@ -110,6 +113,8 @@ The `ValidateVariant()` logic supports several shortcuts and fallback values:
 | Input Alias	| Resolved Variant |
 |-------------|------------------|
 | default	    | ide-codeserver   |
+| base        | container        |
+| console     | container        |
 | ide	        | ide-codeserver   |
 | notebook    | ide-notebook     |
 | codeserver  | ide-codeserver   |
@@ -125,7 +130,7 @@ If an unknown value is provided, WorkSpace will exit with an error listing suppo
 - **Data Science & Notebooks** – Quickly spin up reproducible Jupyter environments using `--variant notebook`.  
   Ideal for experiments, reports, or teaching interactive examples.
 
-- **Executable Bash Notebooks** – Use `--variant notebook` to work in a Jupyter environment that includes a Bash kernel.
+- **Executable Bash Notebooks** – Use `--variant notebook` to work in a Jupyter environment that includes a **Bash kernel**.
   This allows you to write notebooks that mix explanations, commands, and output in one place — effectively turning a notebook into a runnable document.
   It's ideal for creating repeatable build instructions, walkthroughs, tutorials, or Makefile-like automation that is much more readable and approachable than shell scripts alone.
 
