@@ -14,7 +14,7 @@ Whether you want a browser-based VS Code session, a Jupyter notebook environment
 
 **WorkSpace** is a lightweight framework for running reproducible development environments ins
 
-# Top-Level Table of Contents
+# Table of Contents
 - [Introduction](#introduction)
 - [Quick Try](#quick-try)
 - [Quick Install (Per Project)](#quick-install-per-project)
@@ -41,10 +41,10 @@ Whether you want a browser-based VS Code session, a Jupyter notebook environment
 ![Select IDE](DesktopRun.png)
 
 ### Optional
-7. Inspace `ws--Dockerfile` and `ws-config.sh` inside `examples/go-example` and
+7. Inspect `ws--Dockerfile` and `ws-config.sh` inside `examples/go-example` and
     see if you can figure out what they are.
 8. Try other [examples](https://github.com/NawaMan/WorkSpace/tree/latest/examples) or different [variants](https://github.com/NawaMan/WorkSpace/tree/latest?tab=readme-ov-file#available-variants).
-9. Try on yourown project,
+9. Try on your own project,
   1. Download [`workspace.sh`](https://github.com/NawaMan/WorkSpace/releases/download/latest/workspace.sh) and put in your project folder.
   2. Create `ws--Dockerfile` and `ws-config.sh` -- Take inspire from the existing [examples](https://github.com/NawaMan/WorkSpace/tree/latest/examples).
 
@@ -224,6 +224,41 @@ You can tailor how WorkSpace runs by adjusting configuration files or using runt
 5. Prepare `.bashrc` and `.zshrc`
 6. Run startup script (files in `/etc/startup.d`)
 7. All commands run as the unprivileged **`coder`** user, not `cdroot`, preserving security and consistent file ownership.
+
+
+```
+host                                 # your machine
+  ├── project/                       # your project folder on the host
+  |    ├── workspace/                # workspace wrapper script
+  |    ├── .workspace                # workspace internal folder
+  |    |    ├── tools                # workspace tools folder
+  |    |        └── workspace.sh     # workspace runner script
+  |    ├── ...                       # other project files
+  ...
+
+container
+  ├── home/
+  |    ├── coder/
+  |    |    ├── workspace/                # your project folder inside the container
+  |    |    |   ├── workspace             # workspace wrapper script
+  |    |    |   ├── .workspace            # workspace internal folder
+  |    |    |   |    ├── tools            # workspace tools folder
+  |    |    |   |    └── workspace.sh     # workspace runner script
+  |    |    ├── ...                       # other project files
+  |    ├── ...                            # other home files
+  ├── etc/
+  |    ├── profile.d/                     # profile script folder
+  ├── opt/
+  |    ├── workspace/
+  |    |    ├── setups/                   # setup script folder
+  |    |    |    ├── ...                  # setup scripts
+  ├── usr/
+  |    ├── local/
+  |    |    ├── bin/                      # program file folder
+  |    ├── share/
+  |    |    ├── startup.d/                # startup script folder
+  ...
+```
 
 ---
 
@@ -435,7 +470,7 @@ The **dry-run** mode allows you to preview exactly what WorkSpace will execute �
 ### 9. Keep Alive
 Keep the container around after it stop.
 - By default, once the container stop, it will be removed.
-- By using `--keep-alive`, the container will be keep around.
+- By using `--keep-alive`, the container will be kept around.
 - User can re-start the container using: `docker start <container-name>`.
 - To remove the **stop** container use: `docker rm <container-name>`.
 - To save the current state of a container as a new image:
@@ -508,12 +543,9 @@ This feature is useful for CI/CD pipelines, containerized builds, or development
 **Usage Notes**
 - DinD mode may increase resource usage and startup time.
 - The sidecar approach offers stronger isolation but can be slower and more complex to manage.
-- For most development workflows, socket sharing is recommended.
-- The DinD container automatically mounts the /var/run/docker.sock volume when enabled.
 
 > ⚠️ Warning:
-> Running DinD with full socket access means the container can control the host’s Docker daemon.
-> Use with caution in multi-user or production environments.
+> DinD mode is experimental and may not be stable.
 
 
 ## Setup Implementation Notes
@@ -523,7 +555,7 @@ This feature is useful for CI/CD pipelines, containerized builds, or development
 WorkSpace setup scripts follow a simple pattern that produces **three artifacts**:
 
 1. **Startup script** (runs once per container start, as the normal user)  
-   - Path: `/etc/startup.d/<LEVEL>-ws-<thing>--startup.sh`  
+   - Path: `/usr/share/startup.d/<LEVEL>-ws-<thing>--startup.sh`  
    - Purpose: one-time initialization per container boot (idempotent).  
    - Example tasks: create user cache dirs, generate config files if missing, first-run migrations.
 
@@ -607,6 +639,10 @@ exec /usr/local/bin/real-<thing> "$@"
 - Startup: chmod 755
 - Profile: chmod 644
 - Starter: chmod 755
+
+## Custom Setups
+You can create your own setup scripts to install any tool you need.
+Simply copy into your docker image and run it just like other setup scripts.
 
 
 ## Community & Feedback
