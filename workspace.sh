@@ -10,6 +10,14 @@ trap 'echo "❌ Error on line $LINENO" >&2; exit 1' ERR
 
 WS_VERSION=0.10.0--rc
 
+
+# Cross-shell PWD : Detect MSYS/Git Bash and convert to Windows path
+CURRENT_PATH=$(pwd)
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+    # pwd -W returns C:/Users/... instead of /c/Users/...
+    CURRENT_PATH="$(pwd -W)"
+fi
+
 Main() {
   SCRIPT_NAME="$(basename "$0")"
   SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
@@ -24,9 +32,10 @@ Main() {
   SILENCE_BUILD=${SILENCE_BUILD:-false}
   CONFIG_FILE=${CONFIG_FILE:-./ws--config.sh}
 
+
   HOST_UID="${HOST_UID:-$(id -u)}"
   HOST_GID="${HOST_GID:-$(id -g)}"
-  WORKSPACE_PATH="${WORKSPACE_PATH:-$PWD}"
+  WORKSPACE_PATH="${WORKSPACE_PATH:-$CURRENT_PATH}"
   PROJECT_NAME="$(project_name "${WORKSPACE_PATH}")"
 
   DOCKER_FILE="${DOCKER_FILE:-}"
@@ -281,6 +290,8 @@ Docker() {
   if [[ "${DRYRUN}" != "true" ]]; then
     local status
     set +e
+    # Run docker with properly handle Windows path.
+    MSYS_NO_PATHCONV=1 \
     command docker "$subcmd" "$@"
     status=$?
     set -e

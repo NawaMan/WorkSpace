@@ -30,21 +30,21 @@ function random_free_port() {
   local i
 
   for i in {1..100}; do
-    port=$((50000 + RANDOM % 10001))
+    port=$((30000 + RANDOM % 10001))
     if is_port_free "$port"; then
       echo "$port"
       return 0
     fi
   done
 
-  echo "Failed to find free port in range 50000–60000 after 100 tries" >&2
+  echo "Failed to find free port in range 30000-40000 after 100 tries" >&2
   return 1
 }
 
 RunWorkspace() {
   local name="$1"
   local port="$2"
-  ../../workspace.sh --variant container --name "$name" --port "$port" --daemon -- sleep 5
+  ../../workspace.sh --variant container --name "$name" --port "$port" --daemon -- 'sleep 5'
 }
 
 NAME="$(generate_name)"
