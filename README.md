@@ -12,16 +12,22 @@ Whether you want a browser-based VS Code session, a Jupyter notebook environment
 
 **Result:** a clean, consistent, portable development experience that just works.
 
-**WorkSpace** is a lightweight framework for running reproducible development environments inside Docker.
+**WorkSpace** is a lightweight framework for running reproducible development environments ins
 
-It provides a single launcher script — `workspace.sh` — that abstracts away the messy details of `docker run`.
-You put your dev-env setup in `ws--Dockerfile` -- the docker file for your environment.
-Then, simply configure a few variables in `ws--config.sh` to specify the default run such as variant, ports and environemtnatl variables (for the run).
-
-From here `workspace.sh` will take care of that for you.
-With just one command, you can launch a fully reproducible and isolated development workspace.
-
-**Note:** 
+# Top-Level Table of Contents
+- [Introduction](#introduction)
+- [Quick Try](#quick-try)
+- [Quick Install (Per Project)](#quick-install-per-project)
+- [Why WorkSpace?](#why-workspace)
+- [Variants](#variants)
+- [Built-in Tools](#built-in-tools)
+- [Quick Examples](#quick-examples)
+- [Customization](#customization)
+- [Guarantees & Limits](#guarantees-limits)
+- [How It Works](#how-it-works)
+- [workspace.sh Manual](#workspace-sh-manual)
+- [Setup Implementation Notes](#setup-implementation-notes)
+- [Community & Feedback](#community-feedback)
 
 ## Quick Try
 
@@ -42,9 +48,9 @@ With just one command, you can launch a fully reproducible and isolated developm
   1. Download [`workspace.sh`](https://github.com/NawaMan/WorkSpace/releases/download/latest/workspace.sh) and put in your project folder.
   2. Create `ws--Dockerfile` and `ws-config.sh` -- Take inspire from the existing [examples](https://github.com/NawaMan/WorkSpace/tree/latest/examples).
 
-## Quick Install (per project)
+## Install (per project)
 
-Run the following on the project base folder to install [CodingBooth WorkSpace Wrapper](https://github.com/NawaMan/WorkSpaceWrapper).
+Run the following on the project **base folder** to install [CodingBooth WorkSpace Wrapper](https://github.com/NawaMan/WorkSpaceWrapper).
 The wrapper allows management of the workspace script file.
 
 ```shell
