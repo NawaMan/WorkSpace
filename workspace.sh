@@ -430,6 +430,7 @@ ValidateVariant() {
   case "${VARIANT}" in
     container|ide-notebook|ide-codeserver|desktop-xfce|desktop-kde|desktop-lxqt) ;;
     default)             VARIANT="ide-codeserver"     ;;
+    base|console)        VARIANT="container"          ;;
     ide)                 VARIANT="ide-codeserver"     ;;
     desktop)             VARIANT="desktop-xfce"       ;;
     notebook|codeserver) VARIANT="ide-${VARIANT}"     ;;
