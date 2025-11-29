@@ -21,6 +21,8 @@ Then, simply configure a few variables in `ws--config.sh` to specify the default
 From here `workspace.sh` will take care of that for you.
 With just one command, you can launch a fully reproducible and isolated development workspace.
 
+**Note:** 
+
 ## Quick Try
 
 1. Ensure you have docker and can run bash (for Windows you will need GitBash or WSL).
@@ -47,7 +49,7 @@ The wrapper allows management of the workspace script file.
 
 ```shell
 curl -fsSL -o workspace \
-  https://github.com/NawaMan/WorkSpaceWrapper/releases/latest/download/workspace \
+  https://github.com/NawaMan/WorkSpace/releases/download/latest/workspace \
   && chmod +x workspace \
   && ./workspace install \
   && ./workspace help
