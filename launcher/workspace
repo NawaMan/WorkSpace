@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+echo `# <#`
+
+# =========================
+# Bash section
+# =========================
+set -euo pipefail
+
+# Change this to your real URL later
+WRAPPER_URL="https://example.com/workspace-wrapper.sh"
+
+print_global_help() {
+  cat <<EOF
+workspace - WorkSpace global wrapper
+
+Usage:
+  workspace init          Initialize this folder as a WorkSpace project
+  workspace <command>     Run a command in this WorkSpace project
+
+Behavior:
+  - Looks for .workspace/wrapper.sh in the current directory.
+  - If it exists, workspace delegates all commands to it.
+  - If it does not exist, run 'workspace init' here to create it.
+EOF
+}
+
+init_workspace() {
+  local project_dir="$1"
+  local ws_dir="$project_dir/.workspace"
+  local wrapper_path="$ws_dir/wrapper.sh"
+
+  if [[ -f "$wrapper_path" ]]; then
+    echo "This folder already appears to be a WorkSpace project:"
+    echo "  $wrapper_path"
+    echo "If you want to reinstall, remove it first or overwrite manually."
+    return 0
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "Error: curl is required for 'workspace init' but was not found." >&2
+    exit 1
+  fi
+
+  mkdir -p "$ws_dir"
+
+  echo "Initializing WorkSpace project in:"
+  echo "  $project_dir"
+  echo "Downloading wrapper.sh ..."
+  if ! curl -fsSLo "$wrapper_path" "$WRAPPER_URL"; then
+    echo "Error: failed to download wrapper.sh from:"
+    echo "  $WRAPPER_URL" >&2
+    rm -f "$wrapper_path"
+    exit 1
+  fi
+
+  chmod +x "$wrapper_path"
+
+  echo "Done."
+  echo "You can now run WorkSpace commands in this folder, for example:"
+  echo "  workspace help"
+  echo "  workspace run"
+}
+
+main_bash() {
+  echo "Run with bash"
+
+  local project_dir="$PWD"
+  local wrapper_path="$project_dir/.workspace/wrapper.sh"
+
+  local cmd="${1:-}"
+
+  # Handle "init" even if .workspace doesn't exist yet
+  if [[ "$cmd" == "init" ]]; then
+    shift
+    init_workspace "$project_dir" "$@"
+    return
+  fi
+
+  # If no project yet and user asks for help, show global help
+  if [[ ( "$cmd" == "help" || "$cmd" == "--help" || "$cmd" == "-h" ) && ! -x "$wrapper_path" ]]; then
+    print_global_help
+    return
+  fi
+
+  # For any other command, require .workspace/wrapper.sh
+  if [[ ! -x "$wrapper_path" ]]; then
+    echo "This is not a WorkSpace project folder (missing .workspace/wrapper.sh)."
+    echo "Run 'workspace init' in this folder to initialize it."
+    exit 1
+  fi
+
+  # Delegate everything to the project-local wrapper
+  exec "$wrapper_path" "$@"
+}
+
+main_bash "$@"
+exit
+#> > $null
+
+# =========================
+# PowerShell section
+# =========================
+
+param(
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]] $restArgs
+)
+
+# Locate Git Bash (needed to run the Bash section above)
+$gitbash = "C:\Program Files\Git\bin\bash.exe"
+if (-not (Test-Path $gitbash)) {
+    $gitbash = "C:\Program Files\Git\usr\bin\bash.exe"
+}
+if (-not (Test-Path $gitbash)) {
+    Write-Error "Git Bash not found. Please install Git for Windows (with Git Bash) to use 'workspace'."
+    exit 1
+}
+
+
+Write-Output "Run with powershell"
+
+# Path to this script
+$scriptPath = $MyInvocation.MyCommand.Path
+
+# Forward everything to the Bash section of this same file
+& $gitbash "$scriptPath" @restArgs
+exit $LASTEXITCODE
