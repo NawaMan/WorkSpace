@@ -33,7 +33,7 @@ if [[ ! -x "$WS_SCRIPT" ]]; then
 fi
 
 # ---- Test workspace -----------------------------------------------------------
-TMPDIR="$(mktemp -d)"
+TMPDIR="$(mktemp -d "$HOME/ws-test.XXXXXX")"
 cleanup() {
   # Workspace container is started with --rm, so nothing to stop.
   rm -rf "$TMPDIR" || true

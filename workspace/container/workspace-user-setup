@@ -169,6 +169,7 @@ cd "$WORKSPACE_DIR" 2>/dev/null || true
 # Populate skeleton dotfiles if missing (so non-login shells get env/aliases)
 log "Ensuring default dotfiles exist in $HOME_DIR..."
 
+
 if [ ! -f "$HOME_DIR/.bashrc" ]; then
   if [ -f /etc/skel/.bashrc ]; then
     cp /etc/skel/.bashrc "$HOME_DIR/.bashrc"
@@ -199,17 +200,21 @@ fi
 
 if [ -f "$HOME_DIR/.bashrc" ]; then
   cat >>"$HOME_DIR/.bashrc" <<'RC'
-  for f in /etc/profile.d/*-ws-*.sh; do
-    [ -r "$f" ] && source "$f"
-  done
+
+# ---- workspace startup hooks ----
+for f in /etc/profile.d/*-ws-*.sh; do
+  [ -r "$f" ] && source "$f"
+done
 RC
 fi
 
 if [ -f "$HOME_DIR/.zshrc" ]; then
   cat >>"$HOME_DIR/.zshrc" <<'RC'
-  for f in /etc/profile.d/*-ws-*.sh; do
-    [ -r "$f" ] && source "$f"
-  done
+
+# ---- workspace startup hooks ----
+for f in /etc/profile.d/*-ws-*.sh; do
+  [ -r "$f" ] && source "$f"
+done
 RC
 fi
 

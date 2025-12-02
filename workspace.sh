@@ -859,14 +859,6 @@ SetupDind() {
 
   # Wire main container to DinD network + endpoint
   COMMON_ARGS+=( --network "$DIND_NET" -e "DOCKER_HOST=tcp://${DIND_NAME}:2375" )
-
-  # Mount host docker CLI binary if present (portable path resolution via pure shell)
-  if DOCKER_BIN="$(command -v docker 2>/dev/null)"; then
-    DOCKER_BIN="$(realpath "$DOCKER_BIN")"
-    COMMON_ARGS+=( -v "${DOCKER_BIN}:/usr/bin/docker:ro" )
-  else
-    $VERBOSE && echo "⚠️  docker CLI not found on host; not mounting into container." || true
-  fi
 }
 
 ShowDebugBanner() {

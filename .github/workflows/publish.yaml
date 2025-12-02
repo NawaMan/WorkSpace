@@ -109,6 +109,14 @@ jobs:
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
+      - name: Clean up disk space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf $AGENT_TOOLSDIRECTORY
+
       - name: Build & Push desktop-kde
         run: ./build.sh --push desktop-kde
         env:

@@ -12,7 +12,7 @@ STARTER_FILE=/usr/local/bin/dind-open-port
 STOPPER_FILE=/usr/local/bin/dind-close-port
 
 sudo apt-get update
-sudo apt-get install -y socat
+sudo apt-get install -y socat docker.io
 
 cat > "${STARTER_FILE}" <<'EOF'
 #!/usr/bin/env bash

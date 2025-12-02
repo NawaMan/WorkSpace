@@ -259,6 +259,12 @@ python_setup_info() {
   printf "WS_VENV_SERIES_DIR=%s\n"   "$WS_VENV_SERIES_DIR"
 }
 
+# #== Override what venv activation does ==
+# Bash
+export PS1="\[\e[1;32m\]${WS_CONTAINER_NAME:-workspace}\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ "
+# Zsh
+export PROMPT="%%B%%F{green}${WS_CONTAINER_NAME:-workspace}%%b%%f:%%B%%F{blue}%%~%%b%%f❯ "
+
 alias python-setup-info='python_setup_info'
 EOF
 chmod 0644 "$PROFILE_FILE"

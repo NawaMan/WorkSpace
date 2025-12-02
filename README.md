@@ -112,6 +112,37 @@ The `ValidateVariant()` logic supports several shortcuts and fallback values:
 
 If an unknown value is provided, WorkSpace will exit with an error listing supported variants and aliases.
 
+### Desktop Configuration
+
+For desktop variants (`desktop-xfce`, `desktop-kde`, `desktop-lxqt`), you can customize the screen resolution by setting the `GEOMETRY` environment variable.
+
+**Default:** `1280x800`
+
+**Example (command line):**
+```bash
+./workspace.sh --variant desktop-xfce -e GEOMETRY=1920x1080
+```
+
+**Example (in `ws--config.sh`):**
+```bash
+RUN_ARGS+=(-e GEOMETRY=1920x1080)
+```
+
+#### noVNC Resize Modes
+
+When accessing the desktop through your browser, noVNC supports different resize modes:
+
+- **`remote`** (default) – Dynamically resizes the remote desktop to match your browser window size. The `GEOMETRY` setting becomes the initial size.
+- **`scale`** – Scales the desktop to fit your browser window while maintaining the resolution set by `GEOMETRY`.
+- **`off`** – No resizing or scaling; displays the desktop at native resolution (1:1 pixel mapping).
+
+To use a specific resize mode, append `&resize=off` or `&resize=scale` to the noVNC URL:
+```
+http://localhost:10000/vnc.html?autoconnect=1&host=localhost&port=10000&path=websockify&resize=off
+```
+
+> 💡 **Tip:** If you set a specific resolution like `1920x1080`, you may want to use `resize=off` to see it at native resolution, or `resize=scale` to fit it within your browser window.
+
 ### Typical Use Cases
 
 - **Data Science & Notebooks** – Quickly spin up reproducible Jupyter environments using `--variant notebook`.  

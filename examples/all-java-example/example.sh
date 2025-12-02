@@ -1,6 +1,6 @@
 #!/bin/bash
 
-./run-java.sh "$@" -- '
+../../workspace.sh --variant container -- '
 jbang --quiet - <<EOF one "two 2"
 import java.nio.file.*;
 import java.util.Arrays;
@@ -16,4 +16,5 @@ class Test {
     }
 }
 EOF
-'
+' \
+# 2>/dev/null      # Uncomment to get only the output of the program
