@@ -37,17 +37,27 @@ command -v code-server >/dev/null
 
 
 echo "[2/9] Pre-seed Jupyter into ${WS_VENV_DIR} (build-time)…"
-# Upgrade basics
+
+# Always use the workspace venv Python, not whatever "python" happens to be.
+VENV_PY="${WS_VENV_DIR}/bin/python"
+if [ ! -x "$VENV_PY" ]; then
+  echo "❌ Expected venv python at ${WS_VENV_DIR} but it is missing or not executable"
+  exit 1
+fi
+
+# Upgrade basics in the venv
 env PIP_CACHE_DIR="${PIP_CACHE_DIR}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
-  python -m pip install -U pip setuptools wheel
+  "$VENV_PY" -m pip install -U pip setuptools wheel
 
 # Install Jupyter + ipykernel into the venv
 env PIP_CACHE_DIR="${PIP_CACHE_DIR}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
-  python -m pip install -U jupyter ipykernel
+  "$VENV_PY" -m pip install -U jupyter ipykernel
 
-# Kernelspec (use actual patch version for display)
-ACTUAL_VER="$(python -c 'import sys;print(".".join(map(str,sys.version_info[:3])))')"
-python -m ipykernel install --sys-prefix --name=python3 --display-name="Python ${ACTUAL_VER} (venv)"
+# Kernelspec (use actual patch version for display), bound to this venv
+ACTUAL_VER="$("$VENV_PY" -c 'import sys;print(".".join(map(str,sys.version_info[:3])))')"
+"$VENV_PY" -m ipykernel install --sys-prefix \
+  --name=python3 \
+  --display-name="Python ${ACTUAL_VER} (venv)"
 
 
 cat >> "$PROFILE_FILE" <<'SH'
@@ -261,4 +271,3 @@ Kernels available (scoped to venv):
   - Python 3 (venv)
   - Bash
 EOF
-

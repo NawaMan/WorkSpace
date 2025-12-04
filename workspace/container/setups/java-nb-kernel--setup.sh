@@ -15,7 +15,7 @@
 # Prereqs:
 #   - JDK installed (JAVA_HOME set; java/jshell on PATH).
 #   - Target venv already has Jupyter (jupyter_client & jupyter_core present).
-#   - rsync, curl, unzip available.
+#   - curl, unzip available.
 #   - Running under a venv; WS_VENV_DIR and WS_JDK_VERSION set.
 
 set -Eeuo pipefail
@@ -91,7 +91,13 @@ if [ -z "${INSTALL_PY}" ]; then
 fi
 
 # Stage into a stable location for reuse
-rsync -a --delete "$(dirname "${INSTALL_PY}")"/ "${WORKDIR}/"
+src_dir="$(dirname "${INSTALL_PY}")"
+mkdir -p "${WORKDIR}"
+
+# Emulate rsync --delete: remove existing contents of WORKDIR
+find "${WORKDIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+
+cp -a "${src_dir}/." "${WORKDIR}/"
 chmod -R a+rX "${WORKDIR}"
 
 # ---------------- Adjust the template BEFORE install ----------------

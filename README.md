@@ -557,7 +557,7 @@ WorkSpace setup scripts follow a simple pattern that produces **three artifacts*
 
 3. **Starter wrapper** (a user-invoked command wrapper)  
    - Path: `/usr/local/bin/<thing>`  
-   - Purpose: pre-/post-steps around the real tool, then `exec` the tool.  
+   - Purpose: pre-/post-steps around the real tool, then `exec` the tool.  apt
    - Example tasks: set tool-specific env, ensure background service is running, sanitize args.
 
 > 🧩 **From the template**  
