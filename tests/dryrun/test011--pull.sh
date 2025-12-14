@@ -3,12 +3,18 @@ set -euo pipefail
 
 HOST_UID="$(id -u)"
 HOST_GID="$(id -g)"
-PWD=$(pwd)
+
+# Cross-shell PWD : Detect MSYS/Git Bash and convert to Windows path
+CURRENT_PATH=$(pwd)
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+    # pwd -W returns C:/Users/... instead of /c/Users/...
+    CURRENT_PATH="$(pwd -W)"
+fi
 
 ACTUAL=$(../../workspace.sh --verbose --dryrun --pull --variant container -- tree -C)
 ACTUAL=$(printf "%s\n" "$ACTUAL" | head -n 3)
 
-HERE="$PWD"
+HERE="$CURRENT_PATH"
 VERSION="$(cat ../../version.txt)"
 
 EXPECT="\
