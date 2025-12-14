@@ -188,13 +188,13 @@ source /etc/profile.d/53-ws-python--profile.sh 2>/dev/null || true
 # Make venv kernels visible to any Jupyter process
 export JUPYTER_PATH="${WS_VENV_DIR}/share/jupyter:/usr/local/share/jupyter:/usr/share/jupyter${JUPYTER_PATH:+:$JUPYTER_PATH}"
 
-CSUSER=coder
-CSHOME=/home/${CSUSER}
+# Use the current user's home directory
+CSHOME="${HOME}"
 
-# Pre-create config dirs for CSUSER and ensure ownership
+# Pre-create config dirs for this user
 mkdir -p "$CSHOME/.config" "$CSHOME/.local/share/code-server" "$CSHOME/.local/share/code-server/User"
 
-# Write code-server config for coder (auth decided at runtime)
+# Write code-server config for this user (auth decided at generation time via envsubst)
 mkdir -p "${CSHOME}/.config/code-server"
 CONFIG_FILE="${CSHOME}/.config/code-server/config.yaml"
 
@@ -228,28 +228,24 @@ cat > "$SETTINGS_JSON" <<JSON
 }
 JSON
 
-sudo chown -R "coder:coder" "$CSHOME/.config"
-sudo chown -R "coder:coder" "$CSHOME/.local"
-
 # -------- default shell for everything code-server launches (incl. Jupyter ext) --------
 DEFAULT_SHELL="/bin/bash"
 
 echo "Starting code-server. This may take sometime ..."
-exec sudo --preserve-env=DOCKER_HOST,DOCKER_TLS_VERIFY,DOCKER_CERT_PATH \
-  -u "$CSUSER"                  \
-  -H env                        \
-  SHELL="$DEFAULT_SHELL"        \
-  PATH="$PATH"                  \
-  PASSWORD="$PASSWORD"          \
-  JUPYTER_PATH="$JUPYTER_PATH"  \
-  code-server                   \
-      --extensions-dir "$CODESERVER_EXTENSION_DIR" \
-      --bind-addr      "0.0.0.0:$PORT"             \
-      --auth           "$AUTH"                     \
-      "$CSHOME/workspace"
+
+# Ensure these vars are present in the code-server process environment
+SHELL="$DEFAULT_SHELL" \
+PASSWORD="$PASSWORD" \
+JUPYTER_PATH="$JUPYTER_PATH" \
+exec code-server \
+    --extensions-dir "$CODESERVER_EXTENSION_DIR" \
+    --bind-addr      "0.0.0.0:$PORT"             \
+    --auth           "$AUTH"                     \
+    "$CSHOME/workspace"
 
 LAUNCH
 chmod 755 ${STARTER_FILE}
+
 
 cat <<EOF
 

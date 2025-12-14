@@ -32,7 +32,11 @@ h1 {
   border-radius: 12px;
   padding: 1rem 1.25rem;
   background: color-mix(in oklab, canvas 96%, canvastext 4%);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.time-card {
+  background: #e6f2f5;
 }
 
 .time {

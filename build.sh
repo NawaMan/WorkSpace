@@ -2,15 +2,13 @@
 set -euo pipefail
 
 #== ENVIRONMENTAL VARIABLES ==
-DOCKER_USER_SCRIPT="${DOCKER_USER_SCRIPT:-}"
-DOCKER_PAT_SCRIPT="${DOCKER_PAT_SCRIPT:-}"
 
 # Cosign key configuration
 COSIGN_KEY_FILE_DEFAULT="${HOME}/.config/nawaman-workspace/cosign.key"
 COSIGN_KEY_FILE="${COSIGN_KEY_FILE:-$COSIGN_KEY_FILE_DEFAULT}"
 COSIGN_KEY_REF=""
 
-# --- Setting ---
+# --- Settings ---
 IMAGE_NAME="nawaman/workspace"
 PLATFORMS="linux/amd64,linux/arm64"
 VERSION_FILE="version.txt"
@@ -25,23 +23,42 @@ ALL_VARIANTS=(
   desktop-lxqt
 )
 
-# Push order (reverse dependency order to ensure latest tags are correct on DockerHub)
-PUSH_ORDER=(
-  desktop-lxqt
-  desktop-kde
-  desktop-xfce
-  ide-notebook
-  container
-  ide-codeserver
-)
+# Script state (globals)
+PUSH="false"
+NO_CACHE="false"
+VARIANTS_TO_BUILD=()
 
-# --- Helpers ---
-log() { printf "\033[1;34m[info]\033[0m %s\n" "$1";    }
-err() { printf "\033[1;31m[err]\033[0m %s\n" "$1" >&2; }
-die() { err "$1"; exit 1; }
+# ======================
+#         Main
+# ======================
+Main() {
+  ParseArgs "$@"
+  ValidateVariants
+  SetupPushEnvironment
+  echo
 
-is_valid_variant() {
+  Log "=== Build ==="
+  echo
+
+  # Get the version once, reuse for all variants
+  local version
+  version="$(resolve_version)"
+
+  Log "=== Build Phase ==="
+  for v in "${VARIANTS_TO_BUILD[@]}"; do
+    BuildVariant "$v" "${version}" "${PUSH}" "${NO_CACHE}"
+  done
+}
+
+
+# ======================
+#       Functions
+# (determine/return; snake_case; with `function`)
+# ======================
+
+function is_valid_variant() {
   local v="$1"
+  local known
   for known in "${ALL_VARIANTS[@]}"; do
     if [[ "$known" == "$v" ]]; then
       return 0
@@ -50,26 +67,170 @@ is_valid_variant() {
   return 1
 }
 
-select_cosign_key() {
-  if [[ -n "${COSIGN_KEY:-}" ]]; then
-    COSIGN_KEY_REF="env://COSIGN_KEY"
-    log "Cosign: using key from COSIGN_KEY environment variable"
+function resolve_version() {
+  local tag=""
+  if [[ -f "${VERSION_FILE}" ]]; then
+    tag="$(tr -d ' \t\n\r' < "${VERSION_FILE}")"
+    [[ -z "${tag}" ]] && Die "Version file '${VERSION_FILE}' is empty."
   else
-    COSIGN_KEY_FILE="${COSIGN_KEY_FILE:-$COSIGN_KEY_FILE_DEFAULT}"
-    if [[ ! -f "${COSIGN_KEY_FILE}" ]]; then
-      die "Cosign key file not found at '${COSIGN_KEY_FILE}'. Set COSIGN_KEY or COSIGN_KEY_FILE."
+    Die "No --version provided and '${VERSION_FILE}' not found."
+  fi
+
+  echo "${tag}"
+}
+
+function select_cosign_key() {
+  if [[ -n "${COSIGN_KEY:-}" ]]; then
+    echo "env://COSIGN_KEY"
+  else
+    local key_file="${COSIGN_KEY_FILE:-$COSIGN_KEY_FILE_DEFAULT}"
+
+    if [[ ! -f "$key_file" ]]; then
+      Die "Cosign key file not found at '$key_file'. Set COSIGN_KEY or COSIGN_KEY_FILE."
     fi
-    COSIGN_KEY_REF="${COSIGN_KEY_FILE}"
-    log "Cosign: using key file ${COSIGN_KEY_FILE}"
+
+    echo "$key_file"
   fi
 }
 
-sign_images() {
+# ======================
+#        Actions
+# (side effects; no `function` keyword)
+# ======================
+
+Log() { printf "\033[1;34m[info]\033[0m %s\n" "$1"; }
+Err() { printf "\033[1;31m[err]\033[0m %s\n" "$1" >&2; }
+Die() { Err "$1"; exit 1; }
+
+BuildVariant() {
+  local variant="$1"
+  local version="$2"
+  local do_push="$3"
+  local no_cache="$4"
+
+  local tags_arg=()
+  local context_dir="workspace/${variant}"
+  local docker_file="${context_dir}/Dockerfile"
+
+  tags_arg+=( -t "${IMAGE_NAME}:${variant}-${version}" )
+
+  if [[ ! "$version" =~ --rc([0-9]+)?$ ]]; then
+    tags_arg+=( -t "${IMAGE_NAME}:${variant}-latest" )
+  fi
+
+  # Pretty-print tags
+  local tags_str=""
+  printf -v tags_str '%s ' "${tags_arg[@]}"
+  tags_str="${tags_str//-t /}"
+
+  Log "[$variant]: Image:      ${IMAGE_NAME}"
+  Log "[$variant]: Variant:    ${variant}"
+  Log "[$variant]: Version:    ${version}"
+  Log "[$variant]: Context:    ${context_dir}"
+  Log "[$variant]: Dockerfile: ${docker_file}"
+  Log "[$variant]: Tags:       ${tags_str}"
+  Log "[$variant]: No cache:   ${no_cache}"
+  echo ""
+
+  # --- Sanity checks ---
+  [[ -d "${context_dir}" ]] || Die "Context dir not found: ${context_dir}"
+  [[ -f "${docker_file}" ]] || Die "Dockerfile not found: ${docker_file}"
+
+  # Optional args
+  local no_cache_arg=()
+  if [[ "${no_cache}" == "true" ]]; then
+    no_cache_arg+=( --no-cache )
+  fi
+
+  if [[ "${do_push}" == "true" ]]; then
+    Log "[$variant]: Setting up buildx (driver: docker-container; multi-arch: ${PLATFORMS})"
+    docker buildx create --use --name ci_builder >/dev/null 2>&1 || docker buildx use ci_builder
+    docker buildx inspect --bootstrap >/dev/null
+
+    Log "[$variant]: Building with buildx (push)"
+    docker buildx build \
+      "${no_cache_arg[@]}" \
+      --platform "${PLATFORMS}" \
+      -f "${docker_file}" \
+      --build-arg "WS_VERSION_TAG=${version}" \
+      "${tags_arg[@]}" \
+      "${context_dir}" \
+      --push
+
+    Log "[$variant]: Calling cosign to sign pushed images for variant '${variant}'"
+    SignImages "${tags_arg[@]}"
+
+    # Pull back the main tag for local use
+    Log "[$variant]: Pulling pushed image for local use"
+    docker pull "${IMAGE_NAME}:${variant}-${version}"
+
+  else
+    Log "[$variant]: Local build (plain 'docker build')"
+    export DOCKER_BUILDKIT=1
+    docker build \
+      "${no_cache_arg[@]}" \
+      -f "${docker_file}" \
+      --build-arg "WS_VERSION_TAG=${version}" \
+      "${tags_arg[@]}" \
+      "${context_dir}"
+  fi
+
+  Log "[$variant]: Done."
+  echo
+}
+
+ParseArgs() {
+  local positional=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --push)       PUSH="true";      shift ;;
+      --no-cache)   NO_CACHE="true";  shift ;;
+      -h|--help)    Usage;            exit 0 ;;
+      *)            positional+=("$1"); shift ;;
+    esac
+  done
+
+  if ((${#positional[@]} > 0)); then
+    VARIANTS_TO_BUILD=("${positional[@]}")
+  else
+    VARIANTS_TO_BUILD=("${ALL_VARIANTS[@]}")
+  fi
+}
+
+SetupPushEnvironment() {
+  if [[ "${PUSH}" != "true" ]]; then
+    return 0
+  fi
+
+  if [[ -z "${DOCKERHUB_USERNAME:-}" || -z "${DOCKERHUB_TOKEN:-}" ]]; then
+    echo "❌ Username or password not set."
+    echo "   Make sure both DOCKERHUB_USERNAME and DOCKERHUB_TOKEN are set."
+    exit 3
+  fi
+
+  Log "Logging in to Docker Hub as ${DOCKERHUB_USERNAME}"
+  if ! echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin; then
+    echo "❌ Docker login failed"
+    exit 4
+  fi
+  echo
+
+  if ! command -v cosign >/dev/null 2>&1; then
+    Die "cosign not found in PATH but --push was requested. Install cosign to sign images."
+  fi
+
+  COSIGN_KEY_REF="$(select_cosign_key)"
+  Log "Cosign: using key reference: ${COSIGN_KEY_REF}"
+}
+
+SignImages() {
   local -a args=("$@")
   local -a tags=()
-  local token expect_ref=0
+  local token
+  local expect_ref=0
 
-  echo "Extract image references from -t <ref> pairs"
+  Log "Extracting image references from -t <ref> pairs"
   for token in "${args[@]}"; do
     if (( expect_ref )); then
       tags+=("$token")
@@ -80,115 +241,39 @@ sign_images() {
   done
 
   if (( expect_ref )); then
-    die "Malformed TAGS_ARG: '-t' at end with no image reference"
+    Die "Malformed TAGS_ARG: '-t' at end with no image reference"
   fi
 
   if [[ "${#tags[@]}" -eq 0 ]]; then
-    log "Cosign: no images found to sign (TAGS_ARG was empty?)"
+    Log "Cosign: no images found to sign (TAGS_ARG was empty?)"
     return 0
   fi
 
-  log "Cosign: signing the following tags (cosign will resolve digests):"
+  Log "Cosign: signing the following tags (cosign will resolve digests):"
+  local tag
   for tag in "${tags[@]}"; do
-    log "  - ${tag}"
+    Log "  - ${tag}"
   done
 
   for tag in "${tags[@]}"; do
     if [[ "${VERBOSE:-false}" == "true" ]]; then
-      log "Cosign: signing tag ${tag} with key ${COSIGN_KEY_REF}"
+      Log "Cosign: signing tag ${tag} with key ${COSIGN_KEY_REF}"
       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
       cosign sign --yes --key "${COSIGN_KEY_REF}" "${tag}" || \
-        die "cosign sign failed for image tag: ${tag}"
+        Die "cosign sign failed for image tag: ${tag}"
     else
-      log "Cosign: signing tag ${tag}"
+      Log "Cosign: signing tag ${tag}"
       if ! COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
         cosign sign --yes --key "${COSIGN_KEY_REF}" "${tag}" >/dev/null 2>&1; then
-        die "cosign sign failed for image tag: ${tag} (re-run with VERBOSE=true for details)"
+        Die "cosign sign failed for image tag: ${tag} (re-run with VERBOSE=true for details)"
       fi
     fi
   done
 
-  log "Cosign: successfully signed ${#tags[@]} tag(s)."
+  Log "Cosign: successfully signed ${#tags[@]} tag(s)."
 }
 
-# --- Resolve version ---
-VERSION_TAG=""
-if [[ -f "${VERSION_FILE}" ]]; then
-  VERSION_TAG="$(tr -d ' \t\n\r' < "${VERSION_FILE}")"
-  [[ -z "${VERSION_TAG}" ]] && die "Version file '${VERSION_FILE}' is empty."
-else
-  die "No --version provided and '${VERSION_FILE}' not found."
-fi
-
-build_variant() {
-  VARIANT="${1:-container}"
-  DO_PUSH="${2:-false}"
-  TAGS_ARG=()
-  CONTEXT_DIR="workspace/${VARIANT}"
-  DOCKER_FILE="${CONTEXT_DIR}/Dockerfile"
-
-  TAGS_ARG+=( -t "${IMAGE_NAME}:${VARIANT}-${VERSION_TAG}" )
-
-  if [[ ! "$VERSION_TAG" =~ --rc([0-9]+)?$ ]]; then
-    TAGS_ARG+=( -t "${IMAGE_NAME}:${VARIANT}-latest" )
-  fi
-
-  # Pretty-print tags
-  printf -v TAGS_STR '%s ' "${TAGS_ARG[@]}"
-  TAGS_STR="${TAGS_STR//-t /}"
-
-  log "Image:      ${IMAGE_NAME}"
-  log "Variant:    ${VARIANT}"
-  log "Version:    ${VERSION_TAG}"
-  log "Context:    ${CONTEXT_DIR}"
-  log "Dockerfile: ${DOCKER_FILE}"
-  log "Tags:       ${TAGS_STR}"
-  log "No cache:   ${NO_CACHE}"
-
-  # --- Sanity checks ---
-  [[ -d "${CONTEXT_DIR}" ]] || die "Context dir not found: ${CONTEXT_DIR}"
-  [[ -f "${DOCKER_FILE}" ]] || die "Dockerfile not found: ${DOCKER_FILE}"
-
-  # Optional args
-  NO_CACHE_ARG=()
-  if [[ "${NO_CACHE}" == "true" ]]; then
-    NO_CACHE_ARG+=( --no-cache )
-  fi
-
-  if [[ "${DO_PUSH}" == "true" ]]; then
-    log "Setting up buildx (driver: docker-container; multi-arch: ${PLATFORMS})"
-    docker buildx create --use --name ci_builder >/dev/null 2>&1 || docker buildx use ci_builder
-    docker buildx inspect --bootstrap >/dev/null
-
-    log "Building with buildx (push)"
-    docker buildx build \
-      "${NO_CACHE_ARG[@]}" \
-      --platform "${PLATFORMS}" \
-      -f "${DOCKER_FILE}" \
-      --build-arg "VERSION_TAG=${VERSION_TAG}" \
-      "${TAGS_ARG[@]}" \
-      "${CONTEXT_DIR}" \
-      --push
-
-    # log "Calling cosign to sign pushed images for variant '${VARIANT}'"
-    # sign_images "${TAGS_ARG[@]}"
-
-  else
-    log "Local build (plain 'docker build')"
-    export DOCKER_BUILDKIT=1
-    docker build \
-      "${NO_CACHE_ARG[@]}" \
-      -f "${DOCKER_FILE}" \
-      --build-arg "VERSION_TAG=${VERSION_TAG}" \
-      "${TAGS_ARG[@]}" \
-      "${CONTEXT_DIR}"
-  fi
-
-  log "Done."
-  echo
-}
-
-usage() {
+Usage() {
   cat <<EOF
 Usage: ./build.sh [--push] [--no-cache] [variant ...]
 Options:
@@ -222,70 +307,17 @@ Examples:
 EOF
 }
 
-# --- Parse parameters ---
-PUSH="false"
-NO_CACHE="false"
-POSITIONAL=()
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --push)       PUSH="true";        shift  ;;
-    --no-cache)   NO_CACHE="true";    shift  ;;
-    -h|--help)    usage;              exit 0 ;;
-    *)            POSITIONAL+=("$1"); shift  ;;
-  esac
-done
-
-set -- "${POSITIONAL[@]}"
-
-if [[ $# -gt 0 ]];
-then  VARIANTS_TO_BUILD=("$@")
-else  VARIANTS_TO_BUILD=("${ALL_VARIANTS[@]}")
-fi
-
-for v in "${VARIANTS_TO_BUILD[@]}"; do
-  if ! is_valid_variant "$v"; then
-    err "Unknown variant: '$v'"
-    echo
-    usage
-    exit 2
-  fi
-done
-
-# --- Docker login (non-interactive) ---
-if [[ "${PUSH}" == "true" ]]; then
-  if [[ -z "${DOCKERHUB_USERNAME:-}" || -z "${DOCKERHUB_TOKEN:-}" ]]; then
-    echo "❌ Username or password not set."
-    echo "   Make sure both DOCKERHUB_USERNAME and DOCKERHUB_TOKEN are set."
-    exit 3
-  fi
-  log "Logging in to Docker Hub as ${DOCKERHUB_USERNAME}"
-  if ! echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin; then
-    echo "❌ Docker login failed"
-    exit 4
-  fi
-
-  # DISABLED: It create dockerhub entires that are not runnable. Will have to figure out the right way.
-  # if ! command -v cosign >/dev/null 2>&1; then
-  #   die "cosign not found in PATH but --push was requested. Install cosign to sign images."
-  # fi
-  # select_cosign_key
-
-fi
-
-# --- Build Phase ---
-log "=== Build Phase ==="
-for v in "${VARIANTS_TO_BUILD[@]}"; do
-  build_variant "$v" "false"
-done
-
-# --- Push Phase ---
-if [[ "${PUSH}" == "true" ]]; then
-  log "=== Push Phase ==="
-  for v in "${PUSH_ORDER[@]}"; do
-    # Check if this variant was requested to be built
-    if [[ " ${VARIANTS_TO_BUILD[*]} " =~ " ${v} " ]]; then
-      build_variant "$v" "true"
+ValidateVariants() {
+  local v
+  for v in "${VARIANTS_TO_BUILD[@]}"; do
+    if ! is_valid_variant "$v"; then
+      Err "Unknown variant: '$v'"
+      echo
+      Usage
+      exit 2
     fi
   done
-fi
+}
+
+# --- Entry point ---
+Main "$@"

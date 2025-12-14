@@ -10,4 +10,8 @@ trap cleanup EXIT INT TERM
 
 
 DOCKER_BUILDKIT=1 docker build -t http-server .
+
+echo
+echo "Start http-server on port ${SERVER_PORT} ... "
+echo "Press Ctrl+C to terminate."
 docker run -p ${SERVER_PORT}:${SERVER_PORT} http-server

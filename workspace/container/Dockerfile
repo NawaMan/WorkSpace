@@ -121,7 +121,7 @@ RUN apt-get update && apt-get install -y ttyd \
   && rm -rf /var/lib/apt/lists/*
 
 # Suppress the WSL Visual Studio Code prompt
-RUN echo 'DONT_PROMPT_WSL_INSTALL=1' >> /etc/environment
+ENV DONT_PROMPT_WSL_INSTALL=1
 
 # Entry that aligns coder’s uid/gid to host, then drops privileges
 COPY --chmod=0755 ./setups/ /opt/workspace/setups/

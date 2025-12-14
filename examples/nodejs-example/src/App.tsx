@@ -47,12 +47,12 @@ export default function App() {
     <div className="app">
       <h1>Time App</h1>
       <div className="cards">
-        <div className="card">
+        <div className="card time-card">
           <h2>Client Time</h2>
           <p className="time">{format(clientNow)}</p>
           <p className="sub">ISO: {clientNow.toISOString()}</p>
         </div>
-        <div className="card">
+        <div className="card time-card">
           <h2>Server Time</h2>
           {serverDate ? (
             <>
