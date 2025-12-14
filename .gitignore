@@ -84,3 +84,15 @@ tests/dryrun/test--.env
 tests/dryrun/test--config.sh
 
 playground/
+
+demos/.Trash-1000/
+
+# Virtual environments (Python)
+venv/
+ENV/
+env/
+*.venv/
+
+# Poetry virtualenvs inside `__pypackages__`
+__pypackages__/
+
