@@ -87,12 +87,12 @@ codeserver_setup_info() {
   [ -x "$launcher" ] && _ok "Launcher: $launcher"
 
   _hdr "Python / venv"
-  local venv="${VENV_DIR:-${VENV_SERIES_DIR:-/opt/venvs/py${PY_SERIES:-}}}"
+  local venv="${WS_VENV_DIR:-${VENV_SERIES_DIR:-/opt/venvs/py${PY_SERIES:-}}}"
   if [ -n "$venv" ] && [ -x "$venv/bin/python" ]; then
-    _ok "VENV_DIR: $venv"
+    _ok "WS_VENV_DIR: $venv"
     _ok "Python: $("$venv/bin/python" -V 2>&1)"
   elif [ -x /opt/python/bin/python ]; then
-    _warn "VENV_DIR not set; using /opt/python"
+    _warn "WS_VENV_DIR not set; using /opt/python"
     _ok "Python: $(/opt/python/bin/python -V 2>&1)"
   else
     _err "No Python interpreter found"
