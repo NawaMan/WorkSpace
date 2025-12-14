@@ -30,7 +30,6 @@ RUN set -euo pipefail         \
   locales                 \
   nano                    \
   ranger                  \
-  rsync                   \
   sudo                    \
   tar                     \
   tig                     \

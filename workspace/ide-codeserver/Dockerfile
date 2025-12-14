@@ -9,11 +9,11 @@ USER root
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 
 RUN "$WS_SETUPS_DIR/python--setup.sh" "${WS_PY_VERSION}" 
-RUN "$WS_SETUPS_DIR/codeserver--setup.sh"
-RUN "$WS_SETUPS_DIR/python-code-extension--setup.sh"
-RUN "$WS_SETUPS_DIR/jupyter-code-extension--setup.sh"
-RUN "$WS_SETUPS_DIR/base-code-extension--setup.sh"
-RUN "$WS_SETUPS_DIR/bash-code-extension--setup.sh"
-RUN "$WS_SETUPS_DIR/bash-nb-kernel--setup.sh"
+# RUN "$WS_SETUPS_DIR/codeserver--setup.sh"
+# RUN "$WS_SETUPS_DIR/python-code-extension--setup.sh"
+# RUN "$WS_SETUPS_DIR/jupyter-code-extension--setup.sh"
+# RUN "$WS_SETUPS_DIR/base-code-extension--setup.sh"
+# RUN "$WS_SETUPS_DIR/bash-code-extension--setup.sh"
+# RUN "$WS_SETUPS_DIR/bash-nb-kernel--setup.sh"
 
 CMD ["codeserver"]
