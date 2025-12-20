@@ -266,10 +266,27 @@ SignImages() {
         Die "cosign sign failed for image tag: ${tag}"
     else
       Log "Cosign: signing tag ${tag}"
-      if ! COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
-        cosign sign --yes --upload=false --key "${COSIGN_KEY_REF}" "${tag}" >/dev/null 2>&1; then
-        Die "cosign sign failed for image tag: ${tag} (re-run with VERBOSE=true for details)"
-      fi
+
+      # Retry to handle registry propagation delays (common right after buildx --push)
+      local attempt=1
+      local max_attempts=4
+      local err_out=""
+      while (( attempt <= max_attempts )); do
+        err_out="$(
+          COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
+          cosign sign --yes --upload=false --key "${COSIGN_KEY_REF}" "${tag}" 2>&1 >/dev/null
+        )" && break
+
+        if (( attempt == max_attempts )); then
+          Err "Cosign: failed to sign ${tag}. cosign output:"
+          printf '%s\n' "${err_out}" >&2
+          Die "cosign sign failed for image tag: ${tag} (re-run with VERBOSE=true for full logs)"
+        fi
+
+        Log "Cosign: sign failed for ${tag} (attempt ${attempt}/${max_attempts}); retrying shortly..."
+        sleep $(( attempt * 2 ))
+        attempt=$(( attempt + 1 ))
+      done
     fi
   done
 
