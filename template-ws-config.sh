@@ -23,7 +23,7 @@
 ### -------------------------------------------------------------------------------------
 ### Image selection (precedence: IMAGE_NAME > DOCKER_FILE > prebuilt VARIANT/VERSION)
 ### -------------------------------------------------------------------------------------
-# VARIANT=container     # One of: container | notebook | codeserver | desktop-{xfce,kde,lxqt}
+# VARIANT=container     # One of: container | notebook | codeserver | desktop-{xfce,kde}
 # VERSION=latest        # Prebuilt version tag (default: latest)
 
 # IMAGE_NAME=           # Full image reference (e.g. repo/name:tag). If set, no build/pull logic runs.

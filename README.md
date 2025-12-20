@@ -101,7 +101,7 @@ Each variant comes pre-configured with a curated toolset and a consistent runtim
 - **`ide-codeserver`** – A web-based VS Code environment powered by [`code-server`](https://github.com/coder/code-server).  
   Provides a full browser-accessible IDE with Git integration, terminals, and extensions.
 
-- **[`desktop-xfce`]( https://www.xfce.org  )**, **[`desktop-kde`]( https://kde.org/plasma-desktop)**, **[`desktop-lxqt`]( https://lxqt-project.org)** – Full Linux desktop environments accessible via browser or remote desktop (e.g., [noVNC](https://novnc.com)).  
+- **[`desktop-xfce`]( https://www.xfce.org  )**, **[`desktop-kde`]( https://kde.org/plasma-desktop)** – Full Linux desktop environments accessible via browser or remote desktop (e.g., [noVNC](https://novnc.com)).  
   Useful for GUI-heavy workflows or running native IDEs like [IntelliJ IDEA](https://www.jetbrains.com/idea/), [PyCharm](https://www.jetbrains.com/pycharm/), or [Eclipse](https://www.eclipse.org) inside Docker.
 
 All variants expose its UI on port 10000 but NEXT and RANDOM can be use. See [Port](#6-ports) for more details. 
@@ -121,13 +121,12 @@ The `ValidateVariant()` logic supports several shortcuts and fallback values:
 | desktop	    | desktop-xfce     |
 | xfce        | desktop-xfce     |
 | kde	        | desktop-kde      |
-| lxqt        | desktop-lxqt     |
 
 If an unknown value is provided, WorkSpace will exit with an error listing supported variants and aliases.
 
 ### Desktop Configuration
 
-For desktop variants (`desktop-xfce`, `desktop-kde`, `desktop-lxqt`), you can customize the screen resolution by setting the `GEOMETRY` environment variable.
+For desktop variants (`desktop-xfce`, `desktop-kde`), you can customize the screen resolution by setting the `GEOMETRY` environment variable.
 
 **Default:** `1280x800`
 

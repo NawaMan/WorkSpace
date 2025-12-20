@@ -23,7 +23,6 @@ VARIANTS=(
   "ide-codeserver:ide-codeserver"
   "desktop-xfce:desktop-xfce"
   "desktop-kde:desktop-kde"
-  "desktop-lxqt:desktop-lxqt"
 
   # aliases
   "default:ide-codeserver"
@@ -33,7 +32,6 @@ VARIANTS=(
   "codeserver:ide-codeserver"
   "xfce:desktop-xfce"
   "kde:desktop-kde"
-  "lxqt:desktop-lxqt"
 )
 
 for entry in "${VARIANTS[@]}"; do

@@ -73,7 +73,6 @@ This file contains a list of changes for each released version.
 - **Desktop**
   - XFCE
   - KDE
-  - LXQt
 
 ### Supported Setups
 - `brew`

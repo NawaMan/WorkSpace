@@ -20,7 +20,6 @@ ALL_VARIANTS=(
   ide-codeserver
   desktop-xfce
   desktop-kde
-  desktop-lxqt
 )
 
 # Script state (globals)
@@ -287,7 +286,6 @@ Variants (if none provided, all are built):
   ide-codeserver
   desktop-xfce
   desktop-kde
-  desktop-lxqt
 
 Environment:
   COSIGN_KEY        Cosign private key content (PEM) stored directly in env; used if set
