@@ -13,6 +13,8 @@ fi
 
 strip_ansi() { sed -r 's/\x1B\[[0-9;]*[A-Za-z]//g'; }
 
+export TIMEZONE="America/Toronto"
+
 ACTUAL=$(../../workspace.sh --variant container --dryrun | strip_ansi)
 
 HERE="$CURRENT_PATH"
@@ -55,6 +57,7 @@ docker run \
 -e 'WS_HAS_VSCODE=false' \
 -e 'WS_HAS_DESKTOP=false' \
 '--pull=never' \
+-e 'TZ=America/Toronto' \
 nawaman/workspace:container-${VERSION} "
 
 

@@ -13,6 +13,8 @@ fi
 
 PORT=7654
 
+export TIMEZONE="America/Toronto"
+
 ACTUAL=$(../../workspace.sh --verbose --dryrun --port $PORT --variant container -- sleep 1)
 ACTUAL=$(printf "%s\n" "$ACTUAL" | tail -n 1)
 
@@ -45,6 +47,7 @@ docker run \
 -e 'WS_HAS_VSCODE=false' \
 -e 'WS_HAS_DESKTOP=false' \
 '--pull=never' \
+-e 'TZ=America/Toronto' \
 nawaman/workspace:container-${VERSION} \
 bash -lc 'sleep 1' \
 "

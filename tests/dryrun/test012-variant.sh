@@ -14,6 +14,8 @@ fi
 HERE="$CURRENT_PATH"
 VERSION="$(cat ../../version.txt)"
 
+export TIMEZONE="America/Toronto"
+
 # Each entry is WANT_VARIANT:GOT_VARIANT
 VARIANTS=(
   "container:container"
@@ -75,6 +77,7 @@ docker run \
 -e 'WS_HAS_VSCODE=${HAS_VSCODE}' \
 -e 'WS_HAS_DESKTOP=${HAS_DESKTOP}' \
 '--pull=never' \
+-e 'TZ=America/Toronto' \
 nawaman/workspace:${GOT_VARIANT}-${VERSION} \
 bash -lc 'sleep 1' \
 "

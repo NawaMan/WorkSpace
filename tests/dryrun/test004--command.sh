@@ -11,6 +11,8 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     CURRENT_PATH="$(pwd -W)"
 fi
 
+export TIMEZONE="America/Toronto"
+
 ACTUAL=$(../../workspace.sh --variant container --dryrun -- tree -C)
 
 HERE="$CURRENT_PATH"
@@ -41,6 +43,7 @@ docker run \
 -e 'WS_HAS_VSCODE=false' \
 -e 'WS_HAS_DESKTOP=false' \
 '--pull=never' \
+-e 'TZ=America/Toronto' \
 nawaman/workspace:container-${VERSION} \
 bash -lc 'tree -C' "
 

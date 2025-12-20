@@ -42,6 +42,7 @@ docker run \
 -e 'WS_HAS_VSCODE=false' \
 -e 'WS_HAS_DESKTOP=false' \
 '--pull=never' \
+-e 'TZ=America/Toronto' \
 nawaman/workspace:container-${VERSION} \
 bash -lc 'sleep 1' \
 "
