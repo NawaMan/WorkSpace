@@ -11,6 +11,8 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     CURRENT_PATH="$(pwd -W)"
 fi
 
+export TIMEZONE="America/Toronto"
+
 ACTUAL=$(../../workspace.sh --verbose --dryrun --keep-alive --variant container -- sleep 1)
 ACTUAL=$(printf "%s\n" "$ACTUAL" | tail -n 1)
 
