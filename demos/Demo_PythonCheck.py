@@ -5,7 +5,7 @@ Check Python environment, installed packages, and Jupyter kernels.
 
 import os
 import sys
-import pkg_resources
+from importlib import metadata
 import subprocess
 
 def check_environment():
@@ -20,9 +20,9 @@ def check_packages():
     packages = ["pip", "setuptools", "wheel", "jupyter", "ipykernel", "bash_kernel"]
     for name in packages:
         try:
-            version = pkg_resources.get_distribution(name).version
+            version = metadata.version(name)
             print(f"{name:12s}: {version}")
-        except pkg_resources.DistributionNotFound:
+        except metadata.PackageNotFoundError:
             print(f"{name:12s}: NOT INSTALLED")
     print()
 

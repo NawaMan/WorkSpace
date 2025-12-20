@@ -55,8 +55,10 @@ env PIP_CACHE_DIR="${PIP_CACHE_DIR}" PIP_DISABLE_PIP_VERSION_CHECK=1 \
 
 # Kernelspec (use actual patch version for display), bound to this venv
 ACTUAL_VER="$("$VENV_PY" -c 'import sys;print(".".join(map(str,sys.version_info[:3])))')"
-"$VENV_PY" -m ipykernel install --sys-prefix \
-  --name=python3 \
+"$VENV_PY"             \
+  -m ipykernel install \
+  --sys-prefix         \
+  --name=python3       \
   --display-name="Python ${ACTUAL_VER} (venv)"
 
 
@@ -87,7 +89,7 @@ codeserver_setup_info() {
   [ -x "$launcher" ] && _ok "Launcher: $launcher"
 
   _hdr "Python / venv"
-  local venv="${WS_VENV_DIR:-${VENV_SERIES_DIR:-/opt/venvs/py${PY_SERIES:-}}}"
+  local venv="${WS_VENV_DIR:-${VENV_SERIES_DIR:-/opt/venvs/py${WS_PY_SERIES:-}}}"
   if [ -n "$venv" ] && [ -x "$venv/bin/python" ]; then
     _ok "WS_VENV_DIR: $venv"
     _ok "Python: $("$venv/bin/python" -V 2>&1)"

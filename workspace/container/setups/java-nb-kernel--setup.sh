@@ -168,4 +168,4 @@ echo "   Installed under:      ${JUPYTER_KERNEL_PREFIX}/share/jupyter/kernels/${
 echo "   Display name:         ${KERNEL_DISPLAY_NAME}"
 echo "   JAVA_HOME:            ${JAVA_HOME}"
 echo "   Python used:          ${WS_VENV_DIR:-<unknown>}/bin/python"
-echo "   VENV_DIR:             ${WS_VENV_DIR:-<unknown>}"
+echo "   WS_VENV_DIR:          ${WS_VENV_DIR:-<unknown>}"

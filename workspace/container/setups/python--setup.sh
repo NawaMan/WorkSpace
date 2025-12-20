@@ -20,10 +20,9 @@ if [[ ! "$WS_PY_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
   exit 1
 fi
 
-
 PY_SERIES="$(echo "${WS_PY_VERSION}" | cut -d. -f1-2)"
 
-# ---- vraibles ----
+# ---- variables ----
 WS_PYENV_ROOT="/opt/pyenv"                        # system-wide pyenv
 WS_VENV_ROOT="/opt/venvs"                         # shared venvs root
 WS_VENV_DIR="${WS_VENV_ROOT}/py${WS_PY_VERSION}"  # venv directory
@@ -31,12 +30,14 @@ WS_VENV_DIR="${WS_VENV_ROOT}/py${WS_PY_VERSION}"  # venv directory
 STABLE_PY_LINK="/opt/python"    # stable, version-agnostic symlink
 PIP_CACHE_DIR="/opt/pip-cache"  # shared pip cache
 
-
 # System-wide location to host UV-installed pythons (mirrored out of /root, etc.)
 UV_PYTHONS_DIR="/opt/local-pythons"
 
-export DEBIAN_FRONTEND=noninteractive
+# Thin wrappers to ensure "pip" always uses the selected python (avoid confusion w/ apt)
+PIP_WRAPPER="/usr/local/bin/pip"
+PIP3_WRAPPER="/usr/local/bin/pip3"
 
+export DEBIAN_FRONTEND=noninteractive
 
 # ---- dirs & shared perms ----
 mkdir -p   "$WS_PYENV_ROOT" "$WS_VENV_ROOT" "$PIP_CACHE_DIR" "$UV_PYTHONS_DIR"
@@ -168,10 +169,25 @@ ln -sfn "${ENV_PATH}" "${WS_VENV_ROOT}/py${PY_SERIES}"
 
 # ---- stable symlink & convenience shims ----
 ln -snf "$ENV_PATH" "$STABLE_PY_LINK"
+
+# Prefer stable venv for python/python3 via /usr/local/bin (PATH usually picks this before /usr/bin)
 ln -sfn "${STABLE_PY_LINK}/bin/python" /usr/local/bin/python  || true
-ln -sfn "${STABLE_PY_LINK}/bin/pip"    /usr/local/bin/pip     || true
 ln -sfn "${STABLE_PY_LINK}/bin/python" /usr/local/bin/python3 || true
-ln -sfn "${STABLE_PY_LINK}/bin/pip"    /usr/local/bin/pip3    || true
+
+# Thin wrappers: ensure "pip" always means "python -m pip" for the stable venv
+cat >"$PIP_WRAPPER" <<'EOF'
+#!/bin/sh
+set -eu
+exec /opt/python/bin/python -m pip "$@"
+EOF
+chmod 0755 "$PIP_WRAPPER"
+
+cat >"$PIP3_WRAPPER" <<'EOF'
+#!/bin/sh
+set -eu
+exec /opt/python/bin/python -m pip "$@"
+EOF
+chmod 0755 "$PIP3_WRAPPER"
 
 # refresh command lookup cache in case this shell keeps running more commands
 hash -r || true
@@ -186,10 +202,22 @@ export PIP_CACHE_DIR="/opt/pip-cache"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PYTHONUNBUFFERED=1
 
+# Avoid env vars that can break venv resolution
+unset PYTHONHOME
+
+# Make the stable venv "the" python by default for shells:
+export VIRTUAL_ENV="/opt/python"
+
 # Put /opt/python/bin first exactly once
 case ":$PATH:" in
   *":${WS_PY_STABLE}/bin:"*) ;;
   *) PATH="${WS_PY_STABLE}/bin:${PATH}" ;;
+esac
+
+# Put /usr/local/bin early (thin pip wrappers + python shims live here)
+case ":$PATH:" in
+  *":/usr/local/bin:"*) ;;
+  *) PATH="/usr/local/bin:${PATH}" ;;
 esac
 
 # Ensure pyenv shims are on PATH (once)
@@ -204,10 +232,7 @@ case ":$PATH:" in
   *) PATH="/usr/local/uv/bin:/usr/local/uv:${PATH}" ;;
 esac
 
-source "/opt/python/bin/activate"
-
-
-# Auto-activate the series venv that matches /opt/python (managed by python--setup.sh)
+# Auto-select the series venv that matches /opt/python (managed by python--setup.sh)
 
 # 1) Resolve active version from the stable symlink
 if [ -x /opt/python/bin/python ]; then
@@ -218,7 +243,7 @@ fi
 export WS_PY_VERSION
 export WS_VENV_DIR="/opt/venvs/py${WS_PY_VERSION}"
 
-# 2) Compute the series (X.Y) from WS_PY_STABLE_VERSION (POSIX-safe)
+# 2) Compute the series (X.Y) from WS_PY_VERSION (POSIX-safe)
 # Examples: 3.12.11 -> 3.12 ; 3.12 -> 3.12 ; 3 -> ""
 case "${WS_PY_VERSION}" in
   *.*.*) WS_PY_SERIES="${WS_PY_VERSION%.*}" ;;  # strip patch only
@@ -247,16 +272,19 @@ fi
 # ---- python_setup_info helper ----
 python_setup_info() {
   set -o pipefail
-  _ok()  { printf "✅ %s\n" "$*"; }
   _hdr() { printf "\n\033[1m%s\033[0m\n" "$*"; }
 
   _hdr "Python setup summary"
   printf "WS_PYENV_ROOT=%s\n"        "$WS_PYENV_ROOT"
   printf "WS_PY_STABLE=%s\n"         "$WS_PY_STABLE"
   printf "WS_VENV_ROOT=%s\n"         "$WS_VENV_ROOT"
-  printf "WS_PY_STABLE_VERSION=%s\n" "$WS_PY_STABLE_VERSION"
+  printf "WS_PY_VERSION=%s\n"        "$WS_PY_VERSION"
   printf "WS_PY_SERIES=%s\n"         "$WS_PY_SERIES"
   printf "WS_VENV_SERIES_DIR=%s\n"   "$WS_VENV_SERIES_DIR"
+  printf "VIRTUAL_ENV=%s\n"          "${VIRTUAL_ENV:-}"
+  printf "python=%s\n"               "$(command -v python 2>/dev/null || true)"
+  printf "python3=%s\n"              "$(command -v python3 2>/dev/null || true)"
+  printf "pip=%s\n"                  "$(command -v pip 2>/dev/null || true)"
 }
 
 # #== Override what venv activation does ==
@@ -268,7 +296,6 @@ export PROMPT="%%B%%F{green}${WS_CONTAINER_NAME:-workspace}%%b%%f:%%B%%F{blue}%%
 alias python-setup-info='python_setup_info'
 EOF
 chmod 0644 "$PROFILE_FILE"
-
 
 ensure_env() {
   key="$1"; val="$2"
@@ -285,19 +312,21 @@ ensure_env WS_VENV_ROOT                  /opt/venvs
 ensure_env PIP_CACHE_DIR                 /opt/pip-cache
 ensure_env PIP_DISABLE_PIP_VERSION_CHECK 1
 ensure_env PYTHONUNBUFFERED              1
+ensure_env VIRTUAL_ENV                   /opt/python
 
 # ---- summary ----
 ACTIVE_VER="$("${STABLE_PY_LINK}/bin/python" -c 'import sys;print(".".join(map(str,sys.version_info[:3])))' 2>/dev/null || true)"
 "${STABLE_PY_LINK}/bin/python" -V || true
-"${STABLE_PY_LINK}/bin/pip" --version || true
+"${STABLE_PY_LINK}/bin/python" -m pip --version || true
 echo "✅ pyenv at ${WS_PYENV_ROOT}"
 echo "✅ Python ${WS_PY_VERSION} mirrored at ${DEST_PREFIX} and registered under pyenv at ${PY_PREFIX}"
 echo "✅ Venv '${ENV_NAME}' at ${ENV_PATH}"
 echo "✅ Stable Python symlink at ${STABLE_PY_LINK} → $(readlink -f "${STABLE_PY_LINK}")"
-echo "✅ ${PROFILE_FILE} ensures /opt/python/bin to auto-activates /opt/venvs/py\${PY_SERIES}"
+echo "✅ ${PROFILE_FILE} sets VIRTUAL_ENV=/opt/python and puts /opt/python/bin first on PATH (for shells)"
+echo "✅ pip/pip3 wrappers installed at /usr/local/bin to force 'python -m pip' (stable venv)"
 echo "✅ ACTIVE_VER detected now: ${ACTIVE_VER}"
 echo
-echo "Open a NEW shell and verify:"
-echo "  source /etc/profile.d/53-ws-python--profile.sh"
-echo "  which python && python -V"
-echo "  echo \"PY_STABLE_VERSION=\$PY_STABLE_VERSION  PY_SERIES=\$PY_SERIES  VENV_SERIES_DIR=\$VENV_SERIES_DIR\""
+echo "Verify (in any shell):"
+echo "  which python3 && python3 -V"
+echo "  python3 -c 'import sys; print(sys.executable); print(sys.base_prefix); print(sys.prefix)'"
+echo "  pip --version"

@@ -1,4 +1,4 @@
-//usr/bin/env jbang
+// Note: Run with : `cat Demo.java | jbang -`
 
 void main() {
     var name = "Tony Stark";
