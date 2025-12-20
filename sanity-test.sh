@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-VARIANT=${1:-container}
+VARIANT=${1:-base}
 
 # Define cleanup
 cleanup() {

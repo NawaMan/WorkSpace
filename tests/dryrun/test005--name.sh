@@ -13,7 +13,7 @@ fi
 
 export TIMEZONE="America/Toronto"
 
-ACTUAL=$(../../workspace.sh --variant container --dryrun --name test-container -- tree -C)
+ACTUAL=$(../../workspace.sh --variant base --dryrun --name test-container -- tree -C)
 
 HERE="$CURRENT_PATH"
 VERSION="$(cat ../../version.txt)"
@@ -32,9 +32,9 @@ docker run \
 -e 'WS_CONTAINER_NAME=test-container' \
 -e 'WS_DAEMON=false' \
 -e 'WS_HOST_PORT=10000' \
--e 'WS_IMAGE_NAME=nawaman/workspace:container-${VERSION}' \
+-e 'WS_IMAGE_NAME=nawaman/workspace:base-${VERSION}' \
 -e 'WS_RUNMODE=COMMAND' \
--e 'WS_VARIANT_TAG=container' \
+-e 'WS_VARIANT_TAG=base' \
 -e 'WS_VERBOSE=false' \
 -e 'WS_VERSION_TAG=${VERSION}' \
 -e 'WS_WORKSPACE_PATH=${HERE}' \
@@ -44,7 +44,7 @@ docker run \
 -e 'WS_HAS_DESKTOP=false' \
 '--pull=never' \
 -e 'TZ=America/Toronto' \
-nawaman/workspace:container-${VERSION} \
+nawaman/workspace:base-${VERSION} \
 bash -lc 'tree -C' "
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then

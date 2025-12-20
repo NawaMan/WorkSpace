@@ -91,7 +91,7 @@ Each variant comes pre-configured with a curated toolset and a consistent runtim
 
 ### Available Variants
 
-- **`container`** – A minimal base image with essential shell tools.  
+- **`base`** – A minimal base image with essential shell tools.  
   Ideal for building custom environments, running CLI applications, or lightweight automation tasks.
   The terminal is expose with [ttyd](https://github.com/tsl0922/ttyd) on port 10000.
 
@@ -113,8 +113,7 @@ The `ValidateVariant()` logic supports several shortcuts and fallback values:
 | Input Alias	| Resolved Variant |
 |-------------|------------------|
 | default	    | ide-codeserver   |
-| base        | container        |
-| console     | container        |
+| console     | base             |
 | ide	        | ide-codeserver   |
 | notebook    | ide-notebook     |
 | codeserver  | ide-codeserver   |
@@ -166,7 +165,7 @@ http://localhost:10000/vnc.html?autoconnect=1&host=localhost&port=10000&path=web
 
 - **Web or App Development** – Develop directly in a browser-based IDE using `--variant codeserver`, complete with terminal and Git integration.
 
-- **Lightweight CLI Workflows** – Use `--variant container` for scripting, building, and testing in an isolated but fast shell environment.
+- **Lightweight CLI Workflows** – Use `--variant base` for scripting, building, and testing in an isolated but fast shell environment.
 
 - **GUI Development Environments** – Run full desktop IDEs or graphical tools using `--variant desktop-*`.  
   Perfect for complex projects requiring a windowed environment without polluting your host.
@@ -312,7 +311,7 @@ container
 
 **Defaults**
 - **Repository:** `nawaman/workspace`  
-- **Variant:** `container`  
+- **Variant:** `base`  
 - **Version:** `latest`
 
 **Overrides**

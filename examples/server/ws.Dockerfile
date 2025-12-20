@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.7
-ARG WS_VARIANT_TAG=container
+ARG WS_VARIANT_TAG=base
 ARG WS_VERSION_TAG=latest
 FROM nawaman/workspace:${WS_VARIANT_TAG}-${WS_VERSION_TAG}
 
 # The default value is the latest LTS
 ARG WS_PY_VERSION=3.12
-ARG WS_VARIANT_TAG=container
+ARG WS_VARIANT_TAG=base
 ARG WS_JDK_VERSION=24
 ARG WS_JDK_VENDOR=temurin
 ARG WS_MVN_VERSION=3.9.11

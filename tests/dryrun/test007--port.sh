@@ -15,7 +15,7 @@ PORT=7654
 
 export TIMEZONE="America/Toronto"
 
-ACTUAL=$(../../workspace.sh --verbose --dryrun --port $PORT --variant container -- sleep 1)
+ACTUAL=$(../../workspace.sh --verbose --dryrun --port $PORT --variant base -- sleep 1)
 ACTUAL=$(printf "%s\n" "$ACTUAL" | tail -n 1)
 
 HERE="$CURRENT_PATH"
@@ -36,9 +36,9 @@ docker run \
 -e 'WS_CONTAINER_NAME=dryrun' \
 -e 'WS_DAEMON=false' \
 -e 'WS_HOST_PORT=${PORT}' \
--e 'WS_IMAGE_NAME=nawaman/workspace:container-${VERSION}' \
+-e 'WS_IMAGE_NAME=nawaman/workspace:base-${VERSION}' \
 -e 'WS_RUNMODE=COMMAND' \
--e 'WS_VARIANT_TAG=container' \
+-e 'WS_VARIANT_TAG=base' \
 -e 'WS_VERBOSE=true' \
 -e 'WS_VERSION_TAG=${VERSION}' \
 -e 'WS_WORKSPACE_PATH=${HERE}' \
@@ -48,7 +48,7 @@ docker run \
 -e 'WS_HAS_DESKTOP=false' \
 '--pull=never' \
 -e 'TZ=America/Toronto' \
-nawaman/workspace:container-${VERSION} \
+nawaman/workspace:base-${VERSION} \
 bash -lc 'sleep 1' \
 "
 

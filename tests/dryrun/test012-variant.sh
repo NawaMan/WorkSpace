@@ -18,7 +18,7 @@ export TIMEZONE="America/Toronto"
 
 # Each entry is WANT_VARIANT:GOT_VARIANT
 VARIANTS=(
-  "container:container"
+  "base:base"
   "ide-notebook:ide-notebook"
   "ide-codeserver:ide-codeserver"
   "desktop-xfce:desktop-xfce"
@@ -42,7 +42,7 @@ for entry in "${VARIANTS[@]}"; do
   ACTUAL=$(printf "%s\n" "$ACTUAL" | tail -n 1)
 
   case "${GOT_VARIANT}" in
-    container)      HAS_NOTEBOOK=false ; HAS_VSCODE=false ; HAS_DESKTOP=false ;;
+    base)           HAS_NOTEBOOK=false ; HAS_VSCODE=false ; HAS_DESKTOP=false ;;
     ide-notebook)   HAS_NOTEBOOK=true  ; HAS_VSCODE=false ; HAS_DESKTOP=false ;;
     ide-codeserver) HAS_NOTEBOOK=true  ; HAS_VSCODE=true  ; HAS_DESKTOP=false ;;
     desktop-*)      HAS_NOTEBOOK=true  ; HAS_VSCODE=true  ; HAS_DESKTOP=true  ;;

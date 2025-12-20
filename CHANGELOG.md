@@ -67,7 +67,7 @@ This file contains a list of changes for each released version.
   - `server`
 
 ### Supported Variants
-- **Container**
+- **Base**
 - **Notebook**
 - **CodeServer**
 - **Desktop**

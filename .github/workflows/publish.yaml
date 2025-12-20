@@ -11,7 +11,7 @@ jobs:
   # ---------------------------------------------------------
   # 1. Build the base container FIRST
   # ---------------------------------------------------------
-  build-container:
+  build-base:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,8 +22,8 @@ jobs:
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: Build & Push container
-        run: ./build.sh --push container
+      - name: Build & Push base
+        run: ./build.sh --push base
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
@@ -35,7 +35,7 @@ jobs:
   # 2. Build all other variants in PARALLEL
   # ---------------------------------------------------------
   build-ide-notebook:
-    needs: build-container
+    needs: build-base
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +56,7 @@ jobs:
 
 
   build-ide-codeserver:
-    needs: build-container
+    needs: build-base
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,7 +77,7 @@ jobs:
 
 
   build-desktop-xfce:
-    needs: build-container
+    needs: build-base
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -98,7 +98,7 @@ jobs:
 
 
   build-desktop-kde:
-    needs: build-container
+    needs: build-base
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

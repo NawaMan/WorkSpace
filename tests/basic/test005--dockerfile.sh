@@ -5,13 +5,13 @@ DOCKERFILE=test--dockerfile
 
 cat > $DOCKERFILE <<'EOF'
 # syntax=docker/dockerfile:1.7
-ARG VARIANT_TAG=container
+ARG VARIANT_TAG=base
 ARG VERSION_TAG=latest
 FROM nawaman/workspace:${VARIANT_TAG}-${VERSION_TAG}
 
 # The default value is the latest LTS
 ARG PY_VERSION=3.12
-ARG VARIANT_TAG=container
+ARG VARIANT_TAG=base
 
 SHELL ["/bin/bash","-o","pipefail","-lc"]
 USER root
@@ -31,6 +31,7 @@ rm -f $0.log
 ACTUAL=$(../../workspace.sh --dockerfile $DOCKERFILE -- 'echo TEST_VAR=$TEST_VAR' 2>/dev/null)
 
 EXPECT="TEST_VAR=Default-Test-Value"
+
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
   echo "✅ Match - the default test value"

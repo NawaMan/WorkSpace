@@ -27,7 +27,7 @@ if [ "${EUID}" -ne 0 ]; then
   exit 1
 fi
 
-if [[ "${WS_VARIANT_TAG:-}" == "container" ]]; then
+if [[ "${WS_VARIANT_TAG:-}" == "base" ]]; then
   echo "Variant does not include VS Code (code) or CodeServer" >&2
   exit 0
 fi

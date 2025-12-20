@@ -15,7 +15,7 @@ VERSION_FILE="version.txt"
 
 # All known variants
 ALL_VARIANTS=(
-  container
+  base
   ide-notebook
   ide-codeserver
   desktop-xfce
@@ -156,8 +156,12 @@ BuildVariant() {
       "${context_dir}" \
       --push
 
-    Log "[$variant]: Calling cosign to sign pushed images for variant '${variant}'"
-    SignImages "${tags_arg[@]}"
+    if [[ ! "$version" =~ --rc([0-9]+)?$ ]]; then
+      Log "[$variant]: Calling cosign to sign pushed images for variant '${variant}'"
+      SignImages "${tags_arg[@]}"
+    else
+      Log "[$variant]: Skipping cosign signing for RC version: ${version}"
+    fi
 
     # Pull back the main tag for local use
     Log "[$variant]: Pulling pushed image for local use"
@@ -258,12 +262,12 @@ SignImages() {
     if [[ "${VERBOSE:-false}" == "true" ]]; then
       Log "Cosign: signing tag ${tag} with key ${COSIGN_KEY_REF}"
       COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
-      cosign sign --yes --key "${COSIGN_KEY_REF}" "${tag}" || \
+      cosign sign --yes --upload=false --key "${COSIGN_KEY_REF}" "${tag}" || \
         Die "cosign sign failed for image tag: ${tag}"
     else
       Log "Cosign: signing tag ${tag}"
       if ! COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
-        cosign sign --yes --key "${COSIGN_KEY_REF}" "${tag}" >/dev/null 2>&1; then
+        cosign sign --yes --upload=false --key "${COSIGN_KEY_REF}" "${tag}" >/dev/null 2>&1; then
         Die "cosign sign failed for image tag: ${tag} (re-run with VERBOSE=true for details)"
       fi
     fi
@@ -281,7 +285,7 @@ Options:
   -h, --help      Show this help
 
 Variants (if none provided, all are built):
-  container
+  base
   ide-notebook
   ide-codeserver
   desktop-xfce
@@ -294,13 +298,13 @@ Environment:
 
 Examples:
   ./build.sh                         # local build of all variants
-  ./build.sh container               # build only 'container'
+  ./build.sh base                    # build only 'base'
   ./build.sh ide-notebook desktop-xfce
                                      # build two specific variants
-  ./build.sh --push container        # push + sign only 'container' variant
-  COSIGN_KEY_FILE=/path/to/cosign.key ./build.sh --push container
+  ./build.sh --push base             # push + sign only 'base' variant
+  COSIGN_KEY_FILE=/path/to/cosign.key ./build.sh --push base
                                      # push + sign using key file
-  COSIGN_KEY="\$(cat cosign.key)" ./build.sh --push container
+  COSIGN_KEY="\$(cat cosign.key)" ./build.sh --push base
                                      # push + sign using key from env
 EOF
 }
