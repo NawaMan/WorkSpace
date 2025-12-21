@@ -24,7 +24,9 @@ ARG MVN_VERSION=3.9.11
 
 # You only need one of the below.
 
-# RUN "$WS_SETUPS_DIR"/jdk--setup.sh 8
+RUN "$WS_SETUPS_DIR"/jenv--setup.sh
+
+RUN "$WS_SETUPS_DIR"/jdk--setup.sh 8
 RUN "$WS_SETUPS_DIR"/jdk--setup.sh 9
 RUN "$WS_SETUPS_DIR"/java-nb-kernel--setup.sh
 # RUN "$WS_SETUPS_DIR"/jdk--setup.sh 10          # Not sure why this does not work in Dockerfile ... but works manually
@@ -65,7 +67,6 @@ RUN jbang - 'class Hi { public static void main(String[]a){System.out.println("H
 
 RUN "$WS_SETUPS_DIR"/mvn--setup.sh
 RUN "$WS_SETUPS_DIR"/gradle--setup.sh
-RUN "$WS_SETUPS_DIR"/jenv--setup.sh
 
 RUN if [[ "$WS_HAS_VSCODE"  != false ]]; then "$WS_SETUPS_DIR"/java-code-extension--setup.sh                    ; fi
 RUN if [[ "$WS_HAS_DESKTOP" != false ]]; then "$WS_SETUPS_DIR"/eclipse--setup.sh                                ; fi

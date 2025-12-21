@@ -32,3 +32,4 @@ install_extensions                                      \
     vscjava.vscode-java-pack                            \
     vscjava.vscode-java-test                            \
     vscjava.vscode-maven                                \
+    vscjava.vscode-lombok                               \

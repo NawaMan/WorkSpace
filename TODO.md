@@ -7,14 +7,14 @@ A list of upcoming ideas, improvements, and future goals for the workspace launc
 
 ## Core Features
 - [ ] Add TESTS, add TESTS, add TESTS, add TESTS!!!
-- [ ] Remove CVEs 
-- [ ] Try to not have "user-land" setup print anthing (unless error) -- nodejs-example
+- [ ] Remove CVEs -- give up
+- [X] Try to not have "user-land" setup print anthing (unless error) -- nodejs-example
 - [ ] Improve Docker-in-Docker (DinD) integration — ideally without relying on a sidecar container.
 - [ ] Add Kubernetes (K8s) support.
 - [ ] Support non-X11 environments (e.g., Unity, Omarchy, Wayland).
-- [ ] Rename “variant” to “interface” for clarity:
+- [-] Rename “variant” to “interface” for clarity: -- NOTE: `variant` is good.
 - [ ] Add desktop icons for IDEs (e.g., VS Code, JetBrains IDEs).
-- [ ] Simplify adding Jupyter Notebooks to desktop environments (auto-add like VS Code).
+- [-] Simplify adding Jupyter Notebooks to desktop environments (auto-add like VS Code).
 - [ ] Evaluate using host disk or tmpfs (RAM) for `$HOME` to improve I/O performance.
 - [X] Deprecate one of `KDE` or `LXQt` to reduce maintenance complexity.
 - [ ] Improve container startup speed — some setup tasks run too early (in `STARTUP`).

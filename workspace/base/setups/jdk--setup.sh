@@ -27,6 +27,7 @@ die() { echo "❌ $*" >&2; exit 1; }
 [[ "${EUID}" -eq 0 ]] || die "This script must be run as root (use sudo)."
 
 PROFILE_FILE="/etc/profile.d/60-ws-jdk--profile.sh"
+STARTUP_FILE="/usr/share/startup.d/60-ws-jdk--startup.sh"
 
 # --- Defaults ---
 JDK_VERSION="21"
@@ -205,6 +206,21 @@ jdk_setup_info() {
 alias jdk-setup-info='jdk_setup_info'
 EOF
 chmod 0644 "$PROFILE_FILE"
+
+log "Writing ${STARTUP_FILE} ..."
+export JDK_HOME
+envsubst '$JDK_HOME' > ${STARTUP_FILE} <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+for jdk_name in $(ls /opt 2>/dev/null | grep -E '^jdk[0-9]+$' || true); do
+  jenv add "/opt/$jdk_name" >/dev/null 2>&1 || true
+done
+
+jenv local "$JDK_HOME" >/dev/null 2>&1 || true
+
+EOF
+chmod 755 "${STARTUP_FILE}"
 
 # --- Summary ---
 echo "✅ JDK ${JDK_VERSION} (${ACTIVE_VENDOR}) installed."
