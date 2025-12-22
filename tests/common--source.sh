@@ -8,3 +8,25 @@ script_relative_path() {
   root=$(realpath "$root")
   echo "${script_abs#${root}/tests/}"
 }
+
+# Print standardized test result
+# Usage: print_test_result <success> <script_path> <test_number> <description>
+#   success: "true" or "false"
+#   script_path: path to test script (usually $0)
+#   test_number: test number
+#   description: test description
+print_test_result() {
+  local success="$1"
+  local script_path="$2"
+  local test_number="$3"
+  local description="$4"
+  
+  local relative_path=$(script_relative_path "$script_path")
+  local icon="✅"
+  
+  if [[ "$success" != "true" ]]; then
+    icon="❌"
+  fi
+  
+  echo "${icon} ${relative_path}: Test ${test_number}: ${description}"
+}

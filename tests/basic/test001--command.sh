@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source ../common--source.sh
+
 # Define cleanup
 cleanup() {
   rm -f in-workspace.txt in-host.txt
@@ -13,9 +15,9 @@ echo $DATE > in-host.txt
 ../../workspace.sh --variant base -- echo $DATE '>' in-workspace.txt
 
 if diff -u in-workspace.txt in-host.txt; then
-  echo "✅ Match"
+  print_test_result "true" "$0" "1" "Command execution matches"
 else
-  echo "❌ Differ"
+  print_test_result "false" "$0" "1" "Command execution matches"
   echo "-------------------------------------------------------------------------------"
   echo "Expected: "
   echo "$EXPECT"

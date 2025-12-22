@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source ../common--source.sh
+
 HOST_UID="$(id -u)"
 HOST_GID="$(id -g)"
 
@@ -29,9 +31,9 @@ COMMAND:
 GENERAL:"
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
-  echo "✅ Match"
+  print_test_result "true" "$0" "1" "Help output matches expected"
 else
-  echo "❌ Differ"
+  print_test_result "false" "$0" "1" "Help output matches expected"
   echo "-------------------------------------------------------------------------------"
   echo "Expected: "
   echo "$EXPECT"

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source ../common--source.sh
+
 function generate_name() {
   local name
   while :; do
@@ -62,9 +64,9 @@ done
 # -------------------------------------------------------
 
 if docker inspect "$NAME" >/dev/null 2>&1; then
-  echo "✅ Container '$NAME' exists and exposes expected port $PORT"
+  print_test_result "true" "$0" "1" "Container '$NAME' exists and exposes expected port $PORT"
 else
-  echo "❌ Container '$NAME' does NOT exist"
+  print_test_result "false" "$0" "1" "Container '$NAME' exists and exposes expected port $PORT"
   exit 1
 fi
 
@@ -72,9 +74,9 @@ fi
 sleep 7
 
 if docker inspect "$NAME" >/dev/null 2>&1; then
-  echo "✅ Container '$NAME' still exists as it is kept alive"
+  print_test_result "true" "$0" "2" "Container '$NAME' still exists as it is kept alive"
 else
-  echo "❌ Container '$NAME' does NOT exist -- it was not kept alive"
+  print_test_result "false" "$0" "2" "Container '$NAME' does NOT exist -- it was not kept alive"
   exit 1
 fi
 
@@ -82,8 +84,8 @@ docker stop $NAME >/dev/null 2>&1 || true
 docker rm   $NAME >/dev/null 2>&1 || true
 
 if ! docker inspect "$NAME" >/dev/null 2>&1; then
-  echo "✅ Container '$NAME' has now been removed"
+  print_test_result "true" "$0" "3" "Container '$NAME' has now been removed"
 else
-  echo "❌ Container '$NAME' still exists even after explicit removal request"
+  print_test_result "false" "$0" "3" "Container '$NAME' still exists even after explicit removal request"
   exit 1
 fi

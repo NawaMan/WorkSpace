@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source ../common--source.sh
+
 HOST_UID="$(id -u)"
 HOST_GID="$(id -g)"
 
@@ -34,7 +36,9 @@ VARIANTS=(
   "kde:desktop-kde"
 )
 
+test_num=0
 for entry in "${VARIANTS[@]}"; do
+  test_num=$((test_num + 1))
   WANT_VARIANT="${entry%%:*}"
   GOT_VARIANT="${entry#*:}"
 
@@ -81,9 +85,9 @@ bash -lc 'sleep 1' \
 "
 
   if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
-    echo "✅ Match: variant '${WANT_VARIANT}' -> '${GOT_VARIANT}'"
+    print_test_result "true" "$0" "$test_num" "variant '${WANT_VARIANT}' -> '${GOT_VARIANT}'"
   else
-    echo "❌ Differ: variant '${WANT_VARIANT}' -> '${GOT_VARIANT}'"
+    print_test_result "false" "$0" "$test_num" "variant '${WANT_VARIANT}' -> '${GOT_VARIANT}'"
     echo "-------------------------------------------------------------------------------"
     echo "Expected (${WANT_VARIANT} -> ${GOT_VARIANT}):"
     echo "$EXPECT"
@@ -95,4 +99,4 @@ bash -lc 'sleep 1' \
   fi
 done
 
-echo "✅ All variants and aliases produced the expected docker command."
+print_test_result "true" "$0" "$((test_num + 1))" "All variants and aliases produced the expected docker command."

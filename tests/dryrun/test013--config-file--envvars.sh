@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source ../common--source.sh
+
 HOST_UID="$(id -u)"
 HOST_GID="$(id -g)"
 
@@ -64,9 +66,9 @@ WORKSPACE_PORT: NEXT
 WS_VERSION:     $VERSION"
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
-  echo "✅ Match - Expected default variables"
+  print_test_result "true" "$0" "1" "Expected default variables"
 else
-  echo "❌ Differ - Expected default variables"
+  print_test_result "false" "$0" "1" "Expected default variables"
   echo "-------------------------------------------------------------------------------"
   echo "Expected: "
   echo "$EXPECT"
@@ -139,9 +141,9 @@ WORKSPACE_PORT: 10005
 WS_VERSION:     ${VERSION}"
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
-  echo "✅ Match - Override variables"
+  print_test_result "true" "$0" "2" "Override variables"
 else
-  echo "❌ Differ - Override variables"
+  print_test_result "false" "$0" "2" "Override variables"
   echo "-------------------------------------------------------------------------------"
   echo "Expected: "
   echo "$EXPECT"

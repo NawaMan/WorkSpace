@@ -7,6 +7,8 @@
 
 set -euo pipefail
 
+source ../common--source.sh
+
 # ---- Config -------------------------------------------------------------------
 # Path to your workspace launcher script. Override via env if needed.
 WS_SCRIPT="${WS_SCRIPT:-../../workspace.sh}"
@@ -65,14 +67,14 @@ failed_msgs=()
 
 pass() {
   total_checks=$((total_checks + 1))
-  printf '✅ passed: %s\n' "$*"
+  print_test_result "true" "$0" "$total_checks" "$*"
 }
 
 fail() {
   total_checks=$((total_checks + 1))
   failed_checks=$((failed_checks + 1))
   failed_msgs+=("$*")
-  printf '❌ failed: %s\n' "$*" >&2
+  print_test_result "false" "$0" "$total_checks" "$*"
 }
 
 # 1) SECRET from .env is visible

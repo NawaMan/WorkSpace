@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source ../common--source.sh
+
 DOCKERFILE=test--dockerfile
 
 cat > $DOCKERFILE <<'EOF'
@@ -34,9 +36,9 @@ EXPECT="TEST_VAR=Default-Test-Value"
 
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
-  echo "✅ Match - the default test value"
+  print_test_result "true" "$0" "1" "Match - the default test value"
 else
-  echo "❌ Differ - the default test value"
+  print_test_result "false" "$0" "1" "Match - the default test value"
   echo "-------------------------------------------------------------------------------"
   echo "Expected: "
   echo "$EXPECT"
@@ -56,9 +58,9 @@ ACTUAL=$(../../workspace.sh --dockerfile $DOCKERFILE --build-arg TEST_VALUE=Over
 EXPECT="TEST_VAR=Overriden-Test-Value"
 
 if diff -u <(echo "$EXPECT") <(echo "$ACTUAL"); then
-  echo "✅ Match - the overriden test value"
+  print_test_result "true" "$0" "2" "Match - the overriden test value"
 else
-  echo "❌ Differ - the overriden test value"
+  print_test_result "false" "$0" "2" "Match - the overriden test value"
   echo "-------------------------------------------------------------------------------"
   echo "Expected: "
   echo "$EXPECT"
@@ -71,9 +73,9 @@ fi
 
 # Validate that $0.log exists and is not empty
 if [[ -s "$0.log" ]]; then
-  echo "✅ Log file '$0.log' exists and is not empty -- contain the build log"
+  print_test_result "true" "$0" "3" "Log file '$0.log' exists and is not empty -- contain the build log"
 else
-  echo "❌ Log file '$0.log' is missing or empty"
+  print_test_result "false" "$0" "3" "Log file '$0.log' is missing or empty"
   exit 1
 fi
 
@@ -85,8 +87,8 @@ ACTUAL=$(../../workspace.sh --dockerfile $DOCKERFILE --silence-build -- 'echo TE
 
 # Validate that $0.log exists and is empty
 if [[ -e "$0.log" && ! -s "$0.log" ]]; then
-    echo "✅ Log file '$0.log' exists and is empty -- no build log as the build is silence"
+    print_test_result "true" "$0" "4" "Log file '$0.log' exists and is empty -- no build log as the build is silence"
 else
-    echo "❌ Log file '$0.log' is missing or not empty -- contain the build log"
+    print_test_result "false" "$0" "4" "Log file '$0.log' is missing or not empty -- contain the build log"
     exit 1
 fi

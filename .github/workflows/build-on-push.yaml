@@ -23,6 +23,8 @@ jobs:
         run: ./build.sh
       - name: Simple test
         run: ./sanity-test.sh
+      - name: Units tests
+        run: cd tests/units && ./run-all-tests.sh && cd ..
       - name: Basic tests
         run: cd tests/basic && ./run-basic-tests.sh && cd ..
       - name: DryRun tests
