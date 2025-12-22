@@ -16,6 +16,17 @@ echo "Running All Test Suites"
 echo "========================================"
 echo ""
 
+# Run units tests
+echo "----------------------------------------"
+echo "Running Units Tests"
+echo "----------------------------------------"
+total_suites=$((total_suites + 1))
+if ! (cd "$SCRIPT_DIR/units" && ./run-all-tests.sh); then
+    failed=1
+    failed_suites+=("units")
+fi
+echo ""
+
 # Run basic tests
 echo "----------------------------------------"
 echo "Running Basic Tests"

@@ -6,8 +6,8 @@ A list of upcoming ideas, improvements, and future goals for the workspace launc
 ---
 
 ## Core Features
-- [ ] Add TESTS, add TESTS, add TESTS, add TESTS!!!
-- [ ] Remove CVEs -- give up
+- [X] Add TESTS, add TESTS, add TESTS, add TESTS!!!
+- [-] Remove CVEs -- give up
 - [X] Try to not have "user-land" setup print anthing (unless error) -- nodejs-example
 - [ ] Improve Docker-in-Docker (DinD) integration — ideally without relying on a sidecar container.
 - [ ] Add Kubernetes (K8s) support.
