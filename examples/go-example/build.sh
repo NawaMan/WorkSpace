@@ -40,7 +40,8 @@ Examples:
   GOOS=windows GOARCH=amd64 ./build.sh
 
 Notes:
-- Output binary is written to ./bin/treemoji
+- Output binary is written to ./bin/
+- Windows builds end with .exe
 - When GOOS/GOARCH are not set, Go builds for the current platform.
 - See all supported targets: https://golang.org/doc/install/source#environment
 EOF
@@ -64,8 +65,16 @@ GOARCH=${GOARCH:-}
 TARGET_OS=${GOOS:-$(go env GOOS)}
 TARGET_ARCH=${GOARCH:-$(go env GOARCH)}
 
+# Add .exe suffix for Windows builds
+EXT=""
+if [[ "$TARGET_OS" == "windows" ]]; then
+  EXT=".exe"
+fi
+
+OUTPUT="$BIN_DIR/treemoji-${TARGET_OS}-${TARGET_ARCH}${EXT}"
+
 echo "Building treemoji for ${TARGET_OS}/${TARGET_ARCH}..."
 cd "$ROOT_DIR"
-GOFLAGS="$GOFLAGS" GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$BIN_DIR/treemoji-${TARGET_OS}-${TARGET_ARCH}" ./cmd/treemoji
+GOFLAGS="$GOFLAGS" GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$OUTPUT" ./cmd/treemoji
 
-echo "Built: $BIN_DIR/treemoji-${TARGET_OS}-${TARGET_ARCH}"
+echo "Built: $OUTPUT"
