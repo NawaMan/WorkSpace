@@ -44,8 +44,8 @@ CONTAINER_ENV_FILE:
 CONTAINER_NAME: dryrun
 DAEMON:         false
 DIND:           false
-DOCKER_FILE:    
 DO_PULL:        false
+DOCKER_FILE:    
 DRYRUN:         true
 HOST_GID:       $HOST_GID
 HOST_PORT:      10000
@@ -111,8 +111,8 @@ CONTAINER_ENV_FILE: test--.env
 CONTAINER_NAME: test-container
 DAEMON:         true
 DIND:           true
-DOCKER_FILE:    test--config.sh
 DO_PULL:        true
+DOCKER_FILE:    test--config.sh
 DRYRUN:         true
 HOST_GID:       $HOST_GID
 HOST_PORT:      10000

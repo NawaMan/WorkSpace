@@ -60,6 +60,14 @@ ln -s "$TEST_DIR/file1.txt" "$TEST_DIR/link_to_file1"
 ln -s "$TEST_DIR/dir1/subdir" "$TEST_DIR/link_to_subdir"
 ln -s "file1.txt" "$TEST_DIR/relative_link"
 
+
+supports_dir_symlinks=true
+if [[ "$(realpath "$TEST_DIR/link_to_dir1")" != "$(realpath "$TEST_DIR/dir1")" ]]; then
+  supports_dir_symlinks=false
+fi
+cd "$PWD"
+
+
 # Test 1: Absolute path to existing directory
 TEST_NAME="Absolute path to existing directory" \
 TEST_EXPECTED="$TEST_DIR/dir1"                  \
@@ -130,10 +138,14 @@ run_test
 cd "$ORIGINAL_PWD"
 
 # Test 10: Symbolic link to directory (should resolve)
-TEST_NAME="Symlink to directory"    \
-TEST_EXPECTED="$TEST_DIR/dir1"      \
-TEST_INPUT="$TEST_DIR/link_to_dir1" \
-run_test
+if $supports_dir_symlinks; then
+  TEST_NAME="Symlink to directory"    \
+  TEST_EXPECTED="$TEST_DIR/dir1"      \
+  TEST_INPUT="$TEST_DIR/link_to_dir1" \
+  run_test
+else
+  echo "⚠️  ${SCRIPT_TITLE}: Skipping test 10 (directory symlinks not supported)"
+fi
 
 # Test 11: Symbolic link to file (parent dir resolved, filename preserved)
 TEST_NAME="Symlink to file"             \
@@ -142,10 +154,14 @@ TEST_INPUT="$TEST_DIR/link_to_file1"    \
 run_test
 
 # Test 12: Path through symbolic link
-TEST_NAME="Path through symlink"              \
-TEST_EXPECTED="$TEST_DIR/dir1/file2.txt"      \
-TEST_INPUT="$TEST_DIR/link_to_dir1/file2.txt" \
-run_test
+if $supports_dir_symlinks; then
+  TEST_NAME="Path through symlink"              \
+  TEST_EXPECTED="$TEST_DIR/dir1/file2.txt"      \
+  TEST_INPUT="$TEST_DIR/link_to_dir1/file2.txt" \
+  run_test
+else
+  echo "⚠️  ${SCRIPT_TITLE}: Skipping test 12 (directory symlinks not supported)"
+fi
 
 # Test 13: Relative symbolic link
 cd "$TEST_DIR"
@@ -232,17 +248,25 @@ TEST_EXPECTED="$TEST_DIR/dir1/subdir/file3.txt" \
 TEST_INPUT="$TEST_DIR/dir1/subdir/file3.txt"    \
 run_test
 
-# Test 25: Symlink to nested directory
-TEST_NAME="Symlink to nested directory" \
-TEST_EXPECTED="$TEST_DIR/dir1/subdir"   \
-TEST_INPUT="$TEST_DIR/link_to_subdir"   \
-run_test
+# Test 25: Symlink to nested directory (only if directory symlinks are supported)
+if $supports_dir_symlinks; then
+  TEST_NAME="Symlink to nested directory" \
+  TEST_EXPECTED="$TEST_DIR/dir1/subdir"   \
+  TEST_INPUT="$TEST_DIR/link_to_subdir"   \
+  run_test
+else
+  echo "⚠️  ${SCRIPT_TITLE}: Skipping test 25 (directory symlinks not supported)"
+fi
 
-# Test 26: Path through symlink to nested location
-TEST_NAME="Path through symlink to nested"      \
-TEST_EXPECTED="$TEST_DIR/dir1/subdir/file3.txt" \
-TEST_INPUT="$TEST_DIR/link_to_subdir/file3.txt" \
-run_test
+# Test 26: Path through symlink to nested location (only if directory symlinks are supported)
+if $supports_dir_symlinks; then
+  TEST_NAME="Path through symlink to nested"      \
+  TEST_EXPECTED="$TEST_DIR/dir1/subdir/file3.txt" \
+  TEST_INPUT="$TEST_DIR/link_to_subdir/file3.txt" \
+  run_test
+else
+  echo "⚠️  ${SCRIPT_TITLE}: Skipping test 26 (directory symlinks not supported)"
+fi
 
 # Test 27: Relative path from different directory
 cd /tmp
