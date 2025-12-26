@@ -257,7 +257,7 @@ run_test
 UNICODE_DIR="$TEST_DIR/project-café"
 mkdir -p "$UNICODE_DIR"
 TEST_NAME="Unicode chars preserved" \
-TEST_EXPECTED="project-caf-e"        \
+TEST_EXPECTED="project-cafe"        \
 TEST_INPUT="$UNICODE_DIR"           \
 run_test
 
