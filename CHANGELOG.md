@@ -2,6 +2,10 @@
 
 This file contains a list of changes for each released version.
 
+## v0.11.0
+- Core engine rewritten in GO for portability and maintainability.
+- Repository history cleaned to remove legacy implementation artifacts.
+
 ## v0.10.0
 - Bring in the wrapper
 
