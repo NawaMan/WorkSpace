@@ -27,6 +27,17 @@ if ! (cd "$SCRIPT_DIR/units" && ./run-all-tests.sh); then
 fi
 echo ""
 
+# Run Go tests
+echo "----------------------------------------"
+echo "Running Go Tests"
+echo "----------------------------------------"
+total_suites=$((total_suites + 1))
+if ! (cd "$SCRIPT_DIR/go" && ./run-all-go-tests.sh); then
+    failed=1
+    failed_suites+=("go")
+fi
+echo ""
+
 # Run basic tests
 echo "----------------------------------------"
 echo "Running Basic Tests"
