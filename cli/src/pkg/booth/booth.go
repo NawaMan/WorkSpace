@@ -256,6 +256,11 @@ func PrepareCommonArgs(ctx appctx.AppContext) appctx.AppContext {
 	}
 
 	builder.CommonArgs.Append(ilist.NewList[string]("--name", containerName))
+
+	// Add container labels for lifecycle management
+	labels := GenerateLabels(ctx)
+	builder.CommonArgs.Append(labels)
+
 	builder.CommonArgs.Append(ilist.NewList[string]("-e", "HOST_UID="+ctx.HostUID()))
 	builder.CommonArgs.Append(ilist.NewList[string]("-e", "HOST_GID="+ctx.HostGID()))
 	builder.CommonArgs.Append(ilist.NewList[string]("-v", ctx.Code()+":/home/coder/code"))
