@@ -26,8 +26,40 @@ func main() {
 		case "run":
 			runBooth(version)
 			return
+
+		// Container lifecycle commands
+		case "list":
+			listBooths(version)
+			return
+		case "start":
+			startBooth(version)
+			return
+		case "stop":
+			stopBooth(version)
+			return
+		case "restart":
+			restartBooth(version)
+			return
+		case "remove", "rm":
+			removeBooth(version)
+			return
+
+		// Image workflow commands
+		case "commit":
+			commitBooth(version)
+			return
+		case "push":
+			pushImage(version)
+			return
+		case "backup":
+			backupImage(version)
+			return
+		case "restore":
+			restoreImage(version)
+			return
+
 		default:
-			// If it starts with --, treat as run with options
+			// If it starts with -, treat as run with options
 			if len(command) > 0 && command[0] == '-' {
 				runBooth(version)
 				return

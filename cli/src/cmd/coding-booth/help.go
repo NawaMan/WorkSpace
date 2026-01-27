@@ -24,6 +24,20 @@ USAGE:
   %s run [options] [--] [command ...]     (run the booth)
   %s [options] [--] [command ...]         (default action: run)
 
+CONTAINER LIFECYCLE:
+  %s list [--running] [--stopped] [-q]    (list all booth containers)
+  %s start [--name <n>] [--daemon]        (start a stopped booth)
+  %s stop [--name <n>] [--force]          (stop a running booth)
+  %s restart [--name <n>]                 (restart a booth)
+  %s remove [--force] [name...]           (remove stopped booth)
+  %s rm                                   (alias for remove)
+
+IMAGE WORKFLOW:
+  %s commit --tag <tag> [--name <n>]      (save container to image)
+  %s push <image> [--registry <url>]      (push image to registry)
+  %s backup <image> -o <file>             (save image to tar file)
+  %s restore <file>                       (load image from tar file)
+
 BOOTSTRAP OPTIONS (CLI or defaults; evaluated before environmental variable and config file):
   --code <path>          Host code path to mount at /home/coder/code
                          (default: current directory)
@@ -114,6 +128,19 @@ EXAMPLES:
 		scriptName,
 		scriptName,
 		scriptName,
+		// Container lifecycle
+		scriptName,
+		scriptName,
+		scriptName,
+		scriptName,
+		scriptName,
+		scriptName,
+		// Image workflow
+		scriptName,
+		scriptName,
+		scriptName,
+		scriptName,
+		// Examples
 		scriptName,
 		scriptName,
 		scriptName,
