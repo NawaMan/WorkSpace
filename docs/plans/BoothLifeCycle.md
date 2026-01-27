@@ -584,11 +584,11 @@ Each checkbox represents one commit. Check off as completed.
 
 ### Phase 0: Infrastructure & Foundation
 
-- [ ] **0.1 Add container label constants**
+- [x] **0.1 Add container label constants** ✓
   - Add `pkg/booth/labels.go` with label key constants (`cb.managed`, `cb.project`, `cb.variant`, `cb.code-path`, `cb.created-at`, `cb.version`, `cb.keep-alive`)
   - Add `GenerateLabels(ctx *appctx.AppContext) []string` function
 
-- [ ] **0.2 Add Docker helper functions for container management**
+- [x] **0.2 Add Docker helper functions for container management** ✓
   - Add `pkg/docker/container.go` with:
     - `ListContainers(filter string, flags DockerFlags) ([]ContainerInfo, error)`
     - `InspectContainer(name string, flags DockerFlags) (*ContainerInspect, error)`
@@ -597,7 +597,7 @@ Each checkbox represents one commit. Check off as completed.
     - `RemoveContainer(name string, force bool, flags DockerFlags) error`
     - `RestartContainer(name string, timeout int, flags DockerFlags) error`
 
-- [ ] **0.3 Add Docker helper functions for image management**
+- [x] **0.3 Add Docker helper functions for image management** ✓
   - Add `pkg/docker/image.go` with:
     - `CommitContainer(container string, tag string, message string, flags DockerFlags) error`
     - `PushImage(image string, flags DockerFlags) error`
@@ -605,43 +605,43 @@ Each checkbox represents one commit. Check off as completed.
     - `LoadImage(input string, flags DockerFlags) (string, error)`
     - `TagImage(source string, target string, flags DockerFlags) error`
 
-- [ ] **0.4 Refactor main.go for subcommand routing**
+- [x] **0.4 Refactor main.go for subcommand routing** ✓
   - Extend switch statement to handle: `list`, `start`, `stop`, `restart`, `remove`, `commit`, `push`, `backup`, `restore`
   - Each routes to a dedicated function
   - Update help.go with subcommand overview
 
 ### Phase 1: Core Container Management
 
-- [ ] **1.1 Add labels to `run` command**
+- [x] **1.1 Add labels to `run` command** ✓
   - Modify `pkg/booth/booth.go` `PrepareCommonArgs()` to include `--label` flags
   - Labels: `cb.managed=true`, `cb.project`, `cb.variant`, `cb.code-path`, `cb.created-at`, `cb.version`, `cb.keep-alive`
 
-- [ ] **1.2 Implement `list` command**
+- [x] **1.2 Implement `list` command** ✓
   - Add `cli/src/cmd/coding-booth/list.go`
   - Parse flags: `--running`, `--stopped`, `--quiet`
   - Use `docker ps -a --filter "label=cb.managed=true"`
   - Format output as table with columns: NAME, STATUS, VARIANT, PORT, CODE PATH, CREATED
 
-- [ ] **1.3 Implement `start` command**
+- [x] **1.3 Implement `start` command** ✓
   - Add `cli/src/cmd/coding-booth/start.go`
   - Parse flags: `--name`, `--code`, `--daemon`
   - Find container by name (from current dir or explicit) or by `cb.code-path` label
   - Verify container exists and is stopped
   - Run `docker start -ai <container>` (or `-d` for daemon mode)
 
-- [ ] **1.4 Implement `stop` command**
+- [x] **1.4 Implement `stop` command** ✓
   - Add `cli/src/cmd/coding-booth/stop.go`
   - Parse flags: `--name`, `--force`, `--time`
   - Find running container by name
   - Run `docker stop <container>`
   - If container lacks `cb.keep-alive=true` label, also run `docker rm`
 
-- [ ] **1.5 Implement `restart` command**
+- [x] **1.5 Implement `restart` command** ✓
   - Add `cli/src/cmd/coding-booth/restart.go`
   - Parse flags: `--name`, `--time`
   - Run `docker restart <container>`
 
-- [ ] **1.6 Implement `remove` command**
+- [x] **1.6 Implement `remove` command** ✓
   - Add `cli/src/cmd/coding-booth/remove.go`
   - Parse flags: `--name`, `--force`
   - Accept positional args for multiple container names
@@ -649,27 +649,27 @@ Each checkbox represents one commit. Check off as completed.
 
 ### Phase 2: Image Workflow
 
-- [ ] **2.1 Implement `commit` command**
+- [x] **2.1 Implement `commit` command** ✓
   - Add `cli/src/cmd/coding-booth/commit.go`
   - Parse flags: `--name`, `--tag` (required), `--message`
   - Find container (running or stopped)
   - Run `docker commit [-m <message>] <container> <tag>`
 
-- [ ] **2.2 Implement `push` command**
+- [x] **2.2 Implement `push` command** ✓
   - Add `cli/src/cmd/coding-booth/push.go`
   - Parse flags: `--registry`
   - Accept positional arg for image name
   - Tag image for registry if needed
   - Run `docker push <image>`
 
-- [ ] **2.3 Implement `backup` command**
+- [x] **2.3 Implement `backup` command** ✓
   - Add `cli/src/cmd/coding-booth/backup.go`
   - Parse flags: `--output` (required), `--compress`
   - Accept positional arg for image name
   - Run `docker save -o <file> <image>`
   - If `--compress`, pipe through gzip
 
-- [ ] **2.4 Implement `restore` command**
+- [x] **2.4 Implement `restore` command** ✓
   - Add `cli/src/cmd/coding-booth/restore.go`
   - Accept positional arg for file path
   - Detect gzip compression
@@ -678,14 +678,14 @@ Each checkbox represents one commit. Check off as completed.
 
 ### Phase 3: UID/GID Migration
 
-- [ ] **3.1 Implement marker file approach in booth-entry**
+- [x] **3.1 Implement marker file approach in booth-entry** ✓
   - Add marker file logic to `variants/base/booth-entry`
   - Marker location: `/home/coder/.booth-owner`
   - On startup: read marker, compare with current HOST_UID/HOST_GID
   - If different: targeted migration using `find ... -user OLD_UID -exec chown NEW_UID`
   - Always update marker at end
 
-- [ ] **3.2 Add skip migration option**
+- [x] **3.2 Add skip migration option** ✓
   - Add `CB_SKIP_MIGRATION=true` env var support
   - Document in README
 
@@ -723,9 +723,9 @@ Each checkbox represents one commit. Check off as completed.
 
 | Phase | Status | Commits |
 |-------|--------|---------|
-| Phase 0: Infrastructure | Not Started | 0/4 |
-| Phase 1: Container Management | Not Started | 0/6 |
-| Phase 2: Image Workflow | Not Started | 0/4 |
-| Phase 3: UID/GID Migration | Not Started | 0/2 |
+| Phase 0: Infrastructure | Complete | 4/4 |
+| Phase 1: Container Management | Complete | 6/6 |
+| Phase 2: Image Workflow | Complete | 4/4 |
+| Phase 3: UID/GID Migration | Complete | 2/2 |
 | Phase 4: Polish & Testing | Not Started | 0/6 |
-| **Total** | **Not Started** | **0/22** |
+| **Total** | **In Progress** | **16/22** |
