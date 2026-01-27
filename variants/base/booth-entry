@@ -143,15 +143,60 @@ else
   fi
 fi
 
-info "5) Fixing ownership for files owned by original UID:GID (skipping $CODE_DIR)..."
-if [ -n "$ORIG_UID" ] && [ "$ORIG_UID" != "$HOST_UID" ]; then
-  info "Changing ownership from UID $ORIG_UID to $HOST_UID..."
-  find "$HOME_DIR" -xdev -path "$CODE_DIR" -prune -o -user "$ORIG_UID" -exec chown "$HOST_UID" {} + 2>/dev/null || true
+info "5) UID/GID migration for committed images..."
+# This handles the case where a container was committed with a different UID/GID
+# and is now being run by a different user. The marker file persists through
+# docker commit, allowing us to detect and migrate ownership.
+
+CB_SKIP_MIGRATION="${CB_SKIP_MIGRATION:-false}"
+MARKER_FILE="$HOME_DIR/.booth-owner"
+
+# Read previous owner from marker file (if it exists)
+MARKER_UID=""
+MARKER_GID=""
+if [ -f "$MARKER_FILE" ]; then
+  MARKER_CONTENT="$(cat "$MARKER_FILE" 2>/dev/null || true)"
+  MARKER_UID="${MARKER_CONTENT%:*}"
+  MARKER_GID="${MARKER_CONTENT#*:}"
+  info "Found marker file: previous owner was UID:GID $MARKER_UID:$MARKER_GID"
 fi
-if [ -n "$ORIG_GID" ] && [ "$ORIG_GID" != "$HOST_GID" ]; then
-  info "Changing group from GID $ORIG_GID to $HOST_GID..."
-  find "$HOME_DIR" -xdev -path "$CODE_DIR" -prune -o -group "$ORIG_GID" -exec chgrp "$HOST_GID" {} + 2>/dev/null || true
+
+# Determine which UID/GID to migrate from (marker takes precedence over current owner)
+MIGRATE_FROM_UID=""
+MIGRATE_FROM_GID=""
+
+if [ -n "$MARKER_UID" ] && [ "$MARKER_UID" != "$HOST_UID" ]; then
+  MIGRATE_FROM_UID="$MARKER_UID"
+elif [ -n "$ORIG_UID" ] && [ "$ORIG_UID" != "$HOST_UID" ]; then
+  MIGRATE_FROM_UID="$ORIG_UID"
 fi
+
+if [ -n "$MARKER_GID" ] && [ "$MARKER_GID" != "$HOST_GID" ]; then
+  MIGRATE_FROM_GID="$MARKER_GID"
+elif [ -n "$ORIG_GID" ] && [ "$ORIG_GID" != "$HOST_GID" ]; then
+  MIGRATE_FROM_GID="$ORIG_GID"
+fi
+
+# Perform migration if needed (and not skipped)
+if [ "$CB_SKIP_MIGRATION" = "true" ]; then
+  info "Skipping UID/GID migration (CB_SKIP_MIGRATION=true)"
+else
+  if [ -n "$MIGRATE_FROM_UID" ]; then
+    echo "[cb-setup] Migrating file ownership from UID $MIGRATE_FROM_UID to $HOST_UID..."
+    info "This may take a while for large home directories."
+    find "$HOME_DIR" -xdev -path "$CODE_DIR" -prune -o -user "$MIGRATE_FROM_UID" -exec chown "$HOST_UID" {} + 2>/dev/null || true
+  fi
+  if [ -n "$MIGRATE_FROM_GID" ]; then
+    echo "[cb-setup] Migrating file group from GID $MIGRATE_FROM_GID to $HOST_GID..."
+    info "This may take a while for large home directories."
+    find "$HOME_DIR" -xdev -path "$CODE_DIR" -prune -o -group "$MIGRATE_FROM_GID" -exec chgrp "$HOST_GID" {} + 2>/dev/null || true
+  fi
+fi
+
+# Always update marker file with current UID/GID (for future commits)
+echo "$HOST_UID:$HOST_GID" > "$MARKER_FILE"
+chown "$HOST_UID:$HOST_GID" "$MARKER_FILE" 2>/dev/null || true
+info "Updated marker file: $HOST_UID:$HOST_GID"
 
 
 section "Allow sudo access to the user"
